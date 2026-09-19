@@ -675,6 +675,36 @@ async function loadRecentObservations(s,pointData){
  try{const stationsUrl=pointData.properties&&pointData.properties.observationStations;if(!stationsUrl)throw Error("no observation-station link");const list=await fetchJSON(stationsUrl,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points});const stationFeature=(list.data.features||[])[0];if(!stationFeature)throw Error("no nearby station");const stationId=stationFeature.properties&&stationFeature.properties.stationIdentifier;if(!stationId)throw Error("station id unavailable");const obs=await fetchJSON(`https://api.weather.gov/stations/${stationId}/observations?limit=18`,{cacheKey:`nws-observations:${stationId}`,ttl:TTL.observations});recentConditions=analyzeObservations(obs.data.features||[],stationFeature.properties||{});dataQuality.observedWind=obs.source;renderRecentConditions();updateDataQuality();updateRecoveryOutlook();updateBestWindow();return obs.source;}
  catch(e){try{recentConditions=await modeledRecentConditionsFallback(s);dataQuality.observedWind="fallback";renderRecentConditions();const src=document.getElementById("observedWindSource");if(src)src.textContent=`Modeled fallback — Open-Meteo • NWS station observations unavailable (${e.message})`;updateDataQuality();updateRecoveryOutlook();updateBestWindow();return "fallback";}catch(f){dataQuality.observedWind="unavailable";recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};renderRecentConditions();updateDataQuality();updateRecoveryOutlook();return "unavailable";}}
 }
+async function fetchPressureFallback(s){
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=surface_pressure&timezone=America%2FChicago&forecast_days=2`;
+ const cacheKey=`pressure-only:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;
+ let j=null,source="live";
+ const fresh=cacheRead(cacheKey,TTL.weather);
+ if(fresh){j=fresh;source="cache";}
+ else{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+  try{
+   const r=await fetch(u,{signal:controller.signal});
+   if(!r.ok)throw Error(`HTTP ${r.status}`);
+   j=await r.json();
+   if(!j||j.error)throw Error((j&&j.reason)||"pressure API error");
+   cacheWrite(cacheKey,j);
+  }catch(e){
+   const stale=cacheReadStale(cacheKey);
+   if(stale){j=stale;source="stale";}
+   else throw Error(e.name==="AbortError"?"pressure request timed out":e.message);
+  }finally{clearTimeout(timer)}
+ }
+ const times=(j.hourly&&j.hourly.time)||[],vals=(j.hourly&&j.hourly.surface_pressure)||[];
+ if(!times.length||!vals.length)throw Error("pressure fallback returned no hourly values");
+ const now=Date.now();
+ let idx=times.findIndex(t=>new Date(t).getTime()>=now-30*60000);
+ if(idx<0)idx=Math.max(0,times.length-6);
+ const series=vals.slice(idx,idx+6).map(Number).filter(Number.isFinite);
+ if(!series.length)throw Error("pressure fallback returned no usable values");
+ const a=series[0],b=series[Math.min(3,series.length-1)],diff=(b-a)*0.0295299831;
+ return {series,pressureInHg:a*0.0295299831,trend:diff>.03?"Rising":diff<-.03?"Falling":"Stable",source};
+}
 async function loadWeatherFallback(s,nwsReason){
  try{
   const f=await fetchOpenMeteoForSpot(s);
@@ -682,14 +712,21 @@ async function loadWeatherFallback(s,nwsReason){
   if(!wx)throw Error("fallback returned no hourly periods");
   document.getElementById("wind").textContent=`${wx.windDirection} ${wx.windSpeed}`;
   document.getElementById("weather").textContent=`${wx.temperature}°F, ${wx.shortForecast} • fallback`;
-  pressureSeries=f.pressureSeries||[];
-  if(pressureSeries.length){
-   const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
-   document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
-   document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
-  }else{
-   document.getElementById("pressure").textContent="Unavailable";
-   document.getElementById("pressureTrend").textContent="Unavailable";
+  try{
+   const pf=await fetchPressureFallback(s);
+   pressureSeries=pf.series;
+   document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
+   document.getElementById("pressureTrend").textContent=pf.trend;
+  }catch(pe){
+   pressureSeries=f.pressureSeries||[];
+   if(pressureSeries.length){
+    const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
+    document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
+    document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+   }else{
+    document.getElementById("pressure").textContent="Unavailable";
+    document.getElementById("pressureTrend").textContent="Unavailable";
+   }
   }
   dataQuality.weather=f.source||"live";updateDataQuality();updateBestWindow();
   return {warning:`NWS forecast unavailable (${nwsReason}); using Open-Meteo fallback`};
@@ -727,18 +764,11 @@ async function loadWeather(s){
    else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
   }catch(e){
    try{
-    const pf=await fetchOpenMeteoForSpot(s);
-    pressureSeries=pf.pressureSeries||[];
-    if(pressureSeries.length){
-     const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
-     document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
-     document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
-     gridWarning=`NWS pressure data unavailable (${e.message}); using Open-Meteo pressure fallback`;
-    }else{
-     document.getElementById("pressure").textContent="Unavailable";
-     document.getElementById("pressureTrend").textContent="Unavailable";
-     gridWarning=`NWS pressure data unavailable (${e.message}); fallback returned no pressure`;
-    }
+    const pf=await fetchPressureFallback(s);
+    pressureSeries=pf.series;
+    document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
+    document.getElementById("pressureTrend").textContent=pf.trend;
+    gridWarning=`NWS pressure data unavailable (${e.message}); using dedicated Open-Meteo pressure fallback`;
    }catch(pe){
     pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`Pressure unavailable (NWS: ${e.message}; fallback: ${pe.message})`;
    }
@@ -898,7 +928,8 @@ async function fetchOpenMeteoForSpot(s){
   pressure:(hr.surface_pressure&&hr.surface_pressure[i])||null
  })).filter(x=>x.startTime);
  if(!periods.length)throw Error("Open-Meteo returned no hourly forecast");
- const pressureSeries=periods.slice(0,6).map(x=>Number(x.pressure)).filter(Number.isFinite);
+ let pi=periods.findIndex(x=>new Date(x.startTime).getTime()>=Date.now()-30*60000);if(pi<0)pi=0;
+ const pressureSeries=periods.slice(pi,pi+6).map(x=>Number(x.pressure)).filter(Number.isFinite);
  return {wx:periods[0],hourlyPeriods:periods,pressureSeries,pressureTrend:pressureTrendFromSeries(pressureSeries),source,provider:"Open-Meteo"};
 }
 async function fetchTomorrowWeatherResilient(s){

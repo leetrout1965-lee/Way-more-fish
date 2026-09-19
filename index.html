@@ -352,24 +352,24 @@ const spots=[
 ]
 // Live salinity sources. Each spot uses the nearest practical monitoring station, not an exact on-spot reading.
 const salinitySources={
- "Vermilion Bay":{provider:"USGS",site:"07387040",name:"Vermilion Bay near Cypremort Point",note:"Regional proxy for Vermilion Bay spots"},
- "Big Lake / Calcasieu":{provider:"USGS",site:"08017095",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy for Big Lake spots"},
- "West Cove":{provider:"USGS",site:"08017095",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy; conditions can differ inside West Cove"},
- "Hackberry":{provider:"USGS",site:"08017095",name:"North Calcasieu Lake near Hackberry",note:"Nearest continuous Calcasieu Lake salinity source"},
- "Dularge":{provider:"USGS",site:"073813498",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Dularge waters; interior lakes can differ"},
- "Cocodrie":{provider:"USGS",site:"073813498",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Cocodrie / Terrebonne waters"},
- "Lake Pelto":{provider:"USGS",site:"073813498",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Lake Pelto; local reef conditions can differ"},
+ "Vermilion Bay":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional proxy for Vermilion Bay spots; backup is a broad coastal proxy"},
+ "Big Lake / Calcasieu":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy for Big Lake spots; backup is farther north in the Calcasieu system"},
+ "West Cove":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy; conditions can differ inside West Cove; backup is farther north"},
+ "Hackberry":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Nearest continuous Calcasieu Lake salinity source; backup is farther north"},
+ "Dularge":{provider:"USGS",site:"073813498",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Dularge waters; backup is a broader coastal proxy"},
+ "Cocodrie":{provider:"USGS",site:"073813498",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Cocodrie / Terrebonne waters; backup is a broader coastal proxy"},
+ "Lake Pelto":{provider:"USGS",site:"073813498",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Lake Pelto; backup is a broader coastal proxy"},
  "Delacroix / Hopedale / Shell Beach":{provider:"reference",site:"",name:"St. Bernard marsh",note:"No dependable near-real-time salinity feed connected yet"},
- "Lafitte / Barataria":{provider:"reference",site:"",name:"Barataria system",note:"No dependable near-real-time salinity feed connected yet"},
- "Leeville / Fourchon":{provider:"reference",site:"",name:"Fourchon / Caminada system",note:"No dependable near-real-time salinity feed connected yet"},
- "Pointe aux Chenes / Montegut":{provider:"reference",site:"",name:"Pointe aux Chenes marsh",note:"No dependable near-real-time salinity feed connected yet"},
+ "Lafitte / Barataria":{provider:"reference",site:"",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Barataria system",note:"No local real-time salinity feed; Grand Isle is only a broad lower-bay fallback"},
+ "Leeville / Fourchon":{provider:"reference",site:"",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Fourchon / Caminada system",note:"No local real-time salinity feed; Grand Isle is a broad coastal fallback"},
+ "Pointe aux Chenes / Montegut":{provider:"reference",site:"",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Pointe aux Chenes marsh",note:"No local real-time salinity feed; Cocodrie is a regional fallback"},
  "Empire / Buras / Venice":{provider:"reference",site:"",name:"Lower Mississippi Delta",note:"No dependable near-real-time salinity feed connected yet"},
  "Lake Borgne / Rigolets":{provider:"reference",site:"",name:"Lake Borgne / Rigolets",note:"No dependable near-real-time salinity feed connected yet"},
  "Lake Pontchartrain":{provider:"reference",site:"",name:"Lake Pontchartrain",note:"No dependable near-real-time salinity feed connected yet"},
- "Four League Bay / Atchafalaya":{provider:"reference",site:"",name:"Four League / Atchafalaya Bay",note:"No dependable near-real-time salinity feed connected yet"},
- "Prien Lake":{provider:"USGS",site:"08017044",name:"Calcasieu River at I-10 at Lake Charles",note:"Closest continuous salinity source for Prien Lake"},
- "Grand Isle":{provider:"USGS",site:"073802516",name:"Barataria Pass at Grand Isle",note:"Regional proxy for Grand Isle / Barataria spots"},
- "Sabine":{provider:"reference",site:"",name:"Sabine Lake",note:"No dependable near-real-time salinity feed connected yet"}
+ "Four League Bay / Atchafalaya":{provider:"reference",site:"",backupSite:"07387040",backupName:"Vermilion Bay near Cypremort Point",name:"Four League / Atchafalaya Bay",note:"No local real-time salinity feed; Vermilion Bay is a broad regional fallback"},
+ "Prien Lake":{provider:"USGS",site:"08017044",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Calcasieu River at I-10 at Lake Charles",note:"Closest continuous salinity source for Prien Lake; backup is lower in the Calcasieu system"},
+ "Grand Isle":{provider:"USGS",site:"073802516",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Barataria Pass at Grand Isle",note:"Regional proxy for Grand Isle / Barataria spots; backup is a broader west-side coastal proxy"},
+ "Sabine":{provider:"reference",site:"",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Sabine Lake",note:"No local real-time salinity feed; Hackberry is only a broad southwest-Louisiana fallback"}
 };
 
 const structureDetails={
@@ -660,26 +660,59 @@ function analyzeObservations(features,station){
  const observedWind=Number.isFinite(latestWind)?`${degToCompass(latestDir)} ${latestWind.toFixed(0)} mph${Number.isFinite(latestGust)?`, gust ${latestGust.toFixed(0)}`:""}`:"Unavailable";
  return {risk,penalty,maxGust,maxWind,rainIn:maxRain,windShift:shift,observedWind,stationName:station.name||station.stationName||"Nearby station",stationId:station.stationIdentifier||"",age:ageLabel(latest.timestamp),thunder};
 }
+
+async function fetchOpenMeteoMarineForSpot(s){
+ const u=`https://marine-api.open-meteo.com/v1/marine?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=sea_level_height_msl,sea_surface_temperature,ocean_current_velocity,ocean_current_direction&timezone=America%2FChicago&forecast_days=3&temperature_unit=fahrenheit&length_unit=imperial&cell_selection=sea`;
+ const cacheKey=`openmeteo-marine:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;const fresh=cacheRead(cacheKey,TTL.tides);let j=null,source="live";
+ if(fresh){j=fresh;source="cache";}else{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(u,{signal:controller.signal});if(!r.ok)throw Error(`HTTP ${r.status}`);j=await r.json();if(!j||j.error)throw Error((j&&j.reason)||"Open-Meteo Marine API error");cacheWrite(cacheKey,j);}catch(e){const stale=cacheReadStale(cacheKey);if(stale){j=stale;source="stale";}else throw Error(e.name==="AbortError"?"marine fallback timed out":e.message);}finally{clearTimeout(timer)}}
+ const h=j.hourly||{},times=h.time||[],levels=h.sea_level_height_msl||[],temps=h.sea_surface_temperature||[],curr=h.ocean_current_velocity||[],currDir=h.ocean_current_direction||[];
+ const rows=times.map((t,i)=>({time:new Date(t),level:Number(levels[i]),tempF:Number(temps[i]),current:Number(curr[i]),currentDir:Number(currDir[i])})).filter(x=>Number.isFinite(x.time.getTime()));if(!rows.length)throw Error("marine fallback returned no hourly data");return {rows,source,provider:"Open-Meteo Marine"};
+}
+function marineTideEvents(rows){const valid=(rows||[]).filter(x=>Number.isFinite(x.level)),out=[];for(let i=1;i<valid.length-1;i++){const a=valid[i-1],b=valid[i],c=valid[i+1];if(b.level>=a.level&&b.level>c.level)out.push({t:b.time.toISOString().slice(0,16).replace("T"," "),v:(b.level*3.28084).toFixed(2),type:"H"});else if(b.level<=a.level&&b.level<c.level)out.push({t:b.time.toISOString().slice(0,16).replace("T"," "),v:(b.level*3.28084).toFixed(2),type:"L"});}return out;}
+function compassToDeg(dir){const m={N:0,NNE:22.5,NE:45,ENE:67.5,E:90,ESE:112.5,SE:135,SSE:157.5,S:180,SSW:202.5,SW:225,WSW:247.5,W:270,WNW:292.5,NW:315,NNW:337.5};return m[String(dir||"").toUpperCase()]??null;}
+async function modeledRecentConditionsFallback(s){const f=await fetchOpenMeteoForSpot(s),rows=f.hourlyPeriods||[],now=Date.now(),recent=rows.filter(p=>{const t=new Date(p.startTime).getTime();return t<=now+3600000&&t>=now-6*3600000;}),use=recent.length?recent:rows.slice(0,1);let maxGust=null,maxWind=null,dirs=[];for(const p of use){const w=parseWindMph(p.windSpeed),g=Number(p.windGust);if(Number.isFinite(w))maxWind=maxWind==null?w:Math.max(maxWind,w);if(Number.isFinite(g))maxGust=maxGust==null?g:Math.max(maxGust,g);const d=compassToDeg(p.windDirection);if(Number.isFinite(d))dirs.push(d);}const latest=use[use.length-1]||f.wx,wind=parseWindMph(latest&&latest.windSpeed),dir=latest&&latest.windDirection,gust=Number(latest&&latest.windGust),shift=dirs.length>=2?circularDiff(dirs[0],dirs[dirs.length-1]):null;let pts=0;if(maxGust!=null){if(maxGust>=30)pts+=4;else if(maxGust>=22)pts+=3;else if(maxGust>=16)pts+=1;}if(maxWind!=null&&maxWind>=20)pts+=2;if(shift!=null){if(shift>=90)pts+=2;else if(shift>=45)pts+=1;}const risk=pts>=6?"HIGH":pts>=2?"MODERATE":"LOW",penalty=pts>=8?25:pts>=6?18:pts>=4?12:pts>=2?7:0;return {risk,penalty,maxGust,maxWind,rainIn:null,windShift:shift,observedWind:Number.isFinite(wind)?`${dir||""} ${wind.toFixed(0)} mph${Number.isFinite(gust)?`, gust ${gust.toFixed(0)}`:""}`.trim():"Unavailable",stationName:"Open-Meteo modeled fallback",stationId:"MODEL",age:"current model hour",thunder:false,modeled:true};}
 async function loadRecentObservations(s,pointData){
+ try{const stationsUrl=pointData.properties&&pointData.properties.observationStations;if(!stationsUrl)throw Error("no observation-station link");const list=await fetchJSON(stationsUrl,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points});const stationFeature=(list.data.features||[])[0];if(!stationFeature)throw Error("no nearby station");const stationId=stationFeature.properties&&stationFeature.properties.stationIdentifier;if(!stationId)throw Error("station id unavailable");const obs=await fetchJSON(`https://api.weather.gov/stations/${stationId}/observations?limit=18`,{cacheKey:`nws-observations:${stationId}`,ttl:TTL.observations});recentConditions=analyzeObservations(obs.data.features||[],stationFeature.properties||{});dataQuality.observedWind=obs.source;renderRecentConditions();updateDataQuality();updateRecoveryOutlook();updateBestWindow();return obs.source;}
+ catch(e){try{recentConditions=await modeledRecentConditionsFallback(s);dataQuality.observedWind="fallback";renderRecentConditions();const src=document.getElementById("observedWindSource");if(src)src.textContent=`Modeled fallback — Open-Meteo • NWS station observations unavailable (${e.message})`;updateDataQuality();updateRecoveryOutlook();updateBestWindow();return "fallback";}catch(f){dataQuality.observedWind="unavailable";recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};renderRecentConditions();updateDataQuality();updateRecoveryOutlook();return "unavailable";}}
+}
+async function loadWeatherFallback(s,nwsReason){
  try{
-  const stationsUrl=pointData.properties&&pointData.properties.observationStations;if(!stationsUrl)throw Error("no observation-station link");
-  const list=await fetchJSON(stationsUrl,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points});
-  const stationFeature=(list.data.features||[])[0];if(!stationFeature)throw Error("no nearby station");
-  const stationId=stationFeature.properties&&stationFeature.properties.stationIdentifier;if(!stationId)throw Error("station id unavailable");
-  const obs=await fetchJSON(`https://api.weather.gov/stations/${stationId}/observations?limit=18`,{cacheKey:`nws-observations:${stationId}`,ttl:TTL.observations});
-  recentConditions=analyzeObservations(obs.data.features||[],stationFeature.properties||{});dataQuality.observedWind=obs.source;renderRecentConditions();updateDataQuality();updateRecoveryOutlook();updateBestWindow();return obs.source;
- }catch(e){dataQuality.observedWind="unavailable";recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};renderRecentConditions();updateDataQuality();updateRecoveryOutlook();return "unavailable";}
+  const f=await fetchOpenMeteoForSpot(s);
+  hourlyPeriods=(f.hourlyPeriods||[]).slice(0,24);wx=f.wx||hourlyPeriods[0];
+  if(!wx)throw Error("fallback returned no hourly periods");
+  document.getElementById("wind").textContent=`${wx.windDirection} ${wx.windSpeed}`;
+  document.getElementById("weather").textContent=`${wx.temperature}°F, ${wx.shortForecast} • fallback`;
+  pressureSeries=f.pressureSeries||[];
+  if(pressureSeries.length){
+   const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
+   document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
+   document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+  }else{
+   document.getElementById("pressure").textContent="Unavailable";
+   document.getElementById("pressureTrend").textContent="Unavailable";
+  }
+  dataQuality.weather=f.source||"live";updateDataQuality();updateBestWindow();
+  return {warning:`NWS forecast unavailable (${nwsReason}); using Open-Meteo fallback`};
+ }catch(e){
+  dataQuality.weather="unavailable";updateDataQuality();
+  document.getElementById("wind").textContent="Unavailable";
+  document.getElementById("weather").textContent="Weather unavailable";
+  document.getElementById("pressure").textContent="Unavailable";
+  document.getElementById("pressureTrend").textContent="Unavailable";
+  throw Error(`Weather unavailable (NWS: ${nwsReason}; fallback: ${e.message})`);
+ }
 }
 async function loadWeather(s){
  const pointKey=`nws-point:${s.lat.toFixed(4)},${s.lon.toFixed(4)}`;
  let point;
- try{point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:pointKey,ttl:TTL.points});}
- catch(e){document.getElementById("wind").textContent="Unavailable";document.getElementById("weather").textContent="NWS error";document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";throw Error("NWS location lookup "+e.message)}
+ try{
+  point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:pointKey,ttl:TTL.points});
+ }catch(e){
+  return loadWeatherFallback(s,`location lookup ${e.message}`);
+ }
  const p=point.data;
  loadRecentObservations(s,p);
  try{
-  // Hourly forecast drives wind, weather and upcoming-window scoring.
-  // Grid data is optional because that larger NWS response can occasionally timeout.
   const h=await fetchJSON(p.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather,timeoutMs:12000});
   hourlyPeriods=(h.data.properties.periods||[]).slice(0,24);wx=hourlyPeriods[0];
   if(!wx)throw Error("hourly forecast returned no periods");
@@ -702,39 +735,32 @@ async function loadWeather(s){
   dataQuality.weather=stale.length?"stale":(sources.some(x=>x.source==="cache")?"cache":"live");
   updateDataQuality();
   const warnings=[];if(stale.length)warnings.push("NWS live request failed; showing recent cached weather");if(gridWarning)warnings.push(gridWarning);
-  return warnings.length?{warning:warnings.join("; ")}:{};
- }catch(e){dataQuality.weather="unavailable";updateDataQuality();document.getElementById("wind").textContent="Unavailable";document.getElementById("weather").textContent="NWS error";document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";throw Error("NWS weather "+e.message)}
+  return warnings.length?{warning:warnings.join("; ")}:{ };
+ }catch(e){
+  return loadWeatherFallback(s,`forecast ${e.message}`);
+ }
 }
 async function loadTides(s){
- const now=new Date(),tom=new Date(now.getTime()+86400000);
- const u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(now)}&end_date=${ymd(tom)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;
- let res;
- try{res=await fetchJSON(u,{cacheKey:`coops-tides:${s.tide}:${ymd(now)}`,ttl:TTL.tides});}
- catch(e){dataQuality.tides="unavailable";updateDataQuality();document.getElementById("tideStation").textContent=`NOAA ${s.tide} — ${s.tideName}`;document.getElementById("nextTide").textContent="Unavailable";document.getElementById("tideMove").textContent="NOAA error";document.getElementById("tideTable").innerHTML='<p class="small bad">Tide data could not load. Try again later.</p>';throw Error("NOAA tides "+e.message)}
- const j=res.data;tides=j.predictions||[];
- if(!tides.length)throw Error("NOAA tides returned no predictions");
- document.getElementById("tideStation").textContent=`NOAA ${s.tide} — ${s.tideName}`;
- const future=tides.filter(x=>new Date(x.t.replace(" ","T")).getTime()>Date.now()),n=future[0];
- if(n){document.getElementById("nextTide").textContent=`${n.type==="H"?"High":"Low"} ${n.v} ft at ${new Date(n.t.replace(" ","T")).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;document.getElementById("tideMove").textContent=n.type==="H"?"Rising toward high":"Falling toward low";}else{document.getElementById("nextTide").textContent="No later tide in cached window";document.getElementById("tideMove").textContent="Unavailable";}
- document.getElementById("tideTable").innerHTML="<table>"+tides.slice(0,4).map(x=>`<tr><td>${x.type==="H"?"High":"Low"}</td><td>${x.v} ft</td><td>${new Date(x.t.replace(" ","T")).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</td></tr>`).join("")+"</table>";
- if(selected)updateStructure(selected);
- updateBestWindow();
- dataQuality.tides=res.source;updateDataQuality();return res.source==="stale"?{warning:"NOAA live request failed; showing last cached tide predictions"}:{};
+ const now=new Date(),tom=new Date(now.getTime()+86400000),u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(now)}&end_date=${ymd(tom)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;
+ try{const res=await fetchJSON(u,{cacheKey:`coops-tides:${s.tide}:${ymd(now)}`,ttl:TTL.tides}),j=res.data;tides=j.predictions||[];if(!tides.length)throw Error("NOAA tides returned no predictions");document.getElementById("tideStation").textContent=`NOAA ${s.tide} — ${s.tideName}`;const future=tides.filter(x=>new Date(x.t.replace(" ","T")).getTime()>Date.now()),n=future[0];if(n){document.getElementById("nextTide").textContent=`${n.type==="H"?"High":"Low"} ${n.v} ft at ${new Date(n.t.replace(" ","T")).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;document.getElementById("tideMove").textContent=n.type==="H"?"Rising toward high":"Falling toward low";}else{document.getElementById("nextTide").textContent="No later tide in cached window";document.getElementById("tideMove").textContent="Unavailable";}document.getElementById("tideTable").innerHTML="<table>"+tides.slice(0,4).map(x=>`<tr><td>${x.type==="H"?"High":"Low"}</td><td>${x.v} ft</td><td>${new Date(x.t.replace(" ","T")).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</td></tr>`).join("")+"</table>";if(selected)updateStructure(selected);updateBestWindow();dataQuality.tides=res.source;updateDataQuality();return res.source==="stale"?{warning:"NOAA live request failed; showing last cached tide predictions"}:{};}
+ catch(e){try{const m=await fetchOpenMeteoMarineForSpot(s),mt=marineTideEvents(m.rows);if(!mt.length)throw Error("no modeled high/low turning points");tides=mt;document.getElementById("tideStation").textContent="Open-Meteo Marine fallback • modeled sea level (MSL)";const future=tides.filter(x=>new Date(x.t.replace(" ","T")).getTime()>Date.now()),n=future[0];if(n){document.getElementById("nextTide").textContent=`Modeled ${n.type==="H"?"high":"low"} near ${new Date(n.t.replace(" ","T")).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;document.getElementById("tideMove").textContent=n.type==="H"?"Modeled rising toward high":"Modeled falling toward low";}document.getElementById("tideTable").innerHTML='<p class="small muted">NOAA unavailable. Showing modeled sea-level turning points; values use mean sea level and are not navigation-grade tide heights.</p><table>'+tides.slice(0,4).map(x=>`<tr><td>${x.type==="H"?"High":"Low"}</td><td>${x.v} ft MSL</td><td>${new Date(x.t.replace(" ","T")).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</td></tr>`).join('')+'</table>';dataQuality.tides="fallback";updateDataQuality();updateBestWindow();return {warning:`NOAA tide predictions unavailable (${e.message}); using modeled Open-Meteo Marine sea level`};}catch(f){dataQuality.tides="unavailable";updateDataQuality();document.getElementById("tideStation").textContent=`NOAA ${s.tide} — ${s.tideName}`;document.getElementById("nextTide").textContent="Unavailable";document.getElementById("tideMove").textContent="Tide data unavailable";document.getElementById("tideTable").innerHTML='<p class="small bad">Both NOAA tides and the marine fallback failed.</p>';throw Error(`Tides unavailable (NOAA: ${e.message}; fallback: ${f.message})`);}}
 }
 function ageLabel(dateText){const d=new Date(dateText);if(!Number.isFinite(d.getTime()))return "time unknown";const mins=Math.max(0,Math.round((Date.now()-d.getTime())/60000));if(mins<60)return `${mins} min ago`;const hrs=Math.round(mins/60);if(hrs<48)return `${hrs} hr ago`;return `${Math.round(hrs/24)} d ago`;}
-function qualityText(v){return v==="live"?"Live":v==="cache"?"Recent cache":v==="stale"?"Stale fallback":v==="unavailable"?"Unavailable":"Waiting";}
+function qualityText(v){return v==="live"?"Live":v==="cache"?"Recent cache":v==="fallback"?"Independent fallback":v==="stale"?"Stale fallback":v==="unavailable"?"Unavailable":"Waiting";}
 function updateDataQuality(){
  const vals=[dataQuality.weather,dataQuality.observedWind,dataQuality.tides,dataQuality.salinity];
  document.getElementById("qualityWeather").textContent=qualityText(dataQuality.weather);
  document.getElementById("qualityObservedWind").textContent=qualityText(dataQuality.observedWind);
  document.getElementById("qualityTides").textContent=qualityText(dataQuality.tides);
  document.getElementById("qualitySalinity").textContent=qualityText(dataQuality.salinity)+(dataQuality.salinity!=="none"&&dataQuality.salinity!=="unavailable"?" • regional proxy":"");
- let pts=0;for(const v of vals){if(v==="live")pts+=2;else if(v==="cache")pts+=1.5;else if(v==="stale")pts+=0.5;}
+ let pts=0;for(const v of vals){if(v==="live")pts+=2;else if(v==="cache")pts+=1.5;else if(v==="fallback")pts+=1;else if(v==="stale")pts+=0.5;}
  const level=pts>=6.5?"High":pts>=4?"Medium":"Low";document.getElementById("qualityLevel").textContent=level;
- let notes=[];if(dataQuality.salinityProxy&&dataQuality.salinity!=="none"&&dataQuality.salinity!=="unavailable")notes.push("salinity comes from the nearest practical station, not the exact spot");if(vals.includes("stale"))notes.push("one or more sources are stale fallback data");if(vals.includes("unavailable"))notes.push("one or more sources are unavailable");if(recentConditions.risk==="HIGH")notes.push("recent observed conditions indicate high water-disruption risk");if(!notes.length&&pts>0)notes.push("forecast, observed wind and core water sources are live or recently cached");document.getElementById("qualityWhy").textContent=notes.length?notes.join(" • "):"Waiting for source status.";
+ let notes=[];if(dataQuality.salinityProxy&&dataQuality.salinity!=="none"&&dataQuality.salinity!=="unavailable")notes.push("salinity comes from the nearest practical station, not the exact spot");if(vals.includes("fallback"))notes.push("one or more primary sources failed and an independent fallback is active");if(vals.includes("stale"))notes.push("one or more sources are stale fallback data");if(vals.includes("unavailable"))notes.push("one or more sources are unavailable");if(recentConditions.risk==="HIGH")notes.push("recent observed conditions indicate high water-disruption risk");if(!notes.length&&pts>0)notes.push("forecast, wind, tide and water sources are live, cached, or using labeled fallbacks");document.getElementById("qualityWhy").textContent=notes.length?notes.join(" • "):"Waiting for source status.";
 }
 function speciesFromWater(sal,tempF){const month=new Date().getMonth()+1,warm=month>=4&&month<=10;let best=[],also=[],logic=[];if(sal<2){best=["Redfish","Black drum"];also=["Flounder"];logic.push("very low salinity favors fish that tolerate fresh-to-brackish water");}else if(sal<8){best=["Redfish","Black drum","Flounder"];also=["Speckled trout"];logic.push("low-brackish water is strong redfish/drum habitat; trout can still use it");}else if(sal<15){best=["Redfish","Speckled trout","Flounder"];also=["Black drum"];logic.push("moderate brackish salinity overlaps well with trout, redfish and flounder habitat");}else if(sal<25){best=["Speckled trout","Redfish","Flounder"];also=["Black drum","Sheepshead"];logic.push("higher-brackish water is especially favorable for speckled trout while still supporting redfish and flounder");}else{best=["Speckled trout","Redfish","Sheepshead"];also=["Flounder","Black drum"];logic.push("salty estuarine water strongly suits trout and other lower-bay species");}if(tempF!=null){if(tempF>=68&&tempF<=86)logic.push("water temperature is in a productive warm-season range");else if(tempF<60)logic.push("cool water can shift fish toward deeper channels and slower presentations");else if(tempF>88)logic.push("very warm water can push fish toward deeper or better-oxygenated water");}if(warm&&sal>=15)logic.push("season plus salinity also supports trout spawning-season habitat");return {best,also,logic:logic.join("; ")};}
-async function loadSalinity(s){const src=salinitySources[s.area];if(!src||src.provider!=="USGS"){dataQuality.salinity="unavailable";updateDataQuality();document.getElementById("salinityStatus").textContent="Unavailable";document.getElementById("waterTempStatus").textContent="Unavailable";document.getElementById("salinitySource").textContent=(src?src.note:"No salinity source assigned");document.getElementById("speciesFit").textContent="Species fit: not enough live water-quality data";document.getElementById("speciesWhy").textContent="The app will not estimate salinity when no dependable current source is available.";return {};}const url=`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${src.site}&parameterCd=00480,00010&siteStatus=all`;let res;try{res=await fetchJSON(url,{cacheKey:`usgs-water:${src.site}`,ttl:TTL.salinity});}catch(e){dataQuality.salinity="unavailable";updateDataQuality();document.getElementById("salinityStatus").textContent="Unavailable";document.getElementById("waterTempStatus").textContent="Unavailable";document.getElementById("salinitySource").textContent=`${src.provider} ${src.site} — ${src.name} • ${e.message}`;document.getElementById("speciesFit").textContent="Species fit: unavailable";document.getElementById("speciesWhy").textContent="No current salinity reading loaded.";throw Error("USGS salinity "+e.message)}const series=((res.data.value||{}).timeSeries)||[];let sal=null,tempC=null,time=null;for(const ts of series){const code=ts.variable&&ts.variable.variableCode&&ts.variable.variableCode[0]&&ts.variable.variableCode[0].value;const vals=ts.values&&ts.values[0]&&ts.values[0].value||[];const v=vals.length?vals[vals.length-1]:null;if(!v)continue;if(code==="00480"){sal=Number(v.value);time=v.dateTime}else if(code==="00010")tempC=Number(v.value);}if(sal==null||!Number.isFinite(sal))throw Error("USGS station returned no salinity value");const tempF=Number.isFinite(tempC)?tempC*9/5+32:null;document.getElementById("salinityStatus").textContent=`${sal.toFixed(1)} ppt`;document.getElementById("waterTempStatus").textContent=tempF==null?"Unavailable":`${tempF.toFixed(1)}°F`;document.getElementById("salinitySource").textContent=`${src.provider} ${src.site} — ${src.name} • ${ageLabel(time)} • ${src.note}`;const fit=speciesFromWater(sal,tempF);waterState={sal,tempF,fit};dataQuality.salinity=res.source;dataQuality.salinityAge=time;updateDataQuality();document.getElementById("speciesFit").textContent=`Best fit: ${fit.best.join(" • ")}`;document.getElementById("speciesWhy").textContent=`Also possible: ${fit.also.join(" • ")}. Why: ${fit.logic}.`;whatToThrowNow();return res.source==="stale"?{warning:"USGS live salinity request failed; showing last cached water-quality reading"}:{};}
+async function fetchUSGSWaterSite(site){const url=`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${site}&parameterCd=00480,00010&siteStatus=all`,res=await fetchJSON(url,{cacheKey:`usgs-water:${site}`,ttl:TTL.salinity}),series=((res.data.value||{}).timeSeries)||[];let sal=null,tempC=null,time=null;for(const ts of series){const code=ts.variable&&ts.variable.variableCode&&ts.variable.variableCode[0]&&ts.variable.variableCode[0].value,vals=ts.values&&ts.values[0]&&ts.values[0].value||[],v=vals.length?vals[vals.length-1]:null;if(!v)continue;if(code==="00480"){sal=Number(v.value);time=v.dateTime}else if(code==="00010")tempC=Number(v.value);}return {sal:Number.isFinite(sal)?sal:null,tempF:Number.isFinite(tempC)?tempC*9/5+32:null,time,source:res.source};}
+async function marineWaterTempFallback(s){const m=await fetchOpenMeteoMarineForSpot(s),r=m.rows.find(x=>Number.isFinite(x.tempF));if(!r)throw Error("no sea-surface temperature");return {tempF:r.tempF,source:m.source};}
+async function loadSalinity(s){const src=salinitySources[s.area]||{provider:"reference",note:"No salinity source assigned"};let data=null,label="",usedBackup=false;if(src.provider==="USGS"&&src.site){try{data=await fetchUSGSWaterSite(src.site);if(data.sal==null)data=null;else label=`USGS ${src.site} — ${src.name}`;}catch{}}if(!data&&src.backupSite){try{data=await fetchUSGSWaterSite(src.backupSite);if(data.sal==null)data=null;else{label=`USGS ${src.backupSite} — ${src.backupName||"regional backup station"}`;usedBackup=true;}}catch{}}let marineTemp=null;try{marineTemp=await marineWaterTempFallback(s);}catch{}if(!data){waterState={sal:null,tempF:marineTemp&&Number.isFinite(marineTemp.tempF)?marineTemp.tempF:null,fit:null};dataQuality.salinity="unavailable";updateDataQuality();document.getElementById("salinityStatus").textContent="Unavailable";document.getElementById("waterTempStatus").textContent=waterState.tempF==null?"Unavailable":`${waterState.tempF.toFixed(1)}°F • marine fallback`;document.getElementById("salinitySource").textContent=`${src.note||"No current salinity source"}${waterState.tempF!=null?" • water temperature backed up by Open-Meteo Marine":""}`;document.getElementById("speciesFit").textContent="Species fit: salinity not scored";document.getElementById("speciesWhy").textContent="No dependable salinity value loaded, so the app leaves salinity out rather than inventing one.";whatToThrowNow();return {warning:"Salinity unavailable; scoring continues without salinity"};}const tempF=Number.isFinite(data.tempF)?data.tempF:(marineTemp&&Number.isFinite(marineTemp.tempF)?marineTemp.tempF:null),sal=data.sal,fit=speciesFromWater(sal,tempF);waterState={sal,tempF,fit};dataQuality.salinity=usedBackup?"fallback":data.source;dataQuality.salinityAge=data.time;updateDataQuality();document.getElementById("salinityStatus").textContent=`${sal.toFixed(1)} ppt${usedBackup?" • fallback":""}`;document.getElementById("waterTempStatus").textContent=tempF==null?"Unavailable":`${tempF.toFixed(1)}°F${!Number.isFinite(data.tempF)&&marineTemp?" • marine fallback":""}`;document.getElementById("salinitySource").textContent=`${label} • ${ageLabel(data.time)} • ${src.note}${usedBackup?" • regional backup active":""}`;document.getElementById("speciesFit").textContent=`Best fit: ${fit.best.join(" • ")}`;document.getElementById("speciesWhy").textContent=`Also possible: ${fit.also.join(" • ")}. Why: ${fit.logic}.`;whatToThrowNow();return usedBackup?{warning:"Primary salinity source unavailable; using regional USGS backup"}:(data.source==="stale"?{warning:"USGS live salinity request failed; showing last cached water-quality reading"}:{});}
 
 function resetRecoveryOutlook(){
  const a=document.getElementById("recoveryPace"),b=document.getElementById("recoveryWindow"),c=document.getElementById("recoveryTide"),d=document.getElementById("recoveryWhy");
@@ -1135,44 +1161,13 @@ function bestWindowsFromData(data){
 }
 function qualitySummary(q){
  const vals=[q.weather,q.observedWind,q.tides,q.salinity];
- let pts=0;for(const v of vals){if(v==="live")pts+=2;else if(v==="cache")pts+=1.5;else if(v==="stale")pts+=0.5;}
+ let pts=0;for(const v of vals){if(v==="live")pts+=2;else if(v==="cache")pts+=1.5;else if(v==="fallback")pts+=1;else if(v==="stale")pts+=0.5;}
  const level=pts>=6.5?"High":pts>=4?"Medium":"Low";
  return level;
 }
-async function fetchWeatherForSpot(s){
- const point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:`nws-point:${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,ttl:TTL.points});
- const [h,g]=await Promise.all([
-  fetchJSON(point.data.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather}),
-  fetchJSON(point.data.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather})
- ]);
- const hourlyPeriods=(h.data.properties.periods||[]).slice(0,24);
- const wx=hourlyPeriods[0]||null;
- const pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[];
- const pressureSeries=pr.slice(0,6).map(v=>v.value/100);
- let source="live";
- if([h.source,g.source,point.source].includes("stale"))source="stale";
- else if([h.source,g.source,point.source].includes("cache"))source="cache";
- let recent=null,observedSource="unavailable";
- try{const stations=await fetchJSON(point.data.properties.observationStations,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points});const sf=(stations.data.features||[])[0];const sid=sf&&sf.properties&&sf.properties.stationIdentifier;if(sid){const obs=await fetchJSON(`https://api.weather.gov/stations/${sid}/observations?limit=18`,{cacheKey:`nws-observations:${sid}`,ttl:TTL.observations});recent=analyzeObservations(obs.data.features||[],sf.properties||{});observedSource=obs.source;}}catch{}
- return {wx,hourlyPeriods,pressureSeries,pressureTrend:pressureTrendFromSeries(pressureSeries),source,recent,observedSource};
-}
-async function fetchTidesForSpot(s){
- const now=new Date(),tom=new Date(now.getTime()+86400000);
- const u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(now)}&end_date=${ymd(tom)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;
- const res=await fetchJSON(u,{cacheKey:`coops-tides:${s.tide}:${ymd(now)}`,ttl:TTL.tides});
- return {tides:res.data.predictions||[],source:res.source};
-}
-async function fetchSalinityForSpot(s){
- const src=salinitySources[s.area];
- if(!src||src.provider!=="USGS")return {sal:null,tempF:null,fit:null,source:"unavailable",sourceLabel:src?src.note:"No salinity source assigned"};
- const url=`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${src.site}&parameterCd=00480,00010&siteStatus=all`;
- const res=await fetchJSON(url,{cacheKey:`usgs-water:${src.site}`,ttl:TTL.salinity});
- const series=((res.data.value||{}).timeSeries)||[];let sal=null,tempC=null,time=null;
- for(const ts of series){const code=ts.variable&&ts.variable.variableCode&&ts.variable.variableCode[0]&&ts.variable.variableCode[0].value;const vals=ts.values&&ts.values[0]&&ts.values[0].value||[];const v=vals.length?vals[vals.length-1]:null;if(!v)continue;if(code==="00480"){sal=Number(v.value);time=v.dateTime}else if(code==="00010")tempC=Number(v.value);} 
- if(sal==null||!Number.isFinite(sal))return {sal:null,tempF:null,fit:null,source:"unavailable",sourceLabel:`${src.provider} ${src.site} — ${src.name}`};
- const tempF=Number.isFinite(tempC)?tempC*9/5+32:null;
- return {sal,tempF,fit:speciesFromWater(sal,tempF),source:res.source,sourceLabel:`${src.provider} ${src.site} — ${src.name} • ${ageLabel(time)}`};
-}
+async function fetchWeatherForSpot(s){try{const point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:`nws-point:${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,ttl:TTL.points}),[h,g]=await Promise.all([fetchJSON(point.data.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather}),fetchJSON(point.data.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather})]),hourlyPeriods=(h.data.properties.periods||[]).slice(0,24),wx=hourlyPeriods[0]||null,pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[],pressureSeries=pr.slice(0,6).map(v=>v.value/100);let source="live";if([h.source,g.source,point.source].includes("stale"))source="stale";else if([h.source,g.source,point.source].includes("cache"))source="cache";let recent=null,observedSource="unavailable";try{const stations=await fetchJSON(point.data.properties.observationStations,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points}),sf=(stations.data.features||[])[0],sid=sf&&sf.properties&&sf.properties.stationIdentifier;if(sid){const obs=await fetchJSON(`https://api.weather.gov/stations/${sid}/observations?limit=18`,{cacheKey:`nws-observations:${sid}`,ttl:TTL.observations});recent=analyzeObservations(obs.data.features||[],sf.properties||{});observedSource=obs.source;}}catch{try{recent=await modeledRecentConditionsFallback(s);observedSource="fallback";}catch{}}return {wx,hourlyPeriods,pressureSeries,pressureTrend:pressureTrendFromSeries(pressureSeries),source,recent,observedSource};}catch(e){const f=await fetchOpenMeteoForSpot(s);let recent=null;try{recent=await modeledRecentConditionsFallback(s);}catch{}return {wx:f.wx,hourlyPeriods:f.hourlyPeriods,pressureSeries:f.pressureSeries||[],pressureTrend:f.pressureTrend||pressureTrendFromSeries(f.pressureSeries||[]),source:"fallback",recent,observedSource:recent?"fallback":"unavailable"};}}
+async function fetchTidesForSpot(s){const now=new Date(),tom=new Date(now.getTime()+86400000),u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(now)}&end_date=${ymd(tom)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;try{const res=await fetchJSON(u,{cacheKey:`coops-tides:${s.tide}:${ymd(now)}`,ttl:TTL.tides}),tt=res.data.predictions||[];if(!tt.length)throw Error("no NOAA predictions");return {tides:tt,source:res.source};}catch{const m=await fetchOpenMeteoMarineForSpot(s),tt=marineTideEvents(m.rows);if(!tt.length)throw Error("no marine fallback tide turning points");return {tides:tt,source:"fallback"};}}
+async function fetchSalinityForSpot(s){const src=salinitySources[s.area]||{};let d=null,usedBackup=false;if(src.provider==="USGS"&&src.site){try{d=await fetchUSGSWaterSite(src.site);if(d.sal==null)d=null;}catch{}}if(!d&&src.backupSite){try{d=await fetchUSGSWaterSite(src.backupSite);if(d.sal==null)d=null;else usedBackup=true;}catch{}}let mt=null;if(!d||d.tempF==null){try{mt=await marineWaterTempFallback(s);}catch{}}if(!d)return {sal:null,tempF:mt&&mt.tempF||null,fit:null,source:"unavailable",sourceLabel:src.note||"No salinity source assigned"};const tempF=Number.isFinite(d.tempF)?d.tempF:(mt&&mt.tempF||null);return {sal:d.sal,tempF,fit:speciesFromWater(d.sal,tempF),source:usedBackup?"fallback":d.source,sourceLabel:`USGS ${usedBackup?src.backupSite:src.site} — ${usedBackup?(src.backupName||"regional backup"):src.name} • ${ageLabel(d.time)}`};}
 async function buildCompareSpotData(s){
  const quality={weather:"unavailable",observedWind:"unavailable",tides:"unavailable",salinity:"unavailable",salinityProxy:true};
  let wx=null,hourlyPeriods=[],pressureSeries=[],pressureTrend="Unavailable",tidesList=[],salData={sal:null,tempF:null,fit:null,source:"unavailable"},recent=null;

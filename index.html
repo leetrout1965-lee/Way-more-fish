@@ -105,6 +105,8 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div class="row"><span>Bait</span><select id="bait"><option value="0">Unknown</option><option value="12">Heavy bait / birds / slicks</option><option value="5">Some bait</option><option value="-6">No bait seen</option></select></div>
 <button class="primary" onclick="calcScore()">Recalculate</button></section>
 <section class="card"><h3>Water conditions</h3>
+<div class="row"><span>Water clarity</span><strong id="autoClarityStatus">—</strong></div>
+<div id="autoClaritySource" class="small muted">Choose a spot to load measured/satellite clarity when available.</div>
 <div class="row"><span>Salinity</span><strong id="salinityStatus">—</strong></div>
 <div class="row"><span>Water temperature</span><strong id="waterTempStatus">—</strong></div>
 <div id="salinitySource" class="small muted">Choose a spot to load the nearest salinity station.</div>
@@ -517,7 +519,7 @@ function resetBestWindow(){
  document.getElementById("windowDetails").textContent="Uses hourly NWS wind/forecast plus NOAA tide movement, time of day and pressure trend. It is a conditions-based estimate, not a guarantee of fish activity.";
 }
 
-let selected=null,wx=null,tides=[],pressureSeries=[],waterState={sal:null,tempF:null,fit:null},hourlyPeriods=[],recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false},dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
+let selected=null,wx=null,tides=[],pressureSeries=[],waterState={sal:null,tempF:null,fit:null},clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false},hourlyPeriods=[],recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false},dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
 const map=L.map("map").setView([29.55,-91.88],9);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(map);
 const fg=L.featureGroup().addTo(map);
@@ -544,7 +546,7 @@ function fillTopAreaSpots(){populateCompareSelectors(currentAreaMatches);}
 function chosenCompareSpots(){const seen=new Set(),picked=[];compareIds.forEach(id=>{const v=document.getElementById(id).value;if(v!==""&&!seen.has(v)){seen.add(v);picked.push(spots[Number(v)]);}});return picked;}
 function showArea(area){
  if(calendarArea)calendarArea.value=area;
- fg.clearLayers();selected=null;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};hourlyPeriods=[];recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
+ fg.clearLayers();selected=null;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
  document.getElementById("spotTitle").textContent="Choose a spot";
  document.getElementById("score").textContent="—/100";
  document.getElementById("rating").textContent="Waiting for a location";
@@ -574,7 +576,7 @@ function ymd(d){return d.toISOString().slice(0,10).replaceAll("-","")}
 // NOAA/NWS cache policy: point metadata 24h, forecast/grid 10m, tide predictions 6h.
 // Cached data is kept in localStorage so reopening the site does not immediately hit NOAA again.
 const CACHE_PREFIX="wayMoreFishCache:v1:";
-const TTL={points:24*60*60*1000,weather:10*60*1000,observations:10*60*1000,tides:6*60*60*1000,salinity:30*60*1000};
+const TTL={points:24*60*60*1000,weather:10*60*1000,observations:10*60*1000,tides:6*60*60*1000,salinity:30*60*1000,clarity:3*60*60*1000};
 function cacheRead(key,maxAge){
  try{const raw=localStorage.getItem(CACHE_PREFIX+key);if(!raw)return null;const obj=JSON.parse(raw);if(Date.now()-obj.savedAt>maxAge)return null;return obj.data}catch{return null}
 }
@@ -595,14 +597,62 @@ async function fetchJSON(url,{cacheKey,ttl,timeoutMs=8000}={}){
   throw Error(e.name==="AbortError"?"request timed out":e.message);
  }finally{clearTimeout(timer)}
 }
+function clarityLabel(score){
+ if(!Number.isFinite(score))return "Unknown";
+ return score>=78?"Clear / green":score>=60?"Fairly clear":score>=42?"Stained":score>=25?"Murky":"Very muddy";
+}
+function modeledClarityScore(data={}){
+ let score=62,reasons=[];
+ const recent=data.recent||recentConditions||{},w=data.wx||wx||{};
+ const wind=parseWindMph(w.windSpeed);
+ const penalty=Number(recent.penalty||0);
+ if(penalty>=18){score-=25;reasons.push("strong recent disruption");}
+ else if(penalty>=7){score-=13;reasons.push("recent wind/rain disruption");}
+ else if(String(recent.risk||"").toUpperCase()==="LOW"){score+=5;reasons.push("low recent disruption");}
+ if(Number.isFinite(wind)){if(wind<=7){score+=8;reasons.push("light wind favors settling");}else if(wind<=12){score+=3;}else if(wind>=18){score-=18;reasons.push("strong wind can suspend sediment");}else if(wind>=13){score-=9;reasons.push("breezy conditions can stain water");}}
+ if(Number.isFinite(recent.rainIn)){if(recent.rainIn>=0.25){score-=12;reasons.push("recent rain signal");}else if(recent.rainIn>=0.10){score-=7;}}
+ const tideLabel=nextTideMovementLabel(data.tides||tides||[]);
+ if(tideLabel.startsWith("Rising")){score+=4;reasons.push("incoming exchange may improve clarity");}
+ else if(tideLabel.startsWith("Falling")){score-=2;}
+ score=Math.max(0,Math.min(100,Math.round(score)));
+ return {score,label:clarityLabel(score),source:"Modeled fallback",details:reasons.slice(0,4).join(" • ")||"wind/tide/recent-weather estimate",direct:false};
+}
+async function fetchClarityForSpot(s,data=null){
+ const key=`clarity:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;
+ const cached=cacheRead(key,TTL.clarity);
+ if(cached)return cached;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const r=await fetch(`/.netlify/functions/water-clarity?lat=${encodeURIComponent(s.lat)}&lon=${encodeURIComponent(s.lon)}`,{signal:controller.signal,cache:"no-store"});
+  if(!r.ok)throw Error(`clarity HTTP ${r.status}`);
+  const j=await r.json();
+  if(!j||!Number.isFinite(Number(j.score)))throw Error((j&&j.error)||"no clarity value");
+  const out={score:Number(j.score),label:j.label||clarityLabel(Number(j.score)),source:j.source||"Direct clarity",details:j.details||"",direct:true,age:j.ageHours,raw:j};
+  cacheWrite(key,out);return out;
+ }catch(e){
+  const stale=cacheReadStale(key);
+  if(stale)return {...stale,source:(stale.source||"Clarity")+" • cached",details:(stale.details||"")+" • live clarity source unavailable"};
+  return modeledClarityScore(data||{});
+ }finally{clearTimeout(timer)}
+}
+async function loadWaterClarity(s){
+ clarityState={score:null,label:"Loading…",source:"loading",details:"",direct:false};
+ document.getElementById("autoClarityStatus").textContent="Loading…";
+ document.getElementById("autoClaritySource").textContent="Checking USGS turbidity and NOAA satellite clarity…";
+ const c=await fetchClarityForSpot(s,{recent:recentConditions,wx,tides,spot:s});
+ clarityState=c;
+ document.getElementById("autoClarityStatus").textContent=`${c.label} • ${Math.round(c.score)}/100`;
+ document.getElementById("autoClaritySource").textContent=`${c.source}${c.details?` • ${c.details}`:""}`;
+ return c.direct?{}:{warning:"Direct clarity unavailable; using modeled clarity fallback"};
+}
 async function selectSpot(s){
- selected=s;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};hourlyPeriods=[];resetRecoveryOutlook();recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};resetBestWindow();updateDataQuality();document.getElementById("spotTitle").textContent=s.name;
+ selected=s;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];resetRecoveryOutlook();recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};resetBestWindow();updateDataQuality();document.getElementById("spotTitle").textContent=s.name;
  const idx=spots.indexOf(s);if(s.area&&areaPicker.value!==s.area){areaPicker.value=s.area;showArea(s.area);}if(idx>=0)document.getElementById("locationPicker").value=String(idx);
  map.setView([s.lat,s.lon],11);
  updateStructure(s);
  document.getElementById("status").textContent="Loading weather, tides and salinity…";
- document.getElementById("salinityStatus").textContent="Loading…";document.getElementById("waterTempStatus").textContent="Loading…";document.getElementById("salinitySource").textContent="Finding nearest monitoring station…";document.getElementById("speciesFit").textContent="Species fit: calculating…";document.getElementById("speciesWhy").textContent="Waiting for water-quality data.";
- const results=await Promise.allSettled([loadWeather(s),loadTides(s),loadSalinity(s)]);
+ document.getElementById("autoClarityStatus").textContent="Loading…";document.getElementById("autoClaritySource").textContent="Checking measured/satellite clarity…";document.getElementById("salinityStatus").textContent="Loading…";document.getElementById("waterTempStatus").textContent="Loading…";document.getElementById("salinitySource").textContent="Finding nearest monitoring station…";document.getElementById("speciesFit").textContent="Species fit: calculating…";document.getElementById("speciesWhy").textContent="Waiting for water-quality data.";
+ const results=await Promise.allSettled([loadWeather(s),loadTides(s),loadSalinity(s),loadWaterClarity(s)]);
  const failed=results.filter(r=>r.status==="rejected");
  const warnings=results.filter(r=>r.status==="fulfilled"&&r.value&&r.value.warning).map(r=>r.value.warning);
  if(failed.length===0){document.getElementById("status").textContent=warnings.length?"Loaded cached conditions because a live source was unavailable: "+warnings.join("; "):"Conditions loaded (live or recent cache).";}
@@ -913,8 +963,12 @@ function cleanWaterLikelihood(data){
  const tm=nextTideMovementLabel(data.tides);if(tm.startsWith("Rising"))score+=8;else if(tm.startsWith("Falling"))score-=2;
  if(r.pace==="FAST")score+=8;else if(r.pace==="SLOW")score-=10;
  const ctx=structureContext(data.spot),st=(ctx.type||"").toLowerCase();if(st.includes("pass")||st.includes("channel")||st.includes("reef")||st.includes("jetty"))score+=4;if(st.includes("flat")||st.includes("marsh"))score-=3;
+ if(data.clarity&&Number.isFinite(data.clarity.score)){
+  const weight=data.clarity.direct?0.45:0.20;
+  score=Math.round(score*(1-weight)+data.clarity.score*weight);
+ }
  score=Math.max(0,Math.min(100,Math.round(score)));
- return {score,recovery:r};
+ return {score,recovery:r,clarity:data.clarity||null};
 }
 function representativeAreaSpots(area,max=12){
  const arr=spots.filter(s=>s.area===area);
@@ -1096,7 +1150,7 @@ async function findCleanestWater(mode="now"){
  const target=mode==="tomorrow"?targetTomorrowMorning():new Date();
  status.textContent=mode==="tomorrow"?`Checking overnight forecast and tomorrow-morning tides for ${area}…`:`Checking recent observations, current wind and tides for ${area}…`;
  const candidates=representativeAreaSpots(area,12),rows=[];
- for(const s of candidates){try{const d=await buildCompareSpotData(s);const cw=mode==="tomorrow"?tomorrowCleanWaterLikelihood(d,target):cleanWaterLikelihood(d);rows.push({...d,clean:cw});status.textContent=`Checked ${rows.length}/${candidates.length} spots…`;}catch(e){}}
+ for(const s of candidates){try{const d=await buildCompareSpotData(s);if(mode==="now")d.clarity=await fetchClarityForSpot(s,d);const cw=mode==="tomorrow"?tomorrowCleanWaterLikelihood(d,target):cleanWaterLikelihood(d);rows.push({...d,clean:cw});status.textContent=`Checked ${rows.length}/${candidates.length} spots…`;}catch(e){}}
  rows.sort(mode==="tomorrow"?tomorrowWaterTiebreak:currentWaterTiebreak);
  if(!rows.length){status.textContent="Could not load enough live/forecast data to compare this area right now.";nowBtn.disabled=false;tomBtn.disabled=false;return;}
  const sampleNote=candidates.length<spots.filter(s=>s.area===area).length?` Sampling ${candidates.length} representative spots to limit NOAA/NWS requests.`:" All listed spots checked.";
@@ -1104,7 +1158,7 @@ async function findCleanestWater(mode="now"){
  if(mode==="tomorrow"){
   box.innerHTML='<table><thead><tr><td><strong>Spot</strong></td><td><strong>Tomorrow-morning score</strong></td><td><strong>Overnight wind</strong></td><td><strong>Weather</strong></td><td><strong>Tide near dawn</strong></td></tr></thead><tbody>'+rows.slice(0,8).map((r,i)=>`<tr><td>${i===0?"★ ":""}${r.spot.name}${tomorrowTieWhy(r,rows)?`<div class="small muted">${tomorrowTieWhy(r,rows)}</div>`:""}</td><td><strong>${r.clean.score}/100</strong><div class="small muted">${r.clean.reasons.slice(0,3).join(" • ")}</div></td><td>${Number.isFinite(r.clean.forecastWind)?`${r.clean.forecastWind.toFixed(0)} mph avg`:"Unavailable"}${Number.isFinite(r.clean.forecastMax)?`<div class="small muted">peak ${r.clean.forecastMax.toFixed(0)} mph</div>`:""}</td><td>${r.clean.forecastText||"—"}</td><td>${r.clean.recovery.tide}</td></tr>`).join('')+'</tbody></table><div class="small muted" style="margin-top:7px">Tomorrow Morning Outlook uses forecast overnight wind/weather and predicted tide movement near dawn. Ties are broken by lower peak wind, lower average wind, then tide direction. It is not a direct water-clarity measurement; check the latest usable satellite image when cloud cover allows.</div>';
  }else{
-  box.innerHTML='<table><thead><tr><td><strong>Spot</strong></td><td><strong>Clean-water likelihood now</strong></td><td><strong>Recovery</strong></td><td><strong>Observed disruption</strong></td><td><strong>Tide</strong></td></tr></thead><tbody>'+rows.slice(0,8).map((r,i)=>`<tr><td>${i===0?"★ ":""}${r.spot.name}${currentTieWhy(r,rows)?`<div class="small muted">${currentTieWhy(r,rows)}</div>`:""}</td><td><strong>${r.clean.score}/100</strong></td><td>${r.clean.recovery.pace}<div class="small muted">${r.clean.recovery.window}</div></td><td>${r.recent?r.recent.risk:"Unknown"}${r.recent&&Number.isFinite(r.recent.maxGust)?`<div class="small muted">gust ${r.recent.maxGust.toFixed(0)} mph</div>`:""}</td><td>${nextTideMovementLabel(r.tides)}</td></tr>`).join('')+'</tbody></table><div class="small muted" style="margin-top:7px">Cleanest Water Now ranks likely cleaner/fishable water from recent observed weather, current wind, tide and recovery signals. Ties are broken by lower disruption, faster recovery, lower gusts, then tide/wind. It does not directly measure clarity.</div>';
+  box.innerHTML='<table><thead><tr><td><strong>Spot</strong></td><td><strong>Clean-water score</strong></td><td><strong>Clarity signal</strong></td><td><strong>Recovery</strong></td><td><strong>Tide</strong></td></tr></thead><tbody>'+rows.slice(0,8).map((r,i)=>`<tr><td>${i===0?"★ ":""}${r.spot.name}${currentTieWhy(r,rows)?`<div class="small muted">${currentTieWhy(r,rows)}</div>`:""}</td><td><strong>${r.clean.score}/100</strong></td><td>${r.clarity?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100<div class="small muted">${r.clarity.source}</div>`:"Unavailable"}</td><td>${r.clean.recovery.pace}<div class="small muted">${r.clean.recovery.window}</div></td><td>${nextTideMovementLabel(r.tides)}</td></tr>`).join('')+'</tbody></table><div class="small muted" style="margin-top:7px">Cleanest Water Now now blends direct USGS turbidity and/or NOAA VIIRS Kd490 satellite clarity when available with wind, tide and recovery. Satellite ocean-color data can be blocked by clouds and may be delayed; modeled clarity is labeled as a fallback rather than a direct measurement.</div>';
  }
  nowBtn.disabled=false;tomBtn.disabled=false;
 }
@@ -1207,13 +1261,24 @@ function calcScore(){
  if(["Falling","Stable","Rising"].includes(pt)){liveParts++;if(pt==="Falling"){s+=4;why.push("falling pressure")}else if(pt==="Stable"){s+=3;why.push("stable pressure")}else{s-=2;why.push("rising pressure")}}
  const hr=new Date().getHours();
  if(hr>=5&&hr<9){s+=7;why.push("early-morning window")}else if(hr>=9&&hr<12){s+=3;why.push("morning window")}else if(hr>=17&&hr<20){s+=4;why.push("evening window")}else if(hr>=12&&hr<16){s-=4;why.push("midday heat window")}
- s+=Number(document.getElementById("clarity").value)+Number(document.getElementById("bait").value);
+ const manualClarity=Number(document.getElementById("clarity").value);
+ if(manualClarity!==0){s+=manualClarity;if(manualClarity>0)why.push("reported cleaner water");else why.push("reported muddy water");}
+ else if(Number.isFinite(clarityState.score)){
+  let adj=0;
+  if(clarityState.score>=78)adj=clarityState.direct?8:4;
+  else if(clarityState.score>=60)adj=clarityState.direct?4:2;
+  else if(clarityState.score<25)adj=clarityState.direct?-10:-5;
+  else if(clarityState.score<42)adj=clarityState.direct?-6:-3;
+  s+=adj;
+  if(adj>=4)why.push("clear-water signal");else if(adj<=-6)why.push("muddy-water signal");else if(adj<0)why.push("stained-water signal");
+ }
+ s+=Number(document.getElementById("bait").value);
  const disruption=effectiveDisruptionPenalty();if(disruption>0){s-=disruption;why.push(`${manualStormPenalty()>0?"reported":"observed"} recent storm/water disruption -${disruption}`);}
  s=Math.max(0,Math.min(100,Math.round(s)));
  const scoreEl=document.getElementById("score");scoreEl.textContent=s+"%";scoreEl.className="big "+(s>=75?"good":s>=55?"mid":"bad");
  const rating=s>=80?"Very good":s>=70?"Good":s>=55?"Fair":s>=40?"Poor":"Very poor";document.getElementById("rating").textContent=rating;
  const conf=Math.round((liveParts/totalLive)*100);document.getElementById("confidence").textContent="Data confidence: "+conf+"% live factors loaded";
- document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • add water clarity and bait activity for a better estimate.";
+ document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • "+(Number(document.getElementById("clarity").value)===0&&clarityState.direct?"clarity source loaded":"you can still override clarity from the water")+". Add bait activity for a better estimate.";
  whatToThrowNow();
  updateRecoveryOutlook();
  updateBestWindow();

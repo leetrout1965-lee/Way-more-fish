@@ -25,11 +25,15 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 <select id="areaPicker" style="width:100%;font-size:17px;margin-bottom:8px">
 <option value="">Select an area…</option>
 <option value="Vermilion Bay">Vermilion Bay</option>
+<option value="Tiger Shoal West">Tiger Shoal West</option>
+<option value="Tiger Shoal East">Tiger Shoal East</option>
+<option value="Cote Blanche / Nickel Reef">Cote Blanche / Nickel Reef</option>
 <option value="Big Lake / Calcasieu">Big Lake / Calcasieu</option>
 <option value="West Cove">West Cove</option>
 <option value="Hackberry">Hackberry</option>
 <option value="Dularge">Dularge</option>
 <option value="Cocodrie">Cocodrie</option>
+<option value="Lake Pelto">Lake Pelto</option>
 <option value="Delacroix / Hopedale / Shell Beach">Delacroix / Hopedale / Shell Beach</option>
 <option value="Lafitte / Barataria">Lafitte / Barataria</option>
 <option value="Leeville / Fourchon">Leeville / Fourchon</option>
@@ -192,7 +196,8 @@ const spots=[
 {name:"Diamond Reef",area:"Vermilion Bay",lat:29.517882,lon:-91.98532,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
 {name:"Grassy Island Point",area:"Vermilion Bay",lat:29.530382,lon:-91.962748,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
 {name:"Shell Keys Reef",area:"Vermilion Bay",lat:29.40656833,lon:-91.85370667,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
-{name:"Nickel Reef",area:"Vermilion Bay",lat:29.41945,lon:-91.7075,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Nickel Reef",area:"Cote Blanche / Nickel Reef",lat:29.41945,lon:-91.7075,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"LDWF nearshore reef"},
+{name:"Rabbit Island Pass",area:"Cote Blanche / Nickel Reef",lat:29.42695,lon:-91.70750,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published LDWF nearshore reference"},
 {name:"Lake Tom",area:"Vermilion Bay",lat:29.57111,lon:-91.82639,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Oyster Lake",area:"Vermilion Bay",lat:29.52917,lon:-91.86861,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Mound Point",area:"Vermilion Bay",lat:29.47472,lon:-91.82278,tide:"8765251",tideName:"Cypremort Point"},
@@ -207,28 +212,25 @@ const spots=[
 {name:"Sally Shoal",area:"Vermilion Bay",lat:29.65613,lon:-91.87133,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Cypremort Artificial Reef",area:"Vermilion Bay",lat:29.72222,lon:-91.87278,tide:"8765251",tideName:"Cypremort Point"},
 
-{name:"Turner's Bay",area:"Big Lake / Calcasieu",lat:30.056049,lon:-93.305164,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Blue Camp",area:"Big Lake / Calcasieu",lat:30.02495,lon:-93.27110,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Deatonville",area:"Big Lake / Calcasieu",lat:30.01139,lon:-93.27000,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Old Settlement",area:"Big Lake / Calcasieu",lat:30.03000,lon:-93.28000,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Commissary Point",area:"Big Lake / Calcasieu",lat:29.9725,lon:-93.27944,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Bois Connie Weir",area:"Big Lake / Calcasieu",lat:29.925958,lon:-93.238019,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Peconi Bayou WCS",area:"Big Lake / Calcasieu",lat:29.926096,lon:-93.237535,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Basket Reef",area:"Big Lake / Calcasieu",lat:29.910483,lon:-93.242017,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Mangrove Bayou WCS",area:"Big Lake / Calcasieu",lat:29.893711,lon:-93.231233,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"East Calcasieu Artificial Reef",area:"Big Lake / Calcasieu",lat:29.8852,lon:-93.2793,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Grand Bayou Weir",area:"Big Lake / Calcasieu",lat:29.862611,lon:-93.236658,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Lambert Bayou Mouth",area:"Big Lake / Calcasieu",lat:29.8549403,lon:-93.2179302,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Long Point Reef",area:"Big Lake / Calcasieu",lat:29.912703,lon:-93.3268,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Big Washout",area:"Big Lake / Calcasieu",lat:29.8566,lon:-93.3383,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Chenier Reef",area:"Big Lake / Calcasieu",lat:29.84945,lon:-93.28372,tide:"8768094",tideName:"Calcasieu Pass"},
-{name:"Mid Lake",area:"Big Lake / Calcasieu",lat:29.8542,lon:-93.3289,tide:"8768094",tideName:"Calcasieu Pass"},
-
-// West Cove. New north/northwest points below use official USCG/LDEQ positions or published reef-project endpoints.
-// The previous Cross Reef coordinate was removed after verification because its published longitude plots outside West Cove.
-{name:"NW West Cove Shoreline Reef",area:"West Cove",lat:29.873269,lon:-93.432606,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"USCG West Cove Danger Light; marks shoreline reef"},
-{name:"North West Cove Oyster Reef – West End",area:"West Cove",lat:29.879039,lon:-93.412156,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"USCG 2024 oyster-reef establishment west endpoint"},
-{name:"North West Cove Oyster Reef – East End",area:"West Cove",lat:29.880900,lon:-93.382050,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"USCG 2024 oyster-reef establishment east endpoint"},
+{name:"Tiger Shoal 01",area:"Tiger Shoal West",lat:29.447130,lon:-92.193645,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal 04",area:"Tiger Shoal West",lat:29.448645,lon:-92.173275,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal – West Rig Cluster",area:"Tiger Shoal West",lat:29.446667,lon:-92.078250,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published Tiger Shoal rig-cluster center"},
+{name:"Tiger Shoal Mound 01",area:"Tiger Shoal West",lat:29.440705,lon:-92.103353,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 02",area:"Tiger Shoal West",lat:29.427423,lon:-92.094865,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 03",area:"Tiger Shoal West",lat:29.421070,lon:-92.104672,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 04",area:"Tiger Shoal West",lat:29.415148,lon:-92.112175,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 05",area:"Tiger Shoal West",lat:29.409373,lon:-92.115308,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 06",area:"Tiger Shoal West",lat:29.405113,lon:-92.114900,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 07",area:"Tiger Shoal West",lat:29.397745,lon:-92.112263,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 08",area:"Tiger Shoal West",lat:29.388937,lon:-92.119930,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 09",area:"Tiger Shoal West",lat:29.384530,lon:-92.120508,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal 14",area:"Tiger Shoal East",lat:29.446337,lon:-92.078785,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal 20",area:"Tiger Shoal East",lat:29.448212,lon:-92.078207,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal – East Rig Cluster",area:"Tiger Shoal East",lat:29.441317,lon:-92.061717,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published Tiger Shoal rig-cluster center"},
+{name:"Tiger Shoal 27",area:"Tiger Shoal East",lat:29.441212,lon:-92.061800,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal 31",area:"Tiger Shoal East",lat:29.446840,lon:-92.055697,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal – LDWF Station",area:"Tiger Shoal East",lat:29.51361,lon:-92.05500,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Louisiana coastwide monitoring station 1061"},
+{name:"Tiger Shoal Wreck 02",area:"Tiger Shoal East",lat:29.404390,lon:-92.017187,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical wreck / structure reference"},
 {name:"North West Cove / Rabbit Island North",area:"West Cove",lat:29.892996,lon:-93.377393,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"Louisiana DEQ site 0193, NE of northern tip of Rabbit Island"},
 {name:"East Bank Reef",area:"West Cove",lat:29.860331,lon:-93.354831,tide:"8768094",tideName:"Calcasieu Pass"},
 {name:"NE Rabbit Island",area:"West Cove",lat:29.8572,lon:-93.3822,tide:"8768094",tideName:"Calcasieu Pass"},
@@ -266,7 +268,14 @@ const spots=[
 {name:"Mangrove Bay",area:"Cocodrie",lat:29.17293,lon:-90.74102,tide:"8762928",tideName:"Cocodrie"},
 {name:"Bay la Fleur",area:"Cocodrie",lat:29.2875,lon:-90.60833,tide:"8762928",tideName:"Cocodrie"},
 {name:"Madison Bay",area:"Cocodrie",lat:29.39972,lon:-90.55333,tide:"8762928",tideName:"Cocodrie"},
-{name:"Lake Pelto",area:"Cocodrie",lat:29.096066,lon:-90.668979,tide:"8762928",tideName:"Cocodrie"},
+{name:"Lake Pelto – Central",area:"Lake Pelto",lat:29.096066,lon:-90.668979,tide:"8762928",tideName:"Cocodrie",sourceNote:"Lake Pelto center reference"},
+// Lake Pelto reefs and structure. Fishing-reference points only; not navigation waypoints.
+{name:"Bodwin's Point Reef",area:"Lake Pelto",lat:29.069200,lon:-90.735933,tide:"8762928",tideName:"Cocodrie",sourceNote:"LDWF Lake Pelto artificial reef"},
+{name:"Bird Island Reef",area:"Lake Pelto",lat:29.059333,lon:-90.723833,tide:"8762928",tideName:"Cocodrie",sourceNote:"LDWF limestone reef"},
+{name:"Point Mast Reef",area:"Lake Pelto",lat:29.107400,lon:-90.635717,tide:"8762928",tideName:"Cocodrie",sourceNote:"LDWF / CCA limestone reef"},
+{name:"Horseshoe Reef",area:"Lake Pelto",lat:29.056583,lon:-90.742017,tide:"8762928",tideName:"Cocodrie",sourceNote:"Published Lake Pelto / Trinity Island reef reference"},
+{name:"Lake Pelto Sulphur Mine – North",area:"Lake Pelto",lat:29.102600,lon:-90.675917,tide:"8762928",tideName:"Cocodrie",sourceNote:"Published sulphur-mine structure reference; submerged hazards possible"},
+{name:"Lake Pelto Sulphur Mine – South",area:"Lake Pelto",lat:29.098567,lon:-90.675650,tide:"8762928",tideName:"Cocodrie",sourceNote:"Published sulphur-mine structure reference; submerged hazards possible"},
 {name:"Timbalier Bay",area:"Cocodrie",lat:29.16190,lon:-90.34814,tide:"8762928",tideName:"Cocodrie"},
 {name:"Lake Barre",area:"Cocodrie",lat:29.254951,lon:-90.506195,tide:"8762928",tideName:"Cocodrie"},
 {name:"Last Island / Isles Dernieres (water side)",area:"Cocodrie",lat:29.04667,lon:-90.80944,tide:"8762928",tideName:"Cocodrie"},
@@ -349,6 +358,7 @@ const salinitySources={
  "Hackberry":{provider:"USGS",site:"08017095",name:"North Calcasieu Lake near Hackberry",note:"Nearest continuous Calcasieu Lake salinity source"},
  "Dularge":{provider:"USGS",site:"073813498",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Dularge waters; interior lakes can differ"},
  "Cocodrie":{provider:"USGS",site:"073813498",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Cocodrie / Terrebonne waters"},
+ "Lake Pelto":{provider:"USGS",site:"073813498",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Lake Pelto; local reef conditions can differ"},
  "Delacroix / Hopedale / Shell Beach":{provider:"reference",site:"",name:"St. Bernard marsh",note:"No dependable near-real-time salinity feed connected yet"},
  "Lafitte / Barataria":{provider:"reference",site:"",name:"Barataria system",note:"No dependable near-real-time salinity feed connected yet"},
  "Leeville / Fourchon":{provider:"reference",site:"",name:"Fourchon / Caminada system",note:"No dependable near-real-time salinity feed connected yet"},

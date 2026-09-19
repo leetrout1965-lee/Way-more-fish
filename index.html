@@ -726,7 +726,22 @@ async function loadWeather(s){
    if(pressureSeries.length){const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";}
    else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
   }catch(e){
-   pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`NWS pressure data unavailable (${e.message})`;
+   try{
+    const pf=await fetchOpenMeteoForSpot(s);
+    pressureSeries=pf.pressureSeries||[];
+    if(pressureSeries.length){
+     const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
+     document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
+     document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+     gridWarning=`NWS pressure data unavailable (${e.message}); using Open-Meteo pressure fallback`;
+    }else{
+     document.getElementById("pressure").textContent="Unavailable";
+     document.getElementById("pressureTrend").textContent="Unavailable";
+     gridWarning=`NWS pressure data unavailable (${e.message}); fallback returned no pressure`;
+    }
+   }catch(pe){
+    pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`Pressure unavailable (NWS: ${e.message}; fallback: ${pe.message})`;
+   }
   }
 
   updateBestWindow();
@@ -883,7 +898,7 @@ async function fetchOpenMeteoForSpot(s){
   pressure:(hr.surface_pressure&&hr.surface_pressure[i])||null
  })).filter(x=>x.startTime);
  if(!periods.length)throw Error("Open-Meteo returned no hourly forecast");
- const pressureSeries=periods.slice(0,6).map(x=>Number(x.pressure)/10).filter(Number.isFinite);
+ const pressureSeries=periods.slice(0,6).map(x=>Number(x.pressure)).filter(Number.isFinite);
  return {wx:periods[0],hourlyPeriods:periods,pressureSeries,pressureTrend:pressureTrendFromSeries(pressureSeries),source,provider:"Open-Meteo"};
 }
 async function fetchTomorrowWeatherResilient(s){

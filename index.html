@@ -651,14 +651,25 @@ function renderRecentConditions(){
 function analyzeObservations(features,station){
  const cutoff=Date.now()-6*3600000,obs=(features||[]).map(f=>f.properties||{}).filter(o=>new Date(o.timestamp).getTime()>=cutoff).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
  if(!obs.length)throw Error("no recent station observations");
- const latest=obs[0];let maxGust=null,maxWind=null,maxRain=null,thunder=false;const dirs=[];
- for(const o of obs){const ws=qvToMph(o.windSpeed),wg=qvToMph(o.windGust),rn=mmToIn(o.precipitationLastHour&&o.precipitationLastHour.value),wd=Number(o.windDirection&&o.windDirection.value);if(Number.isFinite(ws))maxWind=maxWind==null?ws:Math.max(maxWind,ws);if(Number.isFinite(wg))maxGust=maxGust==null?wg:Math.max(maxGust,wg);if(Number.isFinite(rn))maxRain=maxRain==null?rn:Math.max(maxRain,rn);if(Number.isFinite(wd))dirs.push(wd);const text=(String(o.textDescription||"")+" "+JSON.stringify(o.presentWeather||[])).toLowerCase();if(text.includes("thunder"))thunder=true;}
+ const latest=obs[0];let maxGust=null,maxWind=null,maxRain=null,thunder=false;const dirs=[],stationPressureSeries=[];
+ for(const o of obs){
+  const ws=qvToMph(o.windSpeed),wg=qvToMph(o.windGust),rn=mmToIn(o.precipitationLastHour&&o.precipitationLastHour.value),wd=Number(o.windDirection&&o.windDirection.value);
+  if(Number.isFinite(ws))maxWind=maxWind==null?ws:Math.max(maxWind,ws);
+  if(Number.isFinite(wg))maxGust=maxGust==null?wg:Math.max(maxGust,wg);
+  if(Number.isFinite(rn))maxRain=maxRain==null?rn:Math.max(maxRain,rn);
+  if(Number.isFinite(wd))dirs.push(wd);
+  const bp=Number(o.barometricPressure&&o.barometricPressure.value),slp=Number(o.seaLevelPressure&&o.seaLevelPressure.value);
+  const pressurePa=Number.isFinite(bp)?bp:(Number.isFinite(slp)?slp:null);
+  if(Number.isFinite(pressurePa)&&pressurePa>80000&&pressurePa<110000)stationPressureSeries.push({hPa:pressurePa/100,time:o.timestamp});
+  const text=(String(o.textDescription||"")+" "+JSON.stringify(o.presentWeather||[])).toLowerCase();
+  if(text.includes("thunder"))thunder=true;
+ }
  let shift=null;if(dirs.length>=2){shift=circularDiff(dirs[0],dirs[dirs.length-1]);}
  const latestWind=qvToMph(latest.windSpeed),latestGust=qvToMph(latest.windGust),latestDir=Number(latest.windDirection&&latest.windDirection.value);
  let pts=0;if(thunder)pts+=4;if(maxGust!=null){if(maxGust>=30)pts+=4;else if(maxGust>=22)pts+=3;else if(maxGust>=16)pts+=1;}if(maxWind!=null&&maxWind>=20)pts+=2;if(maxRain!=null){if(maxRain>=0.25)pts+=4;else if(maxRain>=0.10)pts+=3;else if(maxRain>=0.02)pts+=1;}if(shift!=null){if(shift>=90)pts+=2;else if(shift>=45)pts+=1;}
  const risk=pts>=6?"HIGH":pts>=2?"MODERATE":"LOW",penalty=pts>=8?25:pts>=6?18:pts>=4?12:pts>=2?7:0;
  const observedWind=Number.isFinite(latestWind)?`${degToCompass(latestDir)} ${latestWind.toFixed(0)} mph${Number.isFinite(latestGust)?`, gust ${latestGust.toFixed(0)}`:""}`:"Unavailable";
- return {risk,penalty,maxGust,maxWind,rainIn:maxRain,windShift:shift,observedWind,stationName:station.name||station.stationName||"Nearby station",stationId:station.stationIdentifier||"",age:ageLabel(latest.timestamp),thunder};
+ return {risk,penalty,maxGust,maxWind,rainIn:maxRain,windShift:shift,observedWind,stationName:station.name||station.stationName||"Nearby station",stationId:station.stationIdentifier||"",age:ageLabel(latest.timestamp),thunder,stationPressureSeries};
 }
 
 async function fetchOpenMeteoMarineForSpot(s){
@@ -671,6 +682,14 @@ async function fetchOpenMeteoMarineForSpot(s){
 function marineTideEvents(rows){const valid=(rows||[]).filter(x=>Number.isFinite(x.level)),out=[];for(let i=1;i<valid.length-1;i++){const a=valid[i-1],b=valid[i],c=valid[i+1];if(b.level>=a.level&&b.level>c.level)out.push({t:b.time.toISOString().slice(0,16).replace("T"," "),v:(b.level*3.28084).toFixed(2),type:"H"});else if(b.level<=a.level&&b.level<c.level)out.push({t:b.time.toISOString().slice(0,16).replace("T"," "),v:(b.level*3.28084).toFixed(2),type:"L"});}return out;}
 function compassToDeg(dir){const m={N:0,NNE:22.5,NE:45,ENE:67.5,E:90,ESE:112.5,SE:135,SSE:157.5,S:180,SSW:202.5,SW:225,WSW:247.5,W:270,WNW:292.5,NW:315,NNW:337.5};return m[String(dir||"").toUpperCase()]??null;}
 async function modeledRecentConditionsFallback(s){const f=await fetchOpenMeteoForSpot(s),rows=f.hourlyPeriods||[],now=Date.now(),recent=rows.filter(p=>{const t=new Date(p.startTime).getTime();return t<=now+3600000&&t>=now-6*3600000;}),use=recent.length?recent:rows.slice(0,1);let maxGust=null,maxWind=null,dirs=[];for(const p of use){const w=parseWindMph(p.windSpeed),g=Number(p.windGust);if(Number.isFinite(w))maxWind=maxWind==null?w:Math.max(maxWind,w);if(Number.isFinite(g))maxGust=maxGust==null?g:Math.max(maxGust,g);const d=compassToDeg(p.windDirection);if(Number.isFinite(d))dirs.push(d);}const latest=use[use.length-1]||f.wx,wind=parseWindMph(latest&&latest.windSpeed),dir=latest&&latest.windDirection,gust=Number(latest&&latest.windGust),shift=dirs.length>=2?circularDiff(dirs[0],dirs[dirs.length-1]):null;let pts=0;if(maxGust!=null){if(maxGust>=30)pts+=4;else if(maxGust>=22)pts+=3;else if(maxGust>=16)pts+=1;}if(maxWind!=null&&maxWind>=20)pts+=2;if(shift!=null){if(shift>=90)pts+=2;else if(shift>=45)pts+=1;}const risk=pts>=6?"HIGH":pts>=2?"MODERATE":"LOW",penalty=pts>=8?25:pts>=6?18:pts>=4?12:pts>=2?7:0;return {risk,penalty,maxGust,maxWind,rainIn:null,windShift:shift,observedWind:Number.isFinite(wind)?`${dir||""} ${wind.toFixed(0)} mph${Number.isFinite(gust)?`, gust ${gust.toFixed(0)}`:""}`.trim():"Unavailable",stationName:"Open-Meteo modeled fallback",stationId:"MODEL",age:"current model hour",thunder:false,modeled:true};}
+function stationPressureSummary(recent){
+ const rows=(recent&&recent.stationPressureSeries)||[];
+ if(!rows.length)return null;
+ const latest=rows[0].hPa,older=rows[Math.min(3,rows.length-1)].hPa;
+ if(!Number.isFinite(latest))return null;
+ const diff=(latest-older)*0.0295299831;
+ return {series:rows.map(x=>x.hPa),pressureInHg:latest*0.0295299831,trend:diff>.03?"Rising":diff<-.03?"Falling":"Stable"};
+}
 async function loadRecentObservations(s,pointData){
  try{const stationsUrl=pointData.properties&&pointData.properties.observationStations;if(!stationsUrl)throw Error("no observation-station link");const list=await fetchJSON(stationsUrl,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points});const stationFeature=(list.data.features||[])[0];if(!stationFeature)throw Error("no nearby station");const stationId=stationFeature.properties&&stationFeature.properties.stationIdentifier;if(!stationId)throw Error("station id unavailable");const obs=await fetchJSON(`https://api.weather.gov/stations/${stationId}/observations?limit=18`,{cacheKey:`nws-observations:${stationId}`,ttl:TTL.observations});recentConditions=analyzeObservations(obs.data.features||[],stationFeature.properties||{});dataQuality.observedWind=obs.source;renderRecentConditions();updateDataQuality();updateRecoveryOutlook();updateBestWindow();return obs.source;}
  catch(e){try{recentConditions=await modeledRecentConditionsFallback(s);dataQuality.observedWind="fallback";renderRecentConditions();const src=document.getElementById("observedWindSource");if(src)src.textContent=`Modeled fallback — Open-Meteo • NWS station observations unavailable (${e.message})`;updateDataQuality();updateRecoveryOutlook();updateBestWindow();return "fallback";}catch(f){dataQuality.observedWind="unavailable";recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};renderRecentConditions();updateDataQuality();updateRecoveryOutlook();return "unavailable";}}
@@ -712,20 +731,27 @@ async function loadWeatherFallback(s,nwsReason){
   if(!wx)throw Error("fallback returned no hourly periods");
   document.getElementById("wind").textContent=`${wx.windDirection} ${wx.windSpeed}`;
   document.getElementById("weather").textContent=`${wx.temperature}°F, ${wx.shortForecast} • fallback`;
-  try{
-   const pf=await fetchPressureFallback(s);
-   pressureSeries=pf.series;
-   document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
-   document.getElementById("pressureTrend").textContent=pf.trend;
-  }catch(pe){
-   pressureSeries=f.pressureSeries||[];
-   if(pressureSeries.length){
-    const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
-    document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
-    document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
-   }else{
-    document.getElementById("pressure").textContent="Unavailable";
-    document.getElementById("pressureTrend").textContent="Unavailable";
+  const sp=stationPressureSummary(recentConditions);
+  if(sp){
+   pressureSeries=sp.series;
+   document.getElementById("pressure").textContent=sp.pressureInHg.toFixed(2)+" inHg";
+   document.getElementById("pressureTrend").textContent=sp.trend;
+  }else{
+   try{
+    const pf=await fetchPressureFallback(s);
+    pressureSeries=pf.series;
+    document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
+    document.getElementById("pressureTrend").textContent=pf.trend;
+   }catch(pe){
+    pressureSeries=f.pressureSeries||[];
+    if(pressureSeries.length){
+     const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
+     document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
+     document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+    }else{
+     document.getElementById("pressure").textContent="Unavailable";
+     document.getElementById("pressureTrend").textContent="Unavailable";
+    }
    }
   }
   dataQuality.weather=f.source||"live";updateDataQuality();updateBestWindow();
@@ -748,7 +774,7 @@ async function loadWeather(s){
   return loadWeatherFallback(s,`location lookup ${e.message}`);
  }
  const p=point.data;
- loadRecentObservations(s,p);
+ await loadRecentObservations(s,p);
  try{
   const h=await fetchJSON(p.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather,timeoutMs:12000});
   hourlyPeriods=(h.data.properties.periods||[]).slice(0,24);wx=hourlyPeriods[0];
@@ -763,14 +789,22 @@ async function loadWeather(s){
    if(pressureSeries.length){const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";}
    else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
   }catch(e){
-   try{
-    const pf=await fetchPressureFallback(s);
-    pressureSeries=pf.series;
-    document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
-    document.getElementById("pressureTrend").textContent=pf.trend;
-    gridWarning=`NWS pressure data unavailable (${e.message}); using dedicated Open-Meteo pressure fallback`;
-   }catch(pe){
-    pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`Pressure unavailable (NWS: ${e.message}; fallback: ${pe.message})`;
+   const sp=stationPressureSummary(recentConditions);
+   if(sp){
+    pressureSeries=sp.series;
+    document.getElementById("pressure").textContent=sp.pressureInHg.toFixed(2)+" inHg";
+    document.getElementById("pressureTrend").textContent=sp.trend;
+    gridWarning=`NWS grid pressure unavailable (${e.message}); using nearby observation-station pressure`;
+   }else{
+    try{
+     const pf=await fetchPressureFallback(s);
+     pressureSeries=pf.series;
+     document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
+     document.getElementById("pressureTrend").textContent=pf.trend;
+     gridWarning=`NWS grid and station pressure unavailable; using dedicated Open-Meteo pressure fallback`;
+    }catch(pe){
+     pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`Pressure unavailable (NWS: ${e.message}; fallback: ${pe.message})`;
+    }
    }
   }
 

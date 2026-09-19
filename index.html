@@ -57,9 +57,9 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <h3>Live conditions</h3>
 <p><strong>Choose a fishing area, then choose a spot.</strong> The app will load NOAA/NWS conditions and calculate a fishing percentage.</p>
 <p class="small muted">For the live version, open the hosted site in Safari. iPad Quick Look may display the file without running the live data calls.</p>
-</section><section class="card"><div id="spotTitle" style="font-size:20px;font-weight:700">Choose a spot</div><div class="row"><span><strong>Current Conditions Score</strong></span><span id="score" class="big">—/100</span></div><div id="rating" style="font-weight:700;margin:4px 0">Waiting for a location</div><div id="confidence" class="small muted">Data confidence: —</div><div id="why" class="muted" style="margin-top:7px">How favorable this selected spot is right now.</div></section>
+</section><section class="card"><div id="spotTitle" style="font-size:20px;font-weight:700">Choose a spot</div><div class="row"><span><strong>Current Conditions Score</strong></span><span id="score" class="big">—%</span></div><div id="rating" style="font-weight:700;margin:4px 0">Waiting for a location</div><div id="confidence" class="small muted">Data confidence: —</div><div id="why" class="muted" style="margin-top:7px">How favorable this selected spot is right now.</div></section>
 <section class="card"><h3>Best Upcoming Window</h3>
-<div class="row"><span><strong>Window Score</strong></span><span id="bestWindowScore" class="big">—/100</span></div>
+<div class="row"><span><strong>Window Score</strong></span><span id="bestWindowScore" class="big">—%</span></div>
 <div class="row"><span>Best time</span><strong id="bestWindow">—</strong></div>
 <div class="row"><span>Second best</span><strong id="secondWindow">—</strong></div>
 <div id="windowWhy" style="margin-top:8px;font-weight:700">Choose a spot to compare the next 12 hours.</div>
@@ -501,7 +501,7 @@ function whatToThrowNow(){
 
 function resetBestWindow(){
  document.getElementById("bestWindow").textContent="—";
- document.getElementById("bestWindowScore").textContent="—/100";
+ document.getElementById("bestWindowScore").textContent="—%";
  document.getElementById("secondWindow").textContent="—";
  document.getElementById("windowWhy").textContent="Choose a spot to compare the next 12 hours.";
  document.getElementById("windowDetails").textContent="Uses hourly NWS wind/forecast plus NOAA tide movement, time of day and pressure trend. It is a conditions-based estimate, not a guarantee of fish activity.";
@@ -668,15 +668,31 @@ async function loadWeather(s){
  const p=point.data;
  loadRecentObservations(s,p);
  try{
-  const [h,g]=await Promise.all([
-   fetchJSON(p.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather}),
-   fetchJSON(p.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather})
-  ]);
-  hourlyPeriods=(h.data.properties.periods||[]).slice(0,24);wx=hourlyPeriods[0];document.getElementById("wind").textContent=`${wx.windDirection} ${wx.windSpeed}`;document.getElementById("weather").textContent=`${wx.temperature}°F, ${wx.shortForecast}`;
-  const pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[];pressureSeries=pr.slice(0,6).map(v=>v.value/100);
-  if(pressureSeries.length){const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";}
-  else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
-  updateBestWindow();const stale=[point,h,g].filter(x=>x.source==="stale");dataQuality.weather=stale.length?"stale":([point,h,g].some(x=>x.source==="cache")?"cache":"live");updateDataQuality();return stale.length?{warning:"NWS live request failed; showing last cached weather"}:{};
+  // Hourly forecast drives wind, weather and upcoming-window scoring.
+  // Grid data is optional because that larger NWS response can occasionally timeout.
+  const h=await fetchJSON(p.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather,timeoutMs:12000});
+  hourlyPeriods=(h.data.properties.periods||[]).slice(0,24);wx=hourlyPeriods[0];
+  if(!wx)throw Error("hourly forecast returned no periods");
+  document.getElementById("wind").textContent=`${wx.windDirection} ${wx.windSpeed}`;
+  document.getElementById("weather").textContent=`${wx.temperature}°F, ${wx.shortForecast}`;
+
+  let g=null,gridWarning=null;
+  try{
+   g=await fetchJSON(p.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather,timeoutMs:15000});
+   const pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[];pressureSeries=pr.slice(0,6).map(v=>v.value/100);
+   if(pressureSeries.length){const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";}
+   else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
+  }catch(e){
+   pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`NWS pressure data unavailable (${e.message})`;
+  }
+
+  updateBestWindow();
+  const sources=[point,h].concat(g?[g]:[]);
+  const stale=sources.filter(x=>x.source==="stale");
+  dataQuality.weather=stale.length?"stale":(sources.some(x=>x.source==="cache")?"cache":"live");
+  updateDataQuality();
+  const warnings=[];if(stale.length)warnings.push("NWS live request failed; showing recent cached weather");if(gridWarning)warnings.push(gridWarning);
+  return warnings.length?{warning:warnings.join("; ")}:{};
  }catch(e){dataQuality.weather="unavailable";updateDataQuality();document.getElementById("wind").textContent="Unavailable";document.getElementById("weather").textContent="NWS error";document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";throw Error("NWS weather "+e.message)}
 }
 async function loadTides(s){
@@ -1012,8 +1028,8 @@ function updateBestWindow(){
  if(rows.length<2){document.getElementById("windowWhy").textContent="Not enough hourly forecast data to compare windows.";return}
  const ranked=makeWindows(rows),best=ranked[0],second=ranked.find(w=>Math.abs(w.start-best.start)>=2*3600000)||ranked[1];
  const label=w=>`${fmtHour(w.start)}–${fmtHour(w.end)}`;
- document.getElementById("bestWindowScore").textContent=`${best.score}/100`;
- document.getElementById("bestWindow").textContent=label(best);document.getElementById("secondWindow").textContent=second?`${label(second)} (${second.score}/100)`:"—";
+ document.getElementById("bestWindowScore").textContent=`${best.score}%`;
+ document.getElementById("bestWindow").textContent=label(best);document.getElementById("secondWindow").textContent=second?`${label(second)} (${second.score}%)`:"—";
  const counts={};best.rows.flatMap(r=>r.reasons).forEach(r=>counts[r]=(counts[r]||0)+1);const reasons=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,4).map(x=>x[0]);
  document.getElementById("windowWhy").textContent=`Why: ${reasons.join(" • ")||"best combination of the loaded hourly conditions"}.`;
  document.getElementById("windowDetails").textContent="Compares the next 12 forecast hours using wind speed/direction, tide phase and movement, time of day, pressure trend and hazardous weather. Window scores are relative condition scores, not catch probabilities.";
@@ -1042,7 +1058,7 @@ function calcScore(){
  s+=Number(document.getElementById("clarity").value)+Number(document.getElementById("bait").value);
  const disruption=effectiveDisruptionPenalty();if(disruption>0){s-=disruption;why.push(`${manualStormPenalty()>0?"reported":"observed"} recent storm/water disruption -${disruption}`);}
  s=Math.max(0,Math.min(100,Math.round(s)));
- const scoreEl=document.getElementById("score");scoreEl.textContent=s+"/100";scoreEl.className="big "+(s>=75?"good":s>=55?"mid":"bad");
+ const scoreEl=document.getElementById("score");scoreEl.textContent=s+"%";scoreEl.className="big "+(s>=75?"good":s>=55?"mid":"bad");
  const rating=s>=80?"Very good":s>=70?"Good":s>=55?"Fair":s>=40?"Poor":"Very poor";document.getElementById("rating").textContent=rating;
  const conf=Math.round((liveParts/totalLive)*100);document.getElementById("confidence").textContent="Data confidence: "+conf+"% live factors loaded";
  document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • add water clarity and bait activity for a better estimate.";

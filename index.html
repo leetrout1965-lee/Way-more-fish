@@ -92,7 +92,7 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div class="row"><span>Estimated cleanup window</span><strong id="recoveryWindow">—</strong></div>
 <div class="row"><span>Next tide effect</span><strong id="recoveryTide">—</strong></div>
 <div id="recoveryWhy" class="small muted">Choose a spot to estimate how quickly disturbed water may improve after recent weather.</div>
-<div class="small muted" style="margin-top:7px">Heuristic estimate only. It combines recent observed wind/rain/gusts, current forecast wind and tide movement; actual clarity can change faster or slower with bottom type, fetch and freshwater runoff.</div>
+<div class="small muted" style="margin-top:7px">Heuristic estimate only. When recent station observations are missing, the app labels recovery as modeled or forecast/tide-only and widens the cleanup window instead of treating missing observations as live evidence. Actual clarity can still change faster or slower with bottom type, fetch and freshwater runoff.</div>
 </section>
 <section class="card full"><h3>Tomorrow's Top 3 Fishing Spots</h3>
 <div class="small muted">Compares the Louisiana areas in Way More Fish and ranks the three strongest spots for tomorrow morning using forecast wind/weather, tide movement when available, recent-disruption recovery and likely water cleanliness. NWS is primary weather; a backup forecast source is used if NWS is temporarily unavailable. It is a conditions score, not a catch guarantee.</div>
@@ -940,19 +940,56 @@ function resetRecoveryOutlook(){
 }
 function recoveryOutlookFor(data){
  const recent=data.recent||{},wx0=data.wx||{},tideMove=data.tideMove||nextTideMovementLabel(data.tides||[]),spot=data.spot||selected;
- const wind=parseWindMph(wx0.windSpeed),penalty=recent.penalty||0;
+ const wind=parseWindMph(wx0.windSpeed);
+ const recentCompleteness=recentObservationCompleteness(recent);
+ const modeled=recent.modeled===true;
+ const hasRecent=recentCompleteness>0;
+ const hasLiveRecent=hasRecent&&!modeled;
+ const hasModeledRecent=hasRecent&&modeled;
+
+ let penalty=Number(recent.penalty)||0;
+ if(hasModeledRecent)penalty=Math.round(penalty*0.6);
+ if(!hasRecent)penalty=0;
+
  let points=0,reasons=[];
- if(penalty>=18){points-=4;reasons.push("strong recent disruption");}else if(penalty>=7){points-=2;reasons.push("moderate recent disruption");}else if(recent.risk==="LOW"){points+=2;reasons.push("little recent disruption");}
- if(Number.isFinite(wind)){if(wind<=7){points+=3;reasons.push("light current wind helps settling");}else if(wind<=12){points+=1;reasons.push("manageable current wind");}else if(wind>=18){points-=4;reasons.push("strong wind can keep sediment suspended");}else if(wind>=13){points-=2;reasons.push("breezy conditions may slow cleanup");}}
- if(String(tideMove).startsWith("Rising")){points+=2;reasons.push("incoming tide may bring cleaner water");}else if(String(tideMove).startsWith("Falling")){points-=1;reasons.push("outgoing tide may continue draining stained water");}
+ if(penalty>=18){points-=4;reasons.push("strong recent disruption");}
+ else if(penalty>=7){points-=2;reasons.push("moderate recent disruption");}
+ else if(hasLiveRecent&&recent.risk==="LOW"){points+=2;reasons.push("little recent disruption observed");}
+ else if(hasModeledRecent&&recent.risk==="LOW"){points+=1;reasons.push("model suggests little recent disruption");}
+
+ if(Number.isFinite(wind)){
+  if(wind<=7){points+=3;reasons.push("light current wind helps settling");}
+  else if(wind<=12){points+=1;reasons.push("manageable current wind");}
+  else if(wind>=18){points-=4;reasons.push("strong wind can keep sediment suspended");}
+  else if(wind>=13){points-=2;reasons.push("breezy conditions may slow cleanup");}
+ }
+ if(String(tideMove).startsWith("Rising")){points+=2;reasons.push("incoming tide may bring cleaner water");}
+ else if(String(tideMove).startsWith("Falling")){points-=1;reasons.push("outgoing tide may continue draining stained water");}
+
  const ctx=spot?structureContext(spot):null;const st=((ctx&&ctx.type)||"").toLowerCase();
  if(st.includes("lake")||st.includes("flat")||st.includes("marsh")){points-=1;reasons.push("shallow water can re-mud easily");}
  if(st.includes("pass")||st.includes("channel")||st.includes("reef")||st.includes("jetty")){points+=1;reasons.push("current/structure can exchange water faster");}
- let pace,window;
- if(points>=4){pace="FAST";window="~3–6 hr / about one good tide phase";}
- else if(points>=0){pace="MODERATE";window="~6–12 hr / one to two tide phases";}
- else{pace="SLOW";window="~12–24+ hr unless wind/tide improves";}
- return {pace,window,tide:tideMove||"Unavailable",points,reasons};
+
+ let pace;
+ if(points>=4)pace="FAST";
+ else if(points>=0)pace="MODERATE";
+ else pace="SLOW";
+
+ let window,basis;
+ if(hasLiveRecent){
+  basis="live recent observations";
+  window=pace==="FAST"?"~3–6 hr / about one good tide phase":pace==="MODERATE"?"~6–12 hr / one to two tide phases":"~12–24+ hr unless wind/tide improves";
+ }else if(hasModeledRecent){
+  basis="modeled recent conditions";
+  window=pace==="FAST"?"~6–12 hr • modeled estimate":pace==="MODERATE"?"~12–18 hr • modeled estimate":"~18–24+ hr • modeled estimate";
+  reasons.unshift("nearby station observations unavailable");
+ }else{
+  basis="forecast/tide only";
+  window=pace==="FAST"?"~6–12 hr • low-confidence model-only estimate":pace==="MODERATE"?"~12–24 hr • low-confidence model-only estimate":"~24+ hr • low-confidence model-only estimate";
+  reasons.unshift("recent observation data unavailable");
+ }
+
+ return {pace,window,tide:tideMove||"Unavailable",points,reasons,basis,recentCompleteness};
 }
 function updateRecoveryOutlook(){
  if(!selected){resetRecoveryOutlook();return;}
@@ -960,7 +997,7 @@ function updateRecoveryOutlook(){
  const pe=document.getElementById("recoveryPace");pe.textContent=r.pace;pe.className=r.pace==="FAST"?"good":r.pace==="MODERATE"?"mid":"bad";
  document.getElementById("recoveryWindow").textContent=r.window;
  document.getElementById("recoveryTide").textContent=r.tide;
- document.getElementById("recoveryWhy").textContent="Why: "+(r.reasons.join(" • ")||"not enough recent-condition data");
+ document.getElementById("recoveryWhy").textContent="Basis: "+r.basis+" • Why: "+(r.reasons.join(" • ")||"not enough recent-condition data");
 }
 function cleanWaterLikelihood(data){
  const r=recoveryOutlookFor({recent:data.recent,wx:data.wx,tides:data.tides,spot:data.spot});
@@ -1330,6 +1367,44 @@ function windDirectionScore(dir){
  if(["W","WNW","NW","NNW","N"].includes(d))return -3;
  return 0;
 }
+
+function sourceConfidenceWeight(v){
+ if(v==="live")return 1;
+ if(v==="cache")return 0.9;
+ if(v==="fallback")return 0.65;
+ if(v==="stale")return 0.35;
+ return 0;
+}
+function recentObservationCompleteness(r){
+ r=r||{};
+ const vals=[
+  !!(r.observedWind&&r.observedWind!=="Unavailable"),
+  Number.isFinite(r.maxGust),
+  Number.isFinite(r.rainIn),
+  Number.isFinite(r.windShift)
+ ];
+ return vals.filter(Boolean).length/vals.length;
+}
+function currentConfidencePercent(){
+ let pct=0;
+ pct+=25*sourceConfidenceWeight(dataQuality.weather);
+ pct+=20*sourceConfidenceWeight(dataQuality.tides);
+
+ const pt=document.getElementById("pressureTrend").textContent;
+ if(["Falling","Stable","Rising"].includes(pt))pct+=20;
+
+ const obsWeight=sourceConfidenceWeight(dataQuality.observedWind);
+ const obsCompleteness=recentObservationCompleteness(recentConditions);
+ if(obsWeight>0)pct+=20*obsWeight*(0.5+0.5*obsCompleteness);
+
+ const manualClarity=Number(document.getElementById("clarity").value);
+ if(manualClarity!==0)pct+=15;
+ else if(clarityState&&clarityState.direct&&Number.isFinite(clarityState.score))pct+=15;
+ else if(clarityState&&Number.isFinite(clarityState.score))pct+=8;
+
+ return Math.max(0,Math.min(100,Math.round(pct)));
+}
+
 function calcScore(){
  if(!selected)return;
  let s=50,why=[],liveParts=0,totalLive=3;
@@ -1357,7 +1432,7 @@ function calcScore(){
  s=Math.max(0,Math.min(100,Math.round(s)));
  const scoreEl=document.getElementById("score");scoreEl.textContent=s+"%";scoreEl.className="big "+(s>=75?"good":s>=55?"mid":"bad");
  const rating=s>=80?"Very good":s>=70?"Good":s>=55?"Fair":s>=40?"Poor":"Very poor";document.getElementById("rating").textContent=rating;
- const conf=Math.round((liveParts/totalLive)*100);document.getElementById("confidence").textContent="Data confidence: "+conf+"% live factors loaded";
+ const conf=currentConfidencePercent();document.getElementById("confidence").textContent="Data confidence: "+conf+"% of key inputs available";
  document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • "+(Number(document.getElementById("clarity").value)===0&&clarityState.direct?"clarity source loaded":"you can still override clarity from the water")+". Add bait activity for a better estimate.";
  whatToThrowNow();
  updateRecoveryOutlook();

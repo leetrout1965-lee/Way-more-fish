@@ -32,6 +32,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 <option value="Big Lake / Calcasieu">Big Lake / Calcasieu</option>
 <option value="West Cove">West Cove</option>
 <option value="Hackberry">Hackberry</option>
+<option value="Cameron Beaches">Cameron Beaches</option>
 <option value="Dularge">Dularge</option>
 <option value="Cocodrie">Cocodrie</option>
 <option value="Lake Pelto">Lake Pelto</option>
@@ -295,6 +296,9 @@ const spots=[
 {name:"Johnson Bayou",area:"Sabine",lat:29.76217,lon:-93.65266,tide:"8770822",tideName:"Texas Point, Sabine Pass"},
 {name:"Sabine Pass / Texas Point",area:"Sabine",lat:29.69,lon:-93.841667,tide:"8770822",tideName:"Texas Point, Sabine Pass"},
 
+{name:"Little Florida Beach",area:"Cameron Beaches",lat:29.7495,lon:-93.6050,tide:"8770822",tideName:"Texas Point, Sabine Pass",sourceNote:"Approx. Gulf fishing-reference point just offshore of published Little Florida Beach coordinate (29.755770, -93.605027)"},
+{name:"Rutherford Beach",area:"Cameron Beaches",lat:29.7515,lon:-93.1243,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"Approx. Gulf fishing-reference point just offshore of published Rutherford Beach coordinate (29.75828, -93.12429)"},
+
 {name:"Elmer's Island",area:"Grand Isle",lat:29.17829,lon:-90.06841,tide:"8761724",tideName:"Grand Isle"},
 {name:"Caminada Pass",area:"Grand Isle",lat:29.231361,lon:-90.048528,tide:"8761724",tideName:"Grand Isle"},
 {name:"Bayou Rigaud",area:"Grand Isle",lat:29.266894,lon:-89.966738,tide:"8761724",tideName:"Grand Isle"},
@@ -378,10 +382,15 @@ const salinitySources={
  "Four League Bay / Atchafalaya":{provider:"reference",site:"",backupSite:"07387040",backupName:"Vermilion Bay near Cypremort Point",name:"Four League / Atchafalaya Bay",note:"No local real-time salinity feed; Vermilion Bay is a broad regional fallback"},
  "Prien Lake":{provider:"USGS",site:"08017044",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Calcasieu River at I-10 at Lake Charles",note:"Closest continuous salinity source for Prien Lake; backup is lower in the Calcasieu system"},
  "Grand Isle":{provider:"USGS",site:"073802516",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Barataria Pass at Grand Isle",note:"Regional proxy for Grand Isle / Barataria spots; backup is a broader west-side coastal proxy"},
- "Sabine":{provider:"reference",site:"",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Sabine Lake",note:"No local real-time salinity feed; Hackberry is only a broad southwest-Louisiana fallback"}
+ "Sabine":{provider:"reference",site:"",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Sabine Lake",note:"No local real-time salinity feed; Hackberry is only a broad southwest-Louisiana fallback"},
+ "Cameron Beaches":{provider:"reference",site:"",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Cameron Parish Gulf beaches",note:"No dependable beach-level real-time salinity feed; Hackberry is only a broad regional fallback"}
 };
 
 const structureDetails={
+
+ "Little Florida Beach":{type:"Open Gulf beach / surf zone",depth:"First and second guts, sandbar edges and any visible current cuts",how:"Fish moving water along the guts and cuts. Look for cleaner water, bait, birds and breaks in the sandbar; this pin is an approximate offshore fishing reference, not a navigation waypoint."},
+ "Rutherford Beach":{type:"Open Gulf beach / surf zone near the Mermentau system",depth:"First and second guts, sandbar edges and any visible current cuts",how:"Fish the surf guts, cuts and color changes. Watch wind direction and river-influenced water clarity; this pin is an approximate offshore fishing reference, not a navigation waypoint."},
+
  "Bois Connie Weir":{type:"Water-control weir / riprap current break",depth:"Deep turbulent water immediately lake-side; published guide reference describes up to about 10 ft at the structure",how:"Fish the lake-side current break on moving water while staying outside all posted exclusion distances. Work the points beside the structure if the center is crowded."},
  "Peconi Bayou WCS":{type:"Narrow tidal-channel water-control structure",depth:"Mouth of Peconi Bayou on the east bank; verified response-plan reference point is very close to the Bois Connie structure",how:"Fish lake-side current seams and bait wash on moving water while obeying all posted refuge / weir restrictions. Treat this pin as a fishing reference, not a navigation waypoint or structure boundary."},
  "Basket Reef":{type:"Natural oyster / shell reef",depth:"Shallow reef on the eastern shore north of Mangrove Bayou",how:"Use the published waypoint as a reef reference, then locate the shell edge with sonar. Fish the current-facing side and adjacent drop rather than running directly over shallow shell."},

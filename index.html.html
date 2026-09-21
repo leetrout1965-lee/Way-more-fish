@@ -1,0 +1,1697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Way More Fish</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1520;color:#eef6fb}
+header{padding:14px 16px;background:#0f1f2d;position:sticky;top:0;z-index:1000;border-bottom:1px solid #284153}
+h1{margin:0;font-size:22px}.sub{font-size:12px;color:#9fb0bf;margin-top:3px}
+#map{height:42vh;min-height:320px}.wrap{max-width:900px;margin:auto;padding:12px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{background:#132332;border:1px solid #284153;border-radius:14px;padding:12px}
+.full{grid-column:1/-1}.row{display:flex;justify-content:space-between;gap:8px;margin:7px 0}
+button,select,input,textarea{font:inherit;border-radius:9px;border:1px solid #38566d;background:#0d1c28;color:#eef6fb;padding:9px}
+button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.small{font-size:12px}.big{font-size:36px;font-weight:800}
+.good{color:#7bdc7b}.mid{color:#ffd166}.bad{color:#ff8585}table{width:100%;border-collapse:collapse}td{padding:5px;border-bottom:1px solid #284153}
+.rank-pin{background:#eef6fb;color:#0b1520;border:2px solid #0b1520;border-radius:50%;width:28px;height:28px;line-height:24px;text-align:center;font-weight:800;box-shadow:0 1px 5px #0008}.rank-list button{padding:6px 8px;margin-top:4px}.spot-map-link{padding:5px 8px;margin-top:4px;background:#0b668d;border-color:#3289aa;font-weight:700}.spot-map-link:focus{outline:2px solid #8fd3ff;outline-offset:2px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body>
+<header><h1>Way More Fish</h1><div class="sub">South Louisiana coast • live fishing conditions, not navigation</div></header>
+<div style="padding:10px 12px;background:#132332;border-bottom:1px solid #284153">
+<label for="areaPicker" style="display:block;font-size:12px;color:#9fb0bf;margin-bottom:5px">Choose fishing area</label>
+<select id="areaPicker" style="width:100%;font-size:17px;margin-bottom:8px">
+<option value="">Select an area…</option>
+<option value="Vermilion Bay">Vermilion Bay</option>
+<option value="Tiger Shoal West">Tiger Shoal West</option>
+<option value="Tiger Shoal East">Tiger Shoal East</option>
+<option value="Cote Blanche / Nickel Reef">Cote Blanche / Nickel Reef</option>
+<option value="Big Lake / Calcasieu">Big Lake / Calcasieu</option>
+<option value="West Cove">West Cove</option>
+<option value="Hackberry">Hackberry</option>
+<option value="Cameron Beaches">Cameron Beaches</option>
+<option value="Dularge">Dularge</option>
+<option value="Cocodrie">Cocodrie</option>
+<option value="Lake Pelto">Lake Pelto</option>
+<option value="Delacroix / Hopedale / Shell Beach">Delacroix / Hopedale / Shell Beach</option>
+<option value="Lafitte / Barataria">Lafitte / Barataria</option>
+<option value="Leeville / Fourchon">Leeville / Fourchon</option>
+<option value="Pointe aux Chenes / Montegut">Pointe aux Chenes / Montegut</option>
+<option value="Empire / Buras / Venice">Empire / Buras / Venice</option>
+<option value="Lake Borgne / Rigolets">Lake Borgne / Rigolets</option>
+<option value="Lake Pontchartrain">Lake Pontchartrain</option>
+<option value="Four League Bay / Atchafalaya">Four League Bay / Atchafalaya</option>
+<option value="Sabine">Sabine</option>
+<option value="Grand Isle">Grand Isle</option>
+<option value="Prien Lake">Prien Lake</option>
+</select>
+<label for="locationPicker" style="display:block;font-size:12px;color:#9fb0bf;margin-bottom:5px">Choose fishing spot</label>
+<select id="locationPicker" style="width:100%;font-size:17px" disabled>
+<option value="">Select an area first…</option>
+</select>
+<div id="areaStatus" class="small muted" style="margin-top:6px">Choose an area, then pick a fishing spot.</div>
+</div>
+
+<div id="map"></div>
+<div class="wrap"><div id="status" class="small muted" style="padding:10px;border:1px solid #38566d;border-radius:10px;margin-bottom:10px">
+If this file is opened in iPad Quick Look, live JavaScript may not run. Open the hosted version in Safari for live NOAA/NWS data and the fishing percentage.
+</div><div class="grid">
+<section class="card full">
+<h3>Live conditions</h3>
+<p><strong>Choose a fishing area, then choose a spot.</strong> The app will load NOAA/NWS conditions and calculate a fishing percentage.</p>
+<p class="small muted">For the live version, open the hosted site in Safari. iPad Quick Look may display the file without running the live data calls.</p>
+</section>
+<section class="card full"><h3>Where Should I Fish Right Now?</h3>
+<div class="small muted">Scans the Louisiana areas in Way More Fish, then refines the strongest areas spot-by-spot. It blends current fishing conditions, water clarity, wind, tide movement, recent disruption and data confidence. The top spots are pinned on the map.</div>
+<p><button class="primary" id="whereNowBtn" onclick="findWhereNow()">Scan Louisiana Coast Now</button></p>
+<div id="whereNowStatus" class="small muted">Tap the button for a coast-wide current-conditions scan.</div>
+<div id="whereNowResults" class="rank-list" style="overflow-x:auto;margin-top:8px"></div>
+</section><section class="card"><div id="spotTitle" style="font-size:20px;font-weight:700">Choose a spot</div><div class="row"><span><strong>Current Conditions Score</strong></span><span id="score" class="big">—%</span></div><div id="rating" style="font-weight:700;margin:4px 0">Waiting for a location</div><div id="confidence" class="small muted">Data confidence: —</div><div id="why" class="muted" style="margin-top:7px">How favorable this selected spot is right now.</div></section>
+<section class="card"><h3>Best Upcoming Window</h3>
+<div class="row"><span><strong>Window Score</strong></span><span id="bestWindowScore" class="big">—%</span></div>
+<div class="row"><span>Best time</span><strong id="bestWindow">—</strong></div>
+<div class="row"><span>Second best</span><strong id="secondWindow">—</strong></div>
+<div id="windowWhy" style="margin-top:8px;font-weight:700">Choose a spot to compare the next 12 hours.</div>
+<div id="windowDetails" class="small muted" style="margin-top:5px">Uses hourly NWS wind/forecast plus NOAA tide movement, time of day and pressure trend. It is a conditions-based estimate, not a guarantee of fish activity.</div>
+</section>
+<section class="card"><h3>Weather</h3><div class="row"><span>Forecast wind</span><strong id="wind">—</strong></div><div class="row"><span>Forecast</span><strong id="weather">—</strong></div><div class="row"><span>Pressure</span><strong id="pressure">—</strong></div><div class="row"><span>Trend</span><strong id="pressureTrend">—</strong></div></section>
+<section class="card"><h3>Recent Conditions Memory</h3>
+<div class="row"><span>Observed wind</span><strong id="observedWind">—</strong></div>
+<div class="row"><span>Max gust • last 6 hr</span><strong id="recentMaxGust">—</strong></div>
+<div class="row"><span>Rain signal • last 6 hr</span><strong id="recentRain">—</strong></div>
+<div class="row"><span>Wind shift</span><strong id="recentWindShift">—</strong></div>
+<div class="row"><span>Water disruption risk</span><strong id="disruptionRisk">—</strong></div>
+<div class="row"><span>Did you see a recent storm / churned water?</span><select id="recentStorm"><option value="0">Unknown / no report</option><option value="1">Yes — recent storm or churned water</option></select></div>
+<div id="observedWindSource" class="small muted">Choose a spot to load nearby observed conditions.</div>
+<div id="disruptionWhy" class="small muted" style="margin-top:6px">Recent gusts, rain and fast wind shifts can reduce confidence even after the weather calms down.</div>
+</section>
+<section class="card"><h3>Recovery Outlook</h3>
+<div class="row"><span>Recovery pace</span><strong id="recoveryPace">—</strong></div>
+<div class="row"><span>Estimated cleanup window</span><strong id="recoveryWindow">—</strong></div>
+<div class="row"><span>Next tide effect</span><strong id="recoveryTide">—</strong></div>
+<div id="recoveryWhy" class="small muted">Choose a spot to estimate how quickly disturbed water may improve after recent weather.</div>
+<div class="small muted" style="margin-top:7px">Heuristic estimate only. When recent station observations are missing, the app labels recovery as modeled or forecast/tide-only and widens the cleanup window instead of treating missing observations as live evidence. Actual clarity can still change faster or slower with bottom type, fetch and freshwater runoff.</div>
+</section>
+<section class="card full"><h3>Tomorrow's Top 3 Fishing Spots</h3>
+<div class="small muted">Compares the Louisiana areas in Way More Fish and ranks the three strongest spots for tomorrow morning using forecast wind/weather, tide movement when available, recent-disruption recovery and likely water cleanliness. NWS is primary weather; a backup forecast source is used if NWS is temporarily unavailable. It is a conditions score, not a catch guarantee.</div>
+<p><button class="primary" id="top3TomorrowBtn" onclick="findTop3Tomorrow()">Find Top 3 for Tomorrow</button></p>
+<div id="top3TomorrowStatus" class="small muted">Tap the button to scan the coast for tomorrow morning.</div>
+<div id="top3TomorrowResults" style="overflow-x:auto;margin-top:8px"></div>
+</section>
+<section class="card full"><h3>Cleanest Fishable Water</h3>
+<div class="small muted">Use <strong>Cleanest Water Now</strong> for live conditions, or <strong>Tomorrow Morning Outlook</strong> to compare the next dawn using overnight forecast wind/weather plus predicted tide movement. Satellite imagery is a visual check and is not machine-scored yet.</div>
+<p><button class="primary" id="cleanWaterBtn" onclick="findCleanestWater('now')">Cleanest Water Now</button> <button id="tomorrowWaterBtn" onclick="findCleanestWater('tomorrow')">Tomorrow Morning Outlook</button> <button id="satelliteBtn" onclick="openSatelliteView()">Open latest NASA satellite view</button></p>
+<div id="cleanWaterStatus" class="small muted">Choose an area, then run either current or tomorrow-morning comparison.</div>
+<div id="cleanWaterResults" style="overflow-x:auto;margin-top:8px"></div>
+</section>
+<section class="card"><h3>Tide</h3><div id="tideStation" class="small muted">—</div><div class="row"><span>Next tide</span><strong id="nextTide">—</strong></div><div class="row"><span>Movement</span><strong id="tideMove">—</strong></div><div id="tideTable"></div></section>
+<section class="card"><h3>What you see on the water</h3>
+<div class="row"><span>Clarity</span><select id="clarity"><option value="0">Unknown</option><option value="10">Clean / green</option><option value="5">Fair / stained</option><option value="-10">Muddy</option></select></div>
+<div class="row"><span>Bait</span><select id="bait"><option value="0">Unknown</option><option value="12">Heavy bait / birds / slicks</option><option value="5">Some bait</option><option value="-6">No bait seen</option></select></div>
+<button class="primary" onclick="calcScore()">Recalculate</button></section>
+<section class="card"><h3>Water conditions</h3>
+<div class="row"><span>Water clarity</span><strong id="autoClarityStatus">—</strong></div>
+<div id="autoClaritySource" class="small muted">Choose a spot to load measured/satellite clarity when available.</div>
+<div class="row"><span>Salinity</span><strong id="salinityStatus">—</strong></div>
+<div class="row"><span>Water temperature</span><strong id="waterTempStatus">—</strong></div>
+<div id="salinitySource" class="small muted">Choose a spot to load the nearest salinity station.</div>
+<div id="speciesFit" style="margin-top:10px;font-weight:700">Species fit: —</div>
+<div id="speciesWhy" class="small muted" style="margin-top:5px">Salinity, season and water temperature will be combined into a short fishing explanation.</div>
+<div class="small muted" style="margin-top:7px">Salinity is not yet used in the main fishing percentage.</div></section>
+
+<section class="card"><h3>Data quality</h3>
+<div class="row"><span>Recommendation confidence</span><strong id="qualityLevel">—</strong></div>
+<div class="row"><span>Forecast weather</span><strong id="qualityWeather">—</strong></div>
+<div class="row"><span>Observed wind</span><strong id="qualityObservedWind">—</strong></div>
+<div class="row"><span>Tides</span><strong id="qualityTides">—</strong></div>
+<div class="row"><span>Salinity</span><strong id="qualitySalinity">—</strong></div>
+<div id="qualityWhy" class="small muted" style="margin-top:6px">Choose a spot to see which recommendations are based on live, cached or proxy data.</div>
+</section>
+
+<section class="card"><h3>Louisiana regulations</h3>
+<div class="row"><span>Speckled trout</span><strong>15/day • 13–20 in</strong></div>
+<div class="small muted">Up to 2 trout over 20 in may be kept within the daily limit.</div>
+<div class="row"><span>Redfish</span><strong>4/day • 18–27 in</strong></div>
+<div class="row"><span>Southern flounder</span><strong>10/day</strong></div>
+<div class="small muted">Recreational flounder harvest is closed Oct 15–Nov 30 each year.</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+<a href="https://www.louisianaoutdoors.com/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#147a47;color:white;text-decoration:none;font-weight:700">🎣 Buy / Renew Fishing License</a>
+<a href="https://www.wlf.louisiana.gov/page/recreational-fishing" target="_blank" rel="noopener" style="display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid #55758b;color:#8fd3ff;text-decoration:none;font-weight:700">Check current LDWF regulations</a>
+</div>
+<div class="small muted" style="margin-top:8px">License button opens LouisianaOutdoors.com, the state licensing portal. Quick reference only. Emergency closures and rule changes can supersede these limits.</div>
+</section>
+
+<section class="card"><h3>Depth & structure</h3>
+<div class="row"><span>Structure</span><strong id="structureType">—</strong></div>
+<div class="row"><span>Target zone</span><strong id="structureDepth">—</strong></div>
+<div id="structureHow" style="margin-top:8px;font-weight:700">How to fish it: —</div>
+<div id="structureNote" class="small muted" style="margin-top:5px">Choose a spot to see the most useful structure cue.</div>
+<div class="small muted" style="margin-top:7px">Reference fishing structure only. Depths are approximate fishing zones, not safe-navigation data. Map pins are water-reference points checked against monitoring/topographic sources where available; they are not navigation waypoints.</div></section>
+
+
+<section class="card"><h3>What to throw now</h3>
+<div class="row"><span>Target</span><strong id="throwTarget">—</strong></div>
+<div class="row"><span>Lure / bait</span><strong id="throwLure">—</strong></div>
+<div class="row"><span>Color</span><strong id="throwColor">—</strong></div>
+<div class="row"><span>Weight</span><strong id="throwWeight">—</strong></div>
+<div class="row"><span>Retrieve</span><strong id="throwRetrieve">—</strong></div>
+<div id="throwPresentation" style="margin-top:8px;font-weight:700">Presentation: —</div>
+<div id="throwWhy" class="small muted" style="margin-top:5px">Choose a spot and load conditions for a recommendation.</div>
+<div class="small muted" style="margin-top:7px">Starting-point fishing guidance only. Adjust lure weight and presentation for actual current, depth, water clarity and fish response.</div></section>
+
+<section class="card full"><h3>Compare spots</h3>
+<div class="small muted" style="margin-bottom:8px">Compare up to 4 spots in the selected area. This comparison uses loaded conditions only and does not include your manual clarity or bait observations.</div>
+<div class="grid">
+<select id="compareSpot1"></select>
+<select id="compareSpot2"></select>
+<select id="compareSpot3"></select>
+<select id="compareSpot4"></select>
+</div>
+<p><button class="primary" onclick="compareSpots()">Compare now</button> <button onclick="fillTopAreaSpots()">Use first 4 spots in this area</button></p>
+<div id="compareStatus" class="small muted">Choose an area and pick up to 4 spots to compare.</div>
+<div id="compareResults" style="overflow-x:auto;margin-top:8px"></div></section>
+
+<section class="card full"><h3>Fishing Opportunity Calendar</h3>
+<div class="small muted" style="margin-bottom:8px">Look up the next 28 days using NOAA tide predictions, sunrise/sunset, estimated sun/moon timing and — inside the NWS 7-day range — actual forecast wind/weather. Farther-out scores are planning tools, not catch probabilities.</div>
+<div class="grid">
+<select id="calendarArea">
+<option value="">Use selected area…</option>
+</select>
+<select id="calendarTarget">
+<option value="Any">Any inshore species</option>
+<option value="Speckled trout">Speckled trout</option>
+<option value="Redfish">Redfish</option>
+<option value="Flounder">Flounder</option>
+</select>
+</div>
+<p><button class="primary" onclick="buildOpportunityCalendar()">Find next 28 days</button></p>
+<div id="calendarStatus" class="small muted">Choose an area, then build the calendar.</div>
+<div id="calendarTop" style="margin-top:10px"></div>
+<div id="calendarResults" style="overflow-x:auto;margin-top:10px"></div>
+<div class="small muted" style="margin-top:8px">Confidence levels: 0–6 days = Fishing forecast • 7–13 days = Developing opportunity • 14–28 days = Planning opportunity. NOAA tide predictions are deterministic; weather confidence falls sharply beyond the NWS 7-day forecast.</div>
+</section>
+
+<section class="card full"><h3>Trip journal</h3><div class="grid"><select id="catchSpecies"><option value="Speckled trout">Speckled trout</option><option value="Redfish">Redfish</option><option value="Flounder">Flounder</option><option value="Black drum">Black drum</option><option value="Sheepshead">Sheepshead</option><option value="Other">Other</option></select><input id="catchCount" type="number" min="0" placeholder="Fish caught"><input id="keptCount" type="number" min="0" placeholder="Fish kept"><input id="lure" placeholder="Lure / bait"><input id="depth" placeholder="Depth fished"><textarea id="notes" placeholder="Water color, birds, slicks, bite location..."></textarea></div><p><button onclick="saveLog()">Save trip note</button> <button onclick="exportLog()">Export journal</button></p><div id="logStatus" class="small muted"></div><div id="journalPattern" style="margin-top:8px;font-weight:700">Your pattern: save at least 3 trips to start learning.</div><div class="small muted" style="margin-top:5px">Each saved trip now stores a snapshot of spot, score, wind, tide, pressure trend, salinity, water temperature, best window and lure recommendation so future versions can learn from your actual catches.</div></section>
+</div></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
+<script>
+const spots=[
+{name:"Cypremort Point",area:"Vermilion Bay",lat:29.71336,lon:-91.88,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Tete Butte Reef",area:"Vermilion Bay",lat:29.58472,lon:-92.09444,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Pavy Reef",area:"Vermilion Bay",lat:29.55861,lon:-92.01722,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Diamond Reef",area:"Vermilion Bay",lat:29.517882,lon:-91.98532,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Grassy Island Point",area:"Vermilion Bay",lat:29.530382,lon:-91.962748,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Shell Keys Reef",area:"Vermilion Bay",lat:29.40656833,lon:-91.85370667,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Nickel Reef",area:"Cote Blanche / Nickel Reef",lat:29.41945,lon:-91.7075,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"LDWF nearshore reef"},
+{name:"Rabbit Island Pass",area:"Cote Blanche / Nickel Reef",lat:29.42695,lon:-91.70750,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published LDWF nearshore reference"},
+{name:"Lake Tom",area:"Vermilion Bay",lat:29.57111,lon:-91.82639,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Oyster Lake",area:"Vermilion Bay",lat:29.52917,lon:-91.86861,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Mound Point",area:"Vermilion Bay",lat:29.47472,lon:-91.82278,tide:"8765251",tideName:"Cypremort Point"},
+{name:"South Point",area:"Vermilion Bay",lat:29.49361,lon:-91.77222,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Michael Point",area:"Vermilion Bay",lat:29.62361,lon:-91.92583,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Lake Point",area:"Vermilion Bay",lat:29.56889,lon:-91.71028,tide:"8765251",tideName:"Cypremort Point"},
+{name:"The Hammock",area:"Vermilion Bay",lat:29.70917,lon:-91.86028,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Shark Island / Trash Pile",area:"Vermilion Bay",lat:29.79083,lon:-91.84972,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Redfish Point",area:"Vermilion Bay",lat:29.65528,lon:-92.13139,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Boxcar Reef",area:"Vermilion Bay",lat:29.62960,lon:-91.99807,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Southwest Pass / Porpoise Point",area:"Vermilion Bay",lat:29.59162,lon:-92.02092,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
+{name:"Sally Shoal",area:"Vermilion Bay",lat:29.65613,lon:-91.87133,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Cypremort Artificial Reef",area:"Vermilion Bay",lat:29.72222,lon:-91.87278,tide:"8765251",tideName:"Cypremort Point"},
+
+{name:"Tiger Shoal 01",area:"Tiger Shoal West",lat:29.447130,lon:-92.193645,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal 04",area:"Tiger Shoal West",lat:29.448645,lon:-92.173275,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal – West Rig Cluster",area:"Tiger Shoal West",lat:29.446667,lon:-92.078250,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published Tiger Shoal rig-cluster center"},
+{name:"Tiger Shoal Mound 01",area:"Tiger Shoal West",lat:29.440705,lon:-92.103353,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 02",area:"Tiger Shoal West",lat:29.427423,lon:-92.094865,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 03",area:"Tiger Shoal West",lat:29.421070,lon:-92.104672,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 04",area:"Tiger Shoal West",lat:29.415148,lon:-92.112175,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 05",area:"Tiger Shoal West",lat:29.409373,lon:-92.115308,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 06",area:"Tiger Shoal West",lat:29.405113,lon:-92.114900,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 07",area:"Tiger Shoal West",lat:29.397745,lon:-92.112263,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 08",area:"Tiger Shoal West",lat:29.388937,lon:-92.119930,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal Mound 09",area:"Tiger Shoal West",lat:29.384530,lon:-92.120508,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published submerged mound / former oilfield structure"},
+{name:"Tiger Shoal 14",area:"Tiger Shoal East",lat:29.446337,lon:-92.078785,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal 20",area:"Tiger Shoal East",lat:29.448212,lon:-92.078207,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal – East Rig Cluster",area:"Tiger Shoal East",lat:29.441317,lon:-92.061717,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published Tiger Shoal rig-cluster center"},
+{name:"Tiger Shoal 27",area:"Tiger Shoal East",lat:29.441212,lon:-92.061800,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal 31",area:"Tiger Shoal East",lat:29.446840,lon:-92.055697,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical Tiger Shoal structure reference"},
+{name:"Tiger Shoal – LDWF Station",area:"Tiger Shoal East",lat:29.51361,lon:-92.05500,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Louisiana coastwide monitoring station 1061"},
+{name:"Tiger Shoal Wreck 02",area:"Tiger Shoal East",lat:29.404390,lon:-92.017187,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published historical wreck / structure reference"},
+{name:"North West Cove / Rabbit Island North",area:"West Cove",lat:29.892996,lon:-93.377393,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"Louisiana DEQ site 0193, NE of northern tip of Rabbit Island"},
+{name:"East Bank Reef",area:"West Cove",lat:29.860331,lon:-93.354831,tide:"8768094",tideName:"Calcasieu Pass"},
+{name:"NE Rabbit Island",area:"West Cove",lat:29.8572,lon:-93.3822,tide:"8768094",tideName:"Calcasieu Pass"},
+{name:"W Rabbit Island",area:"West Cove",lat:29.847,lon:-93.395,tide:"8768094",tideName:"Calcasieu Pass"},
+{name:"Southwest West Cove / Oyster Bayou",area:"West Cove",lat:29.848611,lon:-93.406389,tide:"8768094",tideName:"Calcasieu Pass"},
+{name:"West Cove",area:"West Cove",lat:29.8475,lon:-93.3697,tide:"8768094",tideName:"Calcasieu Pass"},
+
+{name:"Black Lake Bayou",area:"Hackberry",lat:30.00625,lon:-93.33984,tide:"8768094",tideName:"Calcasieu Pass"},
+{name:"Kelso Bayou",area:"Hackberry",lat:30.008056,lon:-93.334444,tide:"8768094",tideName:"Calcasieu Pass"},
+{name:"Crab Gully",area:"Hackberry",lat:30.03549,lon:-93.33182,tide:"8768094",tideName:"Calcasieu Pass"},
+{name:"Black Bayou",area:"Hackberry",lat:30.07839,lon:-93.28857,tide:"8768094",tideName:"Calcasieu Pass"},
+
+// Dularge reference fishing waters. Coordinates are center/reference points, not navigation waypoints.
+{name:"Lake Mechant",area:"Dularge",lat:29.332211,lon:-90.93898,tide:"8762928",tideName:"Cocodrie"},
+{name:"Raccourci Bay",area:"Dularge",lat:29.3525511,lon:-90.9392906,tide:"8762928",tideName:"Cocodrie"},
+{name:"Raccourci Bayou",area:"Dularge",lat:29.33597,lon:-90.94829,tide:"8762928",tideName:"Cocodrie"},
+{name:"Goose Bay",area:"Dularge",lat:29.32591,lon:-90.99059,tide:"8762928",tideName:"Cocodrie"},
+{name:"Sister Lake / Caillou Lake",area:"Dularge",lat:29.26,lon:-90.91528,tide:"8762928",tideName:"Cocodrie"},
+{name:"Grand Pass",area:"Dularge",lat:29.26507,lon:-90.93596,tide:"8762928",tideName:"Cocodrie"},
+{name:"Mud Lake",area:"Dularge",lat:29.28,lon:-90.91667,tide:"8762928",tideName:"Cocodrie"},
+{name:"Moncleuse Bay",area:"Dularge",lat:29.25556,lon:-90.85639,tide:"8762928",tideName:"Cocodrie"},
+{name:"Lake Decade / Lake De Cade",area:"Dularge",lat:29.41028,lon:-90.86306,tide:"8762928",tideName:"Cocodrie"},
+{name:"Jug Lake",area:"Dularge",lat:29.37417,lon:-90.94697,tide:"8762928",tideName:"Cocodrie"},
+{name:"Lost Lake",area:"Dularge",lat:29.32667,lon:-91.06667,tide:"8762928",tideName:"Cocodrie"},
+{name:"Grand Bayou Dularge",area:"Dularge",lat:29.204814,lon:-90.953767,tide:"8762928",tideName:"Cocodrie"},
+
+// Cocodrie reference fishing waters. Coordinates are center/reference points, not navigation waypoints.
+{name:"Bay Cocodrie",area:"Cocodrie",lat:29.25,lon:-90.65,tide:"8762928",tideName:"Cocodrie"},
+{name:"Bayou Petit Caillou",area:"Cocodrie",lat:29.2494,lon:-90.6595,tide:"8762928",tideName:"Cocodrie"},
+{name:"Moss Bay",area:"Cocodrie",lat:29.2175,lon:-90.70056,tide:"8762928",tideName:"Cocodrie"},
+{name:"Bay Pumpkin",area:"Cocodrie",lat:29.21894,lon:-90.67106,tide:"8762928",tideName:"Cocodrie"},
+{name:"Bay Sale",area:"Cocodrie",lat:29.20804,lon:-90.70923,tide:"8762928",tideName:"Cocodrie"},
+{name:"Deep Saline",area:"Cocodrie",lat:29.25088,lon:-90.69887,tide:"8762928",tideName:"Cocodrie"},
+{name:"Deer Bay",area:"Cocodrie",lat:29.211214,lon:-90.734687,tide:"8762928",tideName:"Cocodrie"},
+{name:"Mangrove Bay",area:"Cocodrie",lat:29.17293,lon:-90.74102,tide:"8762928",tideName:"Cocodrie"},
+{name:"Bay la Fleur",area:"Cocodrie",lat:29.2875,lon:-90.60833,tide:"8762928",tideName:"Cocodrie"},
+{name:"Madison Bay",area:"Cocodrie",lat:29.39972,lon:-90.55333,tide:"8762928",tideName:"Cocodrie"},
+{name:"Lake Pelto – Central",area:"Lake Pelto",lat:29.096066,lon:-90.668979,tide:"8762928",tideName:"Cocodrie",sourceNote:"Lake Pelto center reference"},
+// Lake Pelto reefs and structure. Fishing-reference points only; not navigation waypoints.
+{name:"Bodwin's Point Reef",area:"Lake Pelto",lat:29.069200,lon:-90.735933,tide:"8762928",tideName:"Cocodrie",sourceNote:"LDWF Lake Pelto artificial reef"},
+{name:"Bird Island Reef",area:"Lake Pelto",lat:29.059333,lon:-90.723833,tide:"8762928",tideName:"Cocodrie",sourceNote:"LDWF limestone reef"},
+{name:"Point Mast Reef",area:"Lake Pelto",lat:29.107400,lon:-90.635717,tide:"8762928",tideName:"Cocodrie",sourceNote:"LDWF / CCA limestone reef"},
+{name:"Horseshoe Reef",area:"Lake Pelto",lat:29.056583,lon:-90.742017,tide:"8762928",tideName:"Cocodrie",sourceNote:"Published Lake Pelto / Trinity Island reef reference"},
+{name:"Lake Pelto Sulphur Mine – North",area:"Lake Pelto",lat:29.102600,lon:-90.675917,tide:"8762928",tideName:"Cocodrie",sourceNote:"Published sulphur-mine structure reference; submerged hazards possible"},
+{name:"Lake Pelto Sulphur Mine – South",area:"Lake Pelto",lat:29.098567,lon:-90.675650,tide:"8762928",tideName:"Cocodrie",sourceNote:"Published sulphur-mine structure reference; submerged hazards possible"},
+{name:"Timbalier Bay",area:"Cocodrie",lat:29.16190,lon:-90.34814,tide:"8762928",tideName:"Cocodrie"},
+{name:"Lake Barre",area:"Cocodrie",lat:29.254951,lon:-90.506195,tide:"8762928",tideName:"Cocodrie"},
+{name:"Last Island / Isles Dernieres (water side)",area:"Cocodrie",lat:29.04667,lon:-90.80944,tide:"8762928",tideName:"Cocodrie"},
+{name:"Raccoon Point",area:"Cocodrie",lat:29.06111,lon:-90.96056,tide:"8762928",tideName:"Cocodrie"},
+
+{name:"Sabine Lake North",area:"Sabine",lat:29.9181,lon:-93.765,tide:"8770822",tideName:"Texas Point, Sabine Pass"},
+{name:"Sabine Lake South",area:"Sabine",lat:29.82528,lon:-93.85833,tide:"8770822",tideName:"Texas Point, Sabine Pass"},
+{name:"Johnson Bayou",area:"Sabine",lat:29.76217,lon:-93.65266,tide:"8770822",tideName:"Texas Point, Sabine Pass"},
+{name:"Sabine Pass / Texas Point",area:"Sabine",lat:29.69,lon:-93.841667,tide:"8770822",tideName:"Texas Point, Sabine Pass"},
+
+{name:"Little Florida Beach",area:"Cameron Beaches",lat:29.7495,lon:-93.6050,tide:"8770822",tideName:"Texas Point, Sabine Pass",sourceNote:"Approx. Gulf fishing-reference point just offshore of published Little Florida Beach coordinate (29.755770, -93.605027)"},
+
+{name:"Mae's Beach",area:"Cameron Beaches",lat:29.7425,lon:-93.6930,tide:"8770822",tideName:"Texas Point, Sabine Pass",sourceNote:"Approx. Gulf fishing-reference point just offshore of Mae's Beach; public map references place the beach near 29.7447, -93.6930."},
+{name:"Johnson Bayou Rocks",area:"Cameron Beaches",lat:29.7550,lon:-93.6585,tide:"8770822",tideName:"Texas Point, Sabine Pass",sourceNote:"Approx. Gulf fishing-reference point off the Johnsons Bayou beach/rock area; nearby published Johnsons Bayou coordinates are around 29.7613, -93.6585."},
+{name:"Constance Beach",area:"Cameron Beaches",lat:29.7530,lon:-93.5803,tide:"8770822",tideName:"Texas Point, Sabine Pass",sourceNote:"Approx. Gulf fishing-reference point just offshore of Louisiana beach-monitoring site Constance Beach at 29.75874, -93.58030."},
+{name:"Holly Beach",area:"Cameron Beaches",lat:29.7625,lon:-93.4542,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"Approx. Gulf fishing-reference point just offshore of Louisiana beach-monitoring site Holly Beach - 4 at 29.76912, -93.45424."},
+
+{name:"Rutherford Beach",area:"Cameron Beaches",lat:29.7515,lon:-93.1243,tide:"8768094",tideName:"Calcasieu Pass",sourceNote:"Approx. Gulf fishing-reference point just offshore of published Rutherford Beach coordinate (29.75828, -93.12429)"},
+
+{name:"Elmer's Island",area:"Grand Isle",lat:29.17829,lon:-90.06841,tide:"8761724",tideName:"Grand Isle"},
+{name:"Caminada Pass",area:"Grand Isle",lat:29.231361,lon:-90.048528,tide:"8761724",tideName:"Grand Isle"},
+{name:"Bayou Rigaud",area:"Grand Isle",lat:29.266894,lon:-89.966738,tide:"8761724",tideName:"Grand Isle"},
+{name:"Grand Isle State Park",area:"Grand Isle",lat:29.258838,lon:-89.954794,tide:"8761724",tideName:"Grand Isle"},
+{name:"Fifi Island",area:"Grand Isle",lat:29.257172,lon:-89.973961,tide:"8761724",tideName:"Grand Isle"},
+{name:"Barataria Pass",area:"Grand Isle",lat:29.272833,lon:-89.946806,tide:"8761724",tideName:"Grand Isle"},
+{name:"Grand Terre Island",area:"Grand Isle",lat:29.30245,lon:-89.89563,tide:"8761724",tideName:"Grand Isle"},
+{name:"I-210 North Channel Ledge",area:"Prien Lake",lat:30.1988,lon:-93.2818,tide:"8767816",tideName:"Lake Charles"},
+{name:"East Island Flat",area:"Prien Lake",lat:30.1910,lon:-93.2810,tide:"8767816",tideName:"Lake Charles"},
+{name:"North Point / Ship Channel Junction",area:"Prien Lake",lat:30.1968,lon:-93.2835,tide:"8767816",tideName:"Lake Charles"},
+{name:"Indian Bay / Northeast Point",area:"Prien Lake",lat:30.1922,lon:-93.2748,tide:"8767816",tideName:"Lake Charles"},
+{name:"South Bridge Mud Flats",area:"Prien Lake",lat:30.1930,lon:-93.2795,tide:"8767816",tideName:"Lake Charles"},
+{name:"Southeast Shoreline",area:"Prien Lake",lat:30.1785,lon:-93.2718,tide:"8767816",tideName:"Lake Charles"},
+{name:"Casino / Rock Jetty",area:"Prien Lake",lat:30.2025,lon:-93.2728,tide:"8767816",tideName:"Lake Charles"},
+{name:"Bayou d’Inde Confluence / West Flats",area:"Prien Lake",lat:30.1979816,lon:-93.2882130,tide:"8767816",tideName:"Lake Charles"},
+
+// Southeast Louisiana expansion — verified water-reference fishing points, not navigation waypoints.
+{name:"Lake Lery",area:"Delacroix / Hopedale / Shell Beach",lat:29.7772222,lon:-89.7905556,tide:"8761305",tideName:"Shell Beach"},
+{name:"Pencil Canal / Little Lake",area:"Delacroix / Hopedale / Shell Beach",lat:29.7013367,lon:-89.7891700,tide:"8761305",tideName:"Shell Beach"},
+{name:"Lake Coquille / Bernard-Pisana Mouth",area:"Delacroix / Hopedale / Shell Beach",lat:29.7488367,lon:-89.5847833,tide:"8761305",tideName:"Shell Beach"},
+{name:"Shell Beach / Bayou Yscloskey",area:"Delacroix / Hopedale / Shell Beach",lat:29.8681,lon:-89.6732,tide:"8761305",tideName:"Shell Beach"},
+
+{name:"Lake Salvador",area:"Lafitte / Barataria",lat:29.7713889,lon:-90.1933333,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
+{name:"Bayou Perot / Point Legard",area:"Lafitte / Barataria",lat:29.5657778,lon:-90.1655556,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
+{name:"Bayou Dosgris Deep Hole",area:"Lafitte / Barataria",lat:29.4723500,lon:-90.0295667,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
+{name:"Lafitte / Barataria Waterway",area:"Lafitte / Barataria",lat:29.6667,lon:-90.1117,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
+{name:"Mendicant Island / Barataria Bay",area:"Lafitte / Barataria",lat:29.3183,lon:-89.9800,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
+
+{name:"Port Fourchon / Belle Pass",area:"Leeville / Fourchon",lat:29.1142,lon:-90.1993,tide:"8762075",tideName:"Port Fourchon, Belle Pass"},
+{name:"Bay Champagne",area:"Leeville / Fourchon",lat:29.11301,lon:-90.17285,tide:"8762075",tideName:"Port Fourchon, Belle Pass"},
+{name:"Caminada Bay",area:"Leeville / Fourchon",lat:29.25356,lon:-90.05730,tide:"8762075",tideName:"Port Fourchon, Belle Pass"},
+{name:"Caminada Pass",area:"Leeville / Fourchon",lat:29.2100,lon:-90.0400,tide:"8762075",tideName:"Port Fourchon, Belle Pass"},
+{name:"Timbalier Bay",area:"Leeville / Fourchon",lat:29.1730,lon:-90.4030,tide:"8762075",tideName:"Port Fourchon, Belle Pass"},
+
+{name:"Pointe Au Chien / Cut Off Canal",area:"Pointe aux Chenes / Montegut",lat:29.4167,lon:-90.4467,tide:"8762525",tideName:"Pointe Au Chien, Cut Off Canal"},
+{name:"Lake Chien",area:"Pointe aux Chenes / Montegut",lat:29.33772,lon:-90.44397,tide:"8762525",tideName:"Pointe Au Chien, Cut Off Canal"},
+{name:"Lake Felicity",area:"Pointe aux Chenes / Montegut",lat:29.3085,lon:-90.4310,tide:"8762525",tideName:"Pointe Au Chien, Cut Off Canal"},
+{name:"Billiot Bay North",area:"Pointe aux Chenes / Montegut",lat:29.3450,lon:-90.5200,tide:"8762525",tideName:"Pointe Au Chien, Cut Off Canal"},
+{name:"PAC Main Channel / Marsh Drains",area:"Pointe aux Chenes / Montegut",lat:29.3900,lon:-90.4550,tide:"8762525",tideName:"Pointe Au Chien, Cut Off Canal"},
+
+{name:"Adams Bay",area:"Empire / Buras / Venice",lat:29.3750,lon:-89.6013889,tide:"8760721",tideName:"Pilottown"},
+{name:"Bay Pomme d'Or",area:"Empire / Buras / Venice",lat:29.35061,lon:-89.53994,tide:"8760721",tideName:"Pilottown"},
+{name:"Bay Gardene",area:"Empire / Buras / Venice",lat:29.5983,lon:-89.6183,tide:"8760721",tideName:"Pilottown"},
+{name:"Pilottown / Lower Mississippi",area:"Empire / Buras / Venice",lat:29.1800,lon:-89.2583,tide:"8760721",tideName:"Pilottown"},
+{name:"North Pass",area:"Empire / Buras / Venice",lat:29.1500,lon:-89.2000,tide:"8760412",tideName:"North Pass"},
+
+{name:"Fort Proctor / Shell Beach",area:"Lake Borgne / Rigolets",lat:29.867399,lon:-89.678177,tide:"8761305",tideName:"Shell Beach"},
+{name:"Martello Castle / Bayou Dupre",area:"Lake Borgne / Rigolets",lat:29.9450,lon:-89.8350,tide:"8761305",tideName:"Shell Beach"},
+{name:"Chef Menteur Pass",area:"Lake Borgne / Rigolets",lat:30.0652,lon:-89.8017,tide:"8761402",tideName:"The Rigolets"},
+{name:"Rigolets / Hwy 90",area:"Lake Borgne / Rigolets",lat:30.1669444,lon:-89.7405556,tide:"8761402",tideName:"The Rigolets"},
+{name:"Lake Borgne North Shore",area:"Lake Borgne / Rigolets",lat:30.0000,lon:-89.7200,tide:"8761305",tideName:"Shell Beach"},
+
+{name:"Causeway Mid-Lake",area:"Lake Pontchartrain",lat:30.1975,lon:-90.1325,tide:"8761402",tideName:"The Rigolets"},
+{name:"Causeway North",area:"Lake Pontchartrain",lat:30.3149182,lon:-90.1020208,tide:"8761402",tideName:"The Rigolets"},
+{name:"US 11 / Maestri Bridge",area:"Lake Pontchartrain",lat:30.182585,lon:-89.844760,tide:"8761402",tideName:"The Rigolets"},
+{name:"Railroad Trestle",area:"Lake Pontchartrain",lat:30.18333,lon:-89.85222,tide:"8761402",tideName:"The Rigolets"},
+{name:"I-10 Twin Span",area:"Lake Pontchartrain",lat:30.18264,lon:-89.82486,tide:"8761402",tideName:"The Rigolets"},
+
+{name:"Four League Bay",area:"Four League Bay / Atchafalaya",lat:29.3418,lon:-91.1355,tide:"8763843",tideName:"Fourleague Bay"},
+{name:"Atchafalaya Bay",area:"Four League Bay / Atchafalaya",lat:29.5141037,lon:-91.3528861,tide:"8763843",tideName:"Fourleague Bay"},
+{name:"Amerada Pass",area:"Four League Bay / Atchafalaya",lat:29.4496,lon:-91.3381,tide:"8763843",tideName:"Fourleague Bay"},
+{name:"Eugene Island North",area:"Four League Bay / Atchafalaya",lat:29.3675,lon:-91.3839,tide:"8763843",tideName:"Fourleague Bay"},
+{name:"Four League Bay East Shore",area:"Four League Bay / Atchafalaya",lat:29.32227,lon:-91.17869,tide:"8763843",tideName:"Fourleague Bay"},
+]
+// Live salinity sources. Each spot uses the nearest practical monitoring station, not an exact on-spot reading.
+const salinitySources={
+ "Vermilion Bay":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional proxy for Vermilion Bay spots; backup is a broad coastal proxy"},
+ "Big Lake / Calcasieu":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy for Big Lake spots; backup is farther north in the Calcasieu system"},
+ "West Cove":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy; conditions can differ inside West Cove; backup is farther north"},
+ "Hackberry":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Nearest continuous Calcasieu Lake salinity source; backup is farther north"},
+ "Dularge":{provider:"USGS",site:"073813498",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Dularge waters; backup is a broader coastal proxy"},
+ "Cocodrie":{provider:"USGS",site:"073813498",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Cocodrie / Terrebonne waters; backup is a broader coastal proxy"},
+ "Lake Pelto":{provider:"USGS",site:"073813498",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Lake Pelto; backup is a broader coastal proxy"},
+ "Delacroix / Hopedale / Shell Beach":{provider:"reference",site:"",name:"St. Bernard marsh",note:"No dependable near-real-time salinity feed connected yet"},
+ "Lafitte / Barataria":{provider:"reference",site:"",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Barataria system",note:"No local real-time salinity feed; Grand Isle is only a broad lower-bay fallback"},
+ "Leeville / Fourchon":{provider:"reference",site:"",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Fourchon / Caminada system",note:"No local real-time salinity feed; Grand Isle is a broad coastal fallback"},
+ "Pointe aux Chenes / Montegut":{provider:"reference",site:"",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Pointe aux Chenes marsh",note:"No local real-time salinity feed; Cocodrie is a regional fallback"},
+ "Empire / Buras / Venice":{provider:"reference",site:"",name:"Lower Mississippi Delta",note:"No dependable near-real-time salinity feed connected yet"},
+ "Lake Borgne / Rigolets":{provider:"reference",site:"",name:"Lake Borgne / Rigolets",note:"No dependable near-real-time salinity feed connected yet"},
+ "Lake Pontchartrain":{provider:"reference",site:"",name:"Lake Pontchartrain",note:"No dependable near-real-time salinity feed connected yet"},
+ "Four League Bay / Atchafalaya":{provider:"reference",site:"",backupSite:"07387040",backupName:"Vermilion Bay near Cypremort Point",name:"Four League / Atchafalaya Bay",note:"No local real-time salinity feed; Vermilion Bay is a broad regional fallback"},
+ "Prien Lake":{provider:"USGS",site:"08017044",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Calcasieu River at I-10 at Lake Charles",note:"Closest continuous salinity source for Prien Lake; backup is lower in the Calcasieu system"},
+ "Grand Isle":{provider:"USGS",site:"073802516",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Barataria Pass at Grand Isle",note:"Regional proxy for Grand Isle / Barataria spots; backup is a broader west-side coastal proxy"},
+ "Sabine":{provider:"reference",site:"",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Sabine Lake",note:"No local real-time salinity feed; Hackberry is only a broad southwest-Louisiana fallback"},
+ "Cameron Beaches":{provider:"reference",site:"",backupSite:"08017095",backupName:"North Calcasieu Lake near Hackberry",name:"Cameron Parish Gulf beaches",note:"No dependable beach-level real-time salinity feed; Hackberry is only a broad regional fallback"}
+};
+
+const structureDetails={
+
+ "Little Florida Beach":{type:"Open Gulf beach / surf zone",depth:"First and second guts, sandbar edges and any visible current cuts",how:"Fish moving water along the guts and cuts. Look for cleaner water, bait, birds and breaks in the sandbar; this pin is an approximate offshore fishing reference, not a navigation waypoint."},
+
+ "Mae's Beach":{type:"Open Gulf beach / surf zone",depth:"First and second guts, sandbar edges and current cuts",how:"Work the guts and any visible cuts on a moving tide. Favor cleaner water, bait concentrations and calmer surf; this is an approximate fishing reference, not a navigation waypoint."},
+ "Johnson Bayou Rocks":{type:"Surf zone with rock/structure influence",depth:"Current seams, rock edges, adjacent guts and sandbar cuts",how:"Fish the current edges and eddies around visible structure, especially when bait is present. Keep clear of hazardous structure and use this only as a fishing reference, not a navigation waypoint."},
+ "Constance Beach":{type:"Open Gulf beach / surf zone",depth:"First and second guts, sandbar edges and current cuts",how:"Look for water-color changes, bait and breaks in the bars. Moving water through a cut can concentrate fish; this is an approximate fishing reference, not a navigation waypoint."},
+ "Holly Beach":{type:"Open Gulf beach / surf zone",depth:"First and second guts, sandbar edges and current cuts",how:"Target cleaner surf, bait, birds and moving water through bar cuts. Wind direction can quickly change clarity; this is an approximate fishing reference, not a navigation waypoint."},
+
+ "Rutherford Beach":{type:"Open Gulf beach / surf zone near the Mermentau system",depth:"First and second guts, sandbar edges and any visible current cuts",how:"Fish the surf guts, cuts and color changes. Watch wind direction and river-influenced water clarity; this pin is an approximate offshore fishing reference, not a navigation waypoint."},
+
+ "Bois Connie Weir":{type:"Water-control weir / riprap current break",depth:"Deep turbulent water immediately lake-side; published guide reference describes up to about 10 ft at the structure",how:"Fish the lake-side current break on moving water while staying outside all posted exclusion distances. Work the points beside the structure if the center is crowded."},
+ "Peconi Bayou WCS":{type:"Narrow tidal-channel water-control structure",depth:"Mouth of Peconi Bayou on the east bank; verified response-plan reference point is very close to the Bois Connie structure",how:"Fish lake-side current seams and bait wash on moving water while obeying all posted refuge / weir restrictions. Treat this pin as a fishing reference, not a navigation waypoint or structure boundary."},
+ "Basket Reef":{type:"Natural oyster / shell reef",depth:"Shallow reef on the eastern shore north of Mangrove Bayou",how:"Use the published waypoint as a reef reference, then locate the shell edge with sonar. Fish the current-facing side and adjacent drop rather than running directly over shallow shell."},
+ "Mangrove Bayou WCS":{type:"Slotted water-control structure / riprap canal",depth:"Narrow canal and structure edge on the east bank",how:"Target current seams on the lake side when water is moving. Treat this as a fishing reference only and obey posted refuge / weir stand-off rules."},
+ "East Calcasieu Artificial Reef":{type:"Artificial reef — limestone + crushed concrete",depth:"87-acre reef site on the eastern half of Calcasieu Lake",how:"Work the perimeter and current-facing sections with soft plastics; avoid assuming the point marks the full reef boundary."},
+ "Grand Bayou Weir":{type:"Water-control weir / canal mouth",depth:"Structure, canal edge and small island/current breaks",how:"Outgoing water can concentrate redfish on the lake side; incoming flow can favor flounder. Stay outside posted restricted distance and fish the current seams rather than crowding the gates."},
+ "Lambert Bayou Mouth":{type:"Bayou mouth / east-bank shoreline current seam",depth:"Bayou mouth into shallow east-bank lake water",how:"Fish the mouth and adjacent east-bank shoreline when current pulls bait from the marsh. The Grand-to-Lambert shoreline is a documented redfish stretch on moving water."},
+ "Lake Lery":{type:"Open lake + marsh drains",depth:"Shallow lake edges and drain mouths",how:"Fish points and drains on moving water; look for bait pushed along windward shorelines."},
+ "Lake Coquille / Bernard-Pisana Mouth":{type:"Bayou mouths + broad flat",depth:"Mouth edges and adjacent flat",how:"Work current seams where the bayous empty into the lake, especially when bait is present."},
+ "Bayou Dosgris Deep Hole":{type:"Bayou deep hole",depth:"Approx. 10 ft hole and edges",how:"Fish the lip and bottom transition; slower presentations often work when current is weak."},
+ "Port Fourchon / Belle Pass":{type:"Pass / jetties / channel edge",depth:"Deep pass edges and nearby flats",how:"Target current breaks and eddies; avoid the main navigation lane and heavy commercial traffic."},
+ "Caminada Pass":{type:"Tidal pass",depth:"Channel edge and shoal transitions",how:"Fish seams and eddies where bait is swept through the pass; current can be strong."},
+ "Pointe Au Chien / Cut Off Canal":{type:"Canal junction + marsh drains",depth:"Canal edge and drain mouths",how:"Focus on moving water around drains and points; reds often push shallow on higher water."},
+ "Adams Bay":{type:"Bay + marsh points",depth:"Shoreline points and bayou mouths",how:"Cover points, drains and cleaner-water edges; tide and river influence can change water quickly."},
+ "Fort Proctor / Shell Beach":{type:"Rubble / hard structure + pass edge",depth:"Structure edge and nearby channel",how:"Fish the structure edges and current seams; watch boat traffic around Bayou Yscloskey."},
+ "Chef Menteur Pass":{type:"Deep tidal pass + bridge structure",depth:"Deep channel, pilings and current seams",how:"Current can be very strong; fish protected seams and structure when flow is manageable."},
+ "Rigolets / Hwy 90":{type:"Deep tidal pass + bridge structure",depth:"Deep channel and bridge current breaks",how:"Time fishing around manageable current; heavy weights may be needed near bottom."},
+ "Causeway Mid-Lake":{type:"Bridge pilings",depth:"Pilings from surface to lake bottom",how:"Fish current-facing pilings and shade lines; move until bait or fish marks appear."},
+ "Railroad Trestle":{type:"Bridge / trestle pilings",depth:"Pilings and bottom around bridge",how:"Work the pilings slowly; water clarity often determines which end of the bridge is better."},
+ "Four League Bay":{type:"Open bay + oyster reefs / shorelines",depth:"Reef edges and shoreline points",how:"Use tide, birds and bait to locate active reefs and points; expect river influence on water clarity."},
+ "NW West Cove Shoreline Reef":{type:"Shoreline oyster reef",depth:"Very shallow reef edge along the northwest bank",how:"Fish the reef edge and adjacent 3–5 ft water. Favor the lee/clean-water side and avoid running directly across marked shallow reef."},
+ "North West Cove Oyster Reef – West End":{type:"Constructed oyster reef / shallow hard bottom",depth:"Shallow West Cove reef zone",how:"Fish the current-facing edge, then drift across adjacent shell. Use bait, slicks and water clarity to decide whether to stay shallow or slide off the reef."},
+ "North West Cove Oyster Reef – East End":{type:"Constructed oyster reef / shallow hard bottom",depth:"Shallow West Cove reef zone",how:"Work the reef perimeter and the cleaner-water side; this point marks the eastern end of the documented 2024 reef project, not a navigation boundary."},
+ "North West Cove / Rabbit Island North":{type:"North-cove flat / oyster-rich water",depth:"Shallow West Cove flat near Rabbit Island",how:"Use this as a water-reference fishing point. Look for mullet, slicks and cleaner water over shell; move to the nearest lee shoreline when wind muddies the open flat."},
+ "Boxcar Reef":{type:"Oyster / shell reef",depth:"About 3–5 ft over the reef; deeper water nearby",how:"Work the up-current edge and the drop where the reef falls into deeper water; avoid crossing unverified shell at speed."},
+ "Southwest Pass / Porpoise Point":{type:"Deep pass / hole + current seam",depth:"Deep Southwest Pass hole / channel edge",how:"Fish current seams and the edge of the deep hole, especially when bait is swept through the pass."},
+ "Sally Shoal":{type:"Shoal / hard-bottom rise",depth:"Shallow shoal with surrounding deeper water",how:"Fish the crown and the current-facing edge, then slide to the drop if fish are not on top."},
+ "Cypremort Artificial Reef":{type:"Artificial reef",depth:"Reef structure / surrounding edge",how:"Fish the perimeter and current-facing side rather than running directly over the reef."},
+ "Grand Pass":{type:"Deep pass / heavy current",depth:"Deep pass; reported 30–50 ft in the middle",how:"Fish the pass edges and current seams; bull reds and drum often use the deepest water while trout can hold on both sides."},
+ "Raccourci Bayou":{type:"Bayou channel + flats + drop-offs",depth:"Shallow point edges into roughly 15–25 ft channel water",how:"Anchor or hold on the shallow edge and work lures or bait into the deeper channel with moving water."},
+ "Lake Mechant":{type:"Large interior lake / shell reefs / shoreline points",depth:"Shoreline flats, reef edges and bayou mouths",how:"Use bait, birds and shell/reef markers to narrow the lake; work reef edges and north-shore points when conditions allow."},
+ "Lake Decade / Lake De Cade":{type:"Interior lake / oyster reefs / washouts",depth:"Reef edges, shoreline washouts and nearby deeper canals",how:"Fish oyster reefs and shoreline washouts; in cold weather, nearby dead-end canals can concentrate trout and redfish."},
+ "Moss Bay":{type:"Shallow oyster-reef bay",depth:"Very shallow shell mounds and reef edges",how:"Fish shell edges and pockets carefully; this bay is productive but shallow and hazardous, so treat the map point as fishing reference only."},
+ "I-210 North Channel Ledge":{type:"Ship-channel ledge north of I-210",depth:"18–22 ft ledge",how:"Follow the deep ledge north of the bridge; in cold water slow the presentation near bottom."},
+ "East Island Flat":{type:"Shallow flat beside the island / trough",depth:"Flat edge into deeper trough",how:"Cover the flat on moving water, then work the break where the flat falls into the trough."},
+ "North Point / Ship Channel Junction":{type:"Point + channel-current seam",depth:"Point edge / channel break",how:"Set up where moving water sweeps past the point and fish the seam rather than the slack water."},
+ "West Channel Ledge":{type:"Ship-channel ledge",depth:"Deep edge beside flat",how:"Target the break line; fish deeper when water is cold or the sun is high."},
+ "Indian Bay / Northeast Point":{type:"Point / current edge near Indian Bay",depth:"Shallow point into deeper water",how:"Fish the up-current face first, then the down-current eddy if bait is present."},
+ "South Bridge Mud Flats":{type:"Mud flat + nearby channel edge",depth:"Shallow flat to channel break",how:"Fish the flat in active feeding windows and slide to the edge when fish pull deeper."},
+ "Southeast Shoreline":{type:"Shallow shoreline / scattered cover",depth:"Very shallow shoreline zone",how:"Best for redfish-style shoreline fishing; cast ahead of the boat and work visible drains or irregularities."},
+ "Casino / Rock Jetty":{type:"Rock jetty / riprap + nearby current breaks",depth:"Shore structure to adjacent drop",how:"Fish current seams and rock edges; prioritize spots with visible bait or moving water."},
+ "Bayou d’Inde Confluence / West Flats":{type:"Bayou confluence + west-side flats",depth:"Confluence edge / nearby flat",how:"Focus on the confluence and adjacent flat edges when water is moving; reds often use the nearby cover."}
+};
+function structureContext(s){
+ const exact=structureDetails[s.name];
+ if(exact)return exact;
+ const n=s.name.toLowerCase();
+ if(n.includes("reef"))return {type:"Reef / hard-bottom edge",depth:"Top and outer edge of reef",how:"Work the up-current edge first, then the deeper side; avoid running directly across unverified reef structure."};
+ if(n.includes("pass"))return {type:"Pass / channel-current seam",depth:"Channel edge and adjacent shoal",how:"Fish current seams and eddies where bait is swept past the edge; stronger current usually favors the protected side."};
+ if(n.includes("bayou")||n.includes("gully")||n.includes("washout"))return {type:"Drain / bayou mouth",depth:"Mouth, drop and nearby flat",how:"Fish the mouth on moving water and follow the drop where current carries bait out of the marsh."};
+ if(n.includes("island")||n.includes("point"))return {type:"Point / island shoreline",depth:"Shallow edge into nearby deeper water",how:"Start on the wind- or current-facing side, then check the lee-side eddy if bait is present."};
+ if(n.includes("shoreline")||n.includes("camp")||n.includes("settlement")||n.includes("deatonville"))return {type:"Shoreline / nearby flat",depth:"Shallow shoreline to first drop",how:"Cover shoreline irregularities and the first depth change; move deeper if water is hot or very clear."};
+ if(n.includes("lake")||n.includes("cove")||n.includes("mid lake"))return {type:"Open-water flat / nearby contour change",depth:"Flat, subtle drop or shell/hard bottom",how:"Use bait, birds and slicks to narrow the area, then work any visible depth or bottom transition."};
+ return {type:"Estuarine structure",depth:"Fish the nearest depth change",how:"Use tide movement, bait and water clarity to identify the active edge rather than fishing featureless water."};
+}
+function updateStructure(s){
+ const d=structureContext(s);
+ document.getElementById("structureType").textContent=d.type;
+ document.getElementById("structureDepth").textContent=d.depth;
+ let how=d.how;
+ const tm=document.getElementById("tideMove").textContent;
+ if(tm.startsWith("Rising"))how += " Rising tide: check the shallower/up-current side first.";
+ else if(tm.startsWith("Falling"))how += " Falling tide: emphasize drains, outer edges and the down-current drop.";
+ document.getElementById("structureHow").textContent="How to fish it: "+how;
+ document.getElementById("structureNote").textContent="Structure guidance is spot-specific where documented and category-based elsewhere.";
+}
+function resetStructure(){
+ document.getElementById("structureType").textContent="—";
+ document.getElementById("structureDepth").textContent="—";
+ document.getElementById("structureHow").textContent="How to fish it: —";
+ document.getElementById("structureNote").textContent="Choose a spot to see the most useful structure cue.";
+}
+function resetThrowNow(){
+ document.getElementById("throwTarget").textContent="—";
+ document.getElementById("throwLure").textContent="—";
+ document.getElementById("throwColor").textContent="—";
+ document.getElementById("throwWeight").textContent="—";
+ document.getElementById("throwRetrieve").textContent="—";
+ document.getElementById("throwPresentation").textContent="Presentation: —";
+ document.getElementById("throwWhy").textContent="Choose a spot and load conditions for a recommendation.";
+}
+function whatToThrowNow(){
+ if(!selected){resetThrowNow();return;}
+ const fit=waterState.fit;
+ const target=fit&&fit.best&&fit.best.length?fit.best[0]:"Speckled trout / redfish";
+ const tl=target.toLowerCase();
+ let lure="3–4 in paddle tail on jighead";
+ if(tl.includes("redfish"))lure="3–4 in paddle tail or weedless spoon";
+ else if(tl.includes("flounder"))lure="3–4 in soft plastic worked near bottom";
+ else if(tl.includes("black drum"))lure="Fresh shrimp or small crab near structure";
+ else if(tl.includes("sheepshead"))lure="Shrimp, fiddler crab or small crustacean bait";
+
+ const clarity=Number(document.getElementById("clarity").value);
+ let color="Pearl / natural baitfish";
+ if(clarity>=10)color="Natural / translucent baitfish";
+ else if(clarity<=-10)color="High-contrast dark or chartreuse-accented";
+ else if(clarity>0)color="Pearl, white or natural with some contrast";
+
+ const depthText=document.getElementById("structureDepth").textContent.toLowerCase();
+ const w=windAvg();
+ let weight="1/4 oz";
+ if(depthText.includes("18–22")||depthText.includes("deep")||depthText.includes("channel"))weight="3/8–1/2 oz";
+ else if(depthText.includes("shallow")||depthText.includes("shore"))weight="1/8–1/4 oz";
+ if(w!==null&&w>=16&&weight==="1/4 oz")weight="3/8 oz";
+
+ const temp=waterState.tempF;
+ let retrieve="Steady moderate retrieve with pauses";
+ if(temp!=null&&temp<60)retrieve="Slow, near-bottom retrieve with longer pauses";
+ else if(temp!=null&&temp>86)retrieve="Moderate retrieve; spend more time on deeper edges";
+ else if(tl.includes("flounder")||tl.includes("black drum")||tl.includes("sheepshead"))retrieve="Slow and close to bottom/structure";
+
+ const tm=document.getElementById("tideMove").textContent;
+ const structure=document.getElementById("structureType").textContent;
+ let presentation=`Work the ${structure.toLowerCase()} and make repeated casts across the depth change.`;
+ if(tm.startsWith("Rising"))presentation+=" Start shallower or up-current and let the lure move onto the structure.";
+ else if(tm.startsWith("Falling"))presentation+=" Focus on drains, outer edges and the down-current drop.";
+ if(Number(document.getElementById("bait").value)>=10)presentation+=" Stay with visible bait, birds or slicks before leaving the area.";
+
+ const reasons=[];
+ if(waterState.sal!=null)reasons.push(`${waterState.sal.toFixed(1)} ppt salinity favors ${target.toLowerCase()}`);
+ if(temp!=null)reasons.push(`${temp.toFixed(0)}°F water sets the retrieve pace`);
+ if(tm.startsWith("Rising"))reasons.push("rising tide favors shallower/up-current edges");
+ else if(tm.startsWith("Falling"))reasons.push("falling tide concentrates flow on drains and outer edges");
+ if(clarity>=10)reasons.push("clean water favors natural colors");
+ else if(clarity<=-10)reasons.push("muddy water calls for more contrast");
+ if(w!==null&&w>=16)reasons.push("wind calls for a little more jig weight");
+
+ document.getElementById("throwTarget").textContent=target;
+ document.getElementById("throwLure").textContent=lure;
+ document.getElementById("throwColor").textContent=color;
+ document.getElementById("throwWeight").textContent=weight;
+ document.getElementById("throwRetrieve").textContent=retrieve;
+ document.getElementById("throwPresentation").textContent="Presentation: "+presentation;
+ document.getElementById("throwWhy").textContent="Why: "+(reasons.length?reasons.join(" • "):"This is a structure-based starting point until more live water data is available.");
+}
+
+function resetBestWindow(){
+ document.getElementById("bestWindow").textContent="—";
+ document.getElementById("bestWindowScore").textContent="—%";
+ document.getElementById("secondWindow").textContent="—";
+ document.getElementById("windowWhy").textContent="Choose a spot to compare the next 12 hours.";
+ document.getElementById("windowDetails").textContent="Uses hourly NWS wind/forecast plus NOAA tide movement, time of day and pressure trend. It is a conditions-based estimate, not a guarantee of fish activity.";
+}
+
+let selected=null,wx=null,tides=[],pressureSeries=[],waterState={sal:null,tempF:null,fit:null},clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false},hourlyPeriods=[],recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false},dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
+const map=L.map("map").setView([29.55,-91.88],9);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap"}).addTo(map);
+const fg=L.featureGroup().addTo(map);
+const whereNowLayer=L.layerGroup().addTo(map);
+const spotMarkers=new Map();
+spots.forEach((s,i)=>{const m=L.circleMarker([s.lat,s.lon],{radius:7,weight:2,fillOpacity:.85}).bindTooltip(s.name);m.on("click",()=>selectSpot(s));spotMarkers.set(i,m);});
+const areaPicker=document.getElementById("areaPicker");
+const picker=document.getElementById("locationPicker");
+const areaStatus=document.getElementById("areaStatus");
+const compareIds=["compareSpot1","compareSpot2","compareSpot3","compareSpot4"];
+const calendarArea=document.getElementById("calendarArea");
+const calendarTarget=document.getElementById("calendarTarget");
+let currentAreaMatches=[];
+const allAreas=[...new Set(spots.map(s=>s.area))];
+calendarArea.innerHTML='<option value="">Use selected area…</option>'+allAreas.map(a=>`<option value="${a}">${a}</option>`).join('');
+function compareOptionHtml(matches){return '<option value="">— none —</option>'+matches.map(x=>`<option value="${x.i}">${x.s.name}</option>`).join('');}
+function populateCompareSelectors(matches){
+ currentAreaMatches=matches.slice();
+ const opts=compareOptionHtml(matches);
+ compareIds.forEach((id,pos)=>{const el=document.getElementById(id);el.innerHTML=opts;el.value=matches[pos]?String(matches[pos].i):"";});
+ document.getElementById("compareStatus").textContent=matches.length?`Ready to compare up to ${Math.min(4,matches.length)} spots in ${areaPicker.value}.`:'No verified spots available to compare in this area yet.';
+ document.getElementById("compareResults").innerHTML='';
+}
+function fillTopAreaSpots(){populateCompareSelectors(currentAreaMatches);}
+function chosenCompareSpots(){const seen=new Set(),picked=[];compareIds.forEach(id=>{const v=document.getElementById(id).value;if(v!==""&&!seen.has(v)){seen.add(v);picked.push(spots[Number(v)]);}});return picked;}
+function showArea(area){
+ if(calendarArea)calendarArea.value=area;
+ fg.clearLayers();whereNowLayer.clearLayers();selected=null;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
+ document.getElementById("spotTitle").textContent="Choose a spot";
+ document.getElementById("score").textContent="—/100";
+ document.getElementById("rating").textContent="Waiting for a location";
+ document.getElementById("confidence").textContent="Data confidence: —";
+ document.getElementById("why").textContent="Live data loads after you select a spot."; resetRecentConditionsUI();resetRecoveryOutlook();document.getElementById("cleanWaterResults").innerHTML="";document.getElementById("cleanWaterStatus").textContent="Choose an area, then run either current or tomorrow-morning comparison.";
+ document.getElementById("salinityStatus").textContent="—";document.getElementById("waterTempStatus").textContent="—";document.getElementById("salinitySource").textContent="Choose a spot to load the nearest salinity station.";document.getElementById("speciesFit").textContent="Species fit: —";document.getElementById("speciesWhy").textContent="Salinity, season and water temperature will be combined into a short fishing explanation.";resetStructure();resetThrowNow();resetBestWindow();updateDataQuality();updateJournalPattern();
+ const matches=spots.map((s,i)=>({s,i})).filter(x=>x.s.area===area);
+ picker.innerHTML='<option value="">Select a fishing spot…</option>'+matches.map(x=>`<option value="${x.i}">${x.s.name}</option>`).join('');
+ picker.disabled=matches.length===0;
+ populateCompareSelectors(matches);
+ if(matches.length){
+  matches.forEach(x=>fg.addLayer(spotMarkers.get(x.i)));
+  map.fitBounds(fg.getBounds().pad(.15));
+  areaStatus.textContent=`${matches.length} reference spot${matches.length===1?'':'s'} available in ${area}.`;
+ }else{
+  areaStatus.textContent=`${area} is added. Individual spots will be added after their locations and NOAA tide sources are verified.`;
+ }
+}
+areaPicker.addEventListener("change",()=>{if(areaPicker.value)showArea(areaPicker.value);else{picker.disabled=true;picker.innerHTML='<option value="">Select an area first…</option>';areaStatus.textContent='Choose an area, then pick a fishing spot.';fg.clearLayers();}});
+
+picker.addEventListener("change",()=>{if(picker.value!=="")selectSpot(spots[Number(picker.value)]);});
+function viewSpotOnMap(spotIndex){
+ const i=Number(spotIndex),s=spots[i];
+ if(!s)return;
+ if(areaPicker.value!==s.area){areaPicker.value=s.area;showArea(s.area);}
+ picker.value=String(i);
+ selectSpot(s);
+ map.setView([s.lat,s.lon],13);
+ setTimeout(()=>{
+  const marker=spotMarkers.get(i);
+  if(marker&&marker.openTooltip)marker.openTooltip();
+  const mapEl=document.getElementById("map");
+  if(mapEl&&mapEl.scrollIntoView)mapEl.scrollIntoView({behavior:"smooth",block:"center"});
+ },120);
+}
+showArea("Vermilion Bay");areaPicker.value="Vermilion Bay";
+
+["clarity","bait"].forEach(id=>document.getElementById(id).onchange=calcScore);
+document.getElementById("recentStorm").onchange=()=>{renderRecentConditions();updateRecoveryOutlook();calcScore();};
+function ymd(d){return d.toISOString().slice(0,10).replaceAll("-","")}
+
+// NOAA/NWS cache policy: point metadata 24h, forecast/grid 10m, tide predictions 6h.
+// Cached data is kept in localStorage so reopening the site does not immediately hit NOAA again.
+const CACHE_PREFIX="wayMoreFishCache:v1:";
+const TTL={points:24*60*60*1000,weather:10*60*1000,observations:10*60*1000,tides:6*60*60*1000,salinity:30*60*1000,clarity:3*60*60*1000};
+function cacheRead(key,maxAge){
+ try{const raw=localStorage.getItem(CACHE_PREFIX+key);if(!raw)return null;const obj=JSON.parse(raw);if(Date.now()-obj.savedAt>maxAge)return null;return obj.data}catch{return null}
+}
+function cacheReadStale(key){try{const raw=localStorage.getItem(CACHE_PREFIX+key);return raw?JSON.parse(raw).data:null}catch{return null}}
+function cacheWrite(key,data){try{localStorage.setItem(CACHE_PREFIX+key,JSON.stringify({savedAt:Date.now(),data}))}catch{}}
+async function fetchJSON(url,{cacheKey,ttl,timeoutMs=8000}={}){
+ const fresh=cacheKey?cacheRead(cacheKey,ttl):null;
+ if(fresh)return {data:fresh,source:"cache"};
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);
+ try{
+  const r=await fetch(url,{signal:controller.signal,headers:{Accept:"application/geo+json, application/json"}});
+  if(!r.ok)throw Error(`HTTP ${r.status}`);
+  const data=await r.json();if(data&&data.error)throw Error(data.error.message||"API error");
+  if(cacheKey)cacheWrite(cacheKey,data);return {data,source:"live"};
+ }catch(e){
+  const stale=cacheKey?cacheReadStale(cacheKey):null;
+  if(stale)return {data:stale,source:"stale",warning:e.name==="AbortError"?"timed out":e.message};
+  throw Error(e.name==="AbortError"?"request timed out":e.message);
+ }finally{clearTimeout(timer)}
+}
+function clarityLabel(score){
+ if(!Number.isFinite(score))return "Unknown";
+ return score>=78?"Clear / green":score>=60?"Fairly clear":score>=42?"Stained":score>=25?"Murky":"Very muddy";
+}
+function modeledClarityScore(data={}){
+ let score=62,reasons=[];
+ const recent=data.recent||recentConditions||{},w=data.wx||wx||{};
+ const wind=parseWindMph(w.windSpeed);
+ const penalty=Number(recent.penalty||0);
+ if(penalty>=18){score-=25;reasons.push("strong recent disruption");}
+ else if(penalty>=7){score-=13;reasons.push("recent wind/rain disruption");}
+ else if(String(recent.risk||"").toUpperCase()==="LOW"){score+=5;reasons.push("low recent disruption");}
+ if(Number.isFinite(wind)){if(wind<=7){score+=8;reasons.push("light wind favors settling");}else if(wind<=12){score+=3;}else if(wind>=18){score-=18;reasons.push("strong wind can suspend sediment");}else if(wind>=13){score-=9;reasons.push("breezy conditions can stain water");}}
+ if(Number.isFinite(recent.rainIn)){if(recent.rainIn>=0.25){score-=12;reasons.push("recent rain signal");}else if(recent.rainIn>=0.10){score-=7;}}
+ const tideLabel=nextTideMovementLabel(data.tides||tides||[]);
+ if(tideLabel.startsWith("Rising")){score+=4;reasons.push("incoming exchange may improve clarity");}
+ else if(tideLabel.startsWith("Falling")){score-=2;}
+ score=Math.max(0,Math.min(100,Math.round(score)));
+ return {score,label:clarityLabel(score),source:"Modeled fallback",details:reasons.slice(0,4).join(" • ")||"wind/tide/recent-weather estimate",direct:false};
+}
+async function fetchClarityForSpot(s,data=null){
+ const key=`clarity:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;
+ const cached=cacheRead(key,TTL.clarity);
+ if(cached)return cached;
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const r=await fetch(`/.netlify/functions/water-clarity?lat=${encodeURIComponent(s.lat)}&lon=${encodeURIComponent(s.lon)}`,{signal:controller.signal,cache:"no-store"});
+  if(!r.ok)throw Error(`clarity HTTP ${r.status}`);
+  const j=await r.json();
+  if(!j||!Number.isFinite(Number(j.score)))throw Error((j&&j.error)||"no clarity value");
+  const out={score:Number(j.score),label:j.label||clarityLabel(Number(j.score)),source:j.source||"Direct clarity",details:j.details||"",direct:true,age:j.ageHours,raw:j};
+  cacheWrite(key,out);return out;
+ }catch(e){
+  const stale=cacheReadStale(key);
+  if(stale)return {...stale,source:(stale.source||"Clarity")+" • cached",details:(stale.details||"")+" • live clarity source unavailable"};
+  return modeledClarityScore(data||{});
+ }finally{clearTimeout(timer)}
+}
+async function loadWaterClarity(s){
+ clarityState={score:null,label:"Loading…",source:"loading",details:"",direct:false};
+ document.getElementById("autoClarityStatus").textContent="Loading…";
+ document.getElementById("autoClaritySource").textContent="Checking USGS turbidity and NOAA satellite clarity…";
+ const c=await fetchClarityForSpot(s,{recent:recentConditions,wx,tides,spot:s});
+ clarityState=c;
+ document.getElementById("autoClarityStatus").textContent=`${c.label} • ${Math.round(c.score)}/100`;
+ document.getElementById("autoClaritySource").textContent=`${c.source}${c.details?` • ${c.details}`:""}`;
+ return c.direct?{}:{warning:"Direct clarity unavailable; using modeled clarity fallback"};
+}
+async function selectSpot(s){
+ selected=s;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];resetRecoveryOutlook();recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};resetBestWindow();updateDataQuality();document.getElementById("spotTitle").textContent=s.name;
+ const idx=spots.indexOf(s);if(s.area&&areaPicker.value!==s.area){areaPicker.value=s.area;showArea(s.area);}if(idx>=0)document.getElementById("locationPicker").value=String(idx);
+ map.setView([s.lat,s.lon],11);
+ updateStructure(s);
+ document.getElementById("status").textContent="Loading weather, tides and salinity…";
+ document.getElementById("autoClarityStatus").textContent="Loading…";document.getElementById("autoClaritySource").textContent="Checking measured/satellite clarity…";document.getElementById("salinityStatus").textContent="Loading…";document.getElementById("waterTempStatus").textContent="Loading…";document.getElementById("salinitySource").textContent="Finding nearest monitoring station…";document.getElementById("speciesFit").textContent="Species fit: calculating…";document.getElementById("speciesWhy").textContent="Waiting for water-quality data.";
+ const results=await Promise.allSettled([loadWeather(s),loadTides(s),loadSalinity(s),loadWaterClarity(s)]);
+ const failed=results.filter(r=>r.status==="rejected");
+ const warnings=results.filter(r=>r.status==="fulfilled"&&r.value&&r.value.warning).map(r=>r.value.warning);
+ if(failed.length===0){document.getElementById("status").textContent=warnings.length?"Loaded cached conditions because a live source was unavailable: "+warnings.join("; "):"Conditions loaded (live or recent cache).";}
+ else{document.getElementById("status").textContent="Some conditions are unavailable: "+failed.map(r=>r.reason.message).join("; ")+". The score uses only the factors that loaded.";}
+ calcScore();
+}
+function msToMph(v){return Number.isFinite(v)?v*2.236936:null;}
+function qvToMph(qv){
+ if(!qv||!Number.isFinite(Number(qv.value)))return null;
+ const v=Number(qv.value),u=String(qv.unitCode||"").toLowerCase();
+ if(u.includes("km_h-1")||u.includes("km/h")||u.includes("kmh"))return v*0.621371;
+ if(u.includes("m_s-1")||u.includes("m/s"))return v*2.236936;
+ if(u.includes("knot")||u.includes("kt"))return v*1.150779;
+ if(u.includes("mi_h-1")||u.includes("mph"))return v;
+ // NWS observation QuantitativeValue should include unitCode; do not guess if it does not.
+ return null;
+}
+function mmToIn(v){return Number.isFinite(v)?v/25.4:null;}
+function degToCompass(deg){if(!Number.isFinite(deg))return "";const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];return dirs[Math.round((((deg%360)+360)%360)/22.5)%16];}
+function circularDiff(a,b){if(!Number.isFinite(a)||!Number.isFinite(b))return null;let d=Math.abs(a-b)%360;return d>180?360-d:d;}
+function resetRecentConditionsUI(){
+ document.getElementById("observedWind").textContent="—";
+ document.getElementById("recentMaxGust").textContent="—";
+ document.getElementById("recentRain").textContent="—";
+ document.getElementById("recentWindShift").textContent="—";
+ document.getElementById("disruptionRisk").textContent="—";
+ document.getElementById("observedWindSource").textContent="Choose a spot to load nearby observed conditions.";
+ document.getElementById("disruptionWhy").textContent="Recent gusts, rain and fast wind shifts can reduce confidence even after the weather calms down.";
+ document.getElementById("recentStorm").value="0";
+}
+function manualStormPenalty(){return document.getElementById("recentStorm")&&document.getElementById("recentStorm").value==="1"?20:0;}
+function effectiveDisruptionPenalty(){return Math.max(recentConditions.penalty||0,manualStormPenalty());}
+function renderRecentConditions(){
+ const r=recentConditions;
+ document.getElementById("observedWind").textContent=r.observedWind||"Unavailable";
+ document.getElementById("recentMaxGust").textContent=Number.isFinite(r.maxGust)?`${r.maxGust.toFixed(0)} mph`:"Unavailable";
+ document.getElementById("recentRain").textContent=Number.isFinite(r.rainIn)?(r.rainIn>=0.01?`${r.rainIn.toFixed(2)} in/hr peak`:`Trace / none`):"Unavailable";
+ document.getElementById("recentWindShift").textContent=Number.isFinite(r.windShift)?`${r.windShift.toFixed(0)}°`:"Unavailable";
+ const manual=manualStormPenalty()>0;
+ const risk=manual?"HIGH (manual report)":r.risk;
+ const el=document.getElementById("disruptionRisk");el.textContent=risk;el.className=(String(risk).startsWith("HIGH")?"bad":risk==="MODERATE"?"mid":"good");
+ document.getElementById("observedWindSource").textContent=r.stationName?`NWS regional observation ${r.stationId||""} — ${r.stationName}${r.age?` • ${r.age}`:""}`:"Observed wind station unavailable for this spot.";
+ const reasons=[];if(r.thunder)reasons.push("thunder observed nearby");if(Number.isFinite(r.maxGust)&&r.maxGust>=22)reasons.push(`gusts reached ${r.maxGust.toFixed(0)} mph`);if(Number.isFinite(r.rainIn)&&r.rainIn>=0.10)reasons.push(`heavy recent rain signal ${r.rainIn.toFixed(2)} in/hr`);if(Number.isFinite(r.windShift)&&r.windShift>=45)reasons.push(`${r.windShift.toFixed(0)}° wind shift`);if(manual)reasons.push("you reported recent storm/churned water");
+ document.getElementById("disruptionWhy").textContent=reasons.length?`Why: ${reasons.join(" • ")}. Shallow water may stay muddy or disturbed after conditions calm.`:"No strong recent disruption signal from the nearby observation station. Localized storms can still be missed, so use the manual report if you saw one.";
+}
+function analyzeObservations(features,station){
+ const cutoff=Date.now()-6*3600000,obs=(features||[]).map(f=>f.properties||{}).filter(o=>new Date(o.timestamp).getTime()>=cutoff).sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+ if(!obs.length)throw Error("no recent station observations");
+ const latest=obs[0];let maxGust=null,maxWind=null,maxRain=null,thunder=false;const dirs=[],stationPressureSeries=[];
+ for(const o of obs){
+  const ws=qvToMph(o.windSpeed),wg=qvToMph(o.windGust),rn=mmToIn(o.precipitationLastHour&&o.precipitationLastHour.value),wd=Number(o.windDirection&&o.windDirection.value);
+  if(Number.isFinite(ws))maxWind=maxWind==null?ws:Math.max(maxWind,ws);
+  if(Number.isFinite(wg))maxGust=maxGust==null?wg:Math.max(maxGust,wg);
+  if(Number.isFinite(rn))maxRain=maxRain==null?rn:Math.max(maxRain,rn);
+  if(Number.isFinite(wd))dirs.push(wd);
+  const bp=Number(o.barometricPressure&&o.barometricPressure.value),slp=Number(o.seaLevelPressure&&o.seaLevelPressure.value);
+  const pressurePa=Number.isFinite(bp)?bp:(Number.isFinite(slp)?slp:null);
+  if(Number.isFinite(pressurePa)&&pressurePa>80000&&pressurePa<110000)stationPressureSeries.push({hPa:pressurePa/100,time:o.timestamp});
+  const text=(String(o.textDescription||"")+" "+JSON.stringify(o.presentWeather||[])).toLowerCase();
+  if(text.includes("thunder"))thunder=true;
+ }
+ let shift=null;if(dirs.length>=2){shift=circularDiff(dirs[0],dirs[dirs.length-1]);}
+ const latestWind=qvToMph(latest.windSpeed),latestGust=qvToMph(latest.windGust),latestDir=Number(latest.windDirection&&latest.windDirection.value);
+ let pts=0;if(thunder)pts+=4;if(maxGust!=null){if(maxGust>=30)pts+=4;else if(maxGust>=22)pts+=3;else if(maxGust>=16)pts+=1;}if(maxWind!=null&&maxWind>=20)pts+=2;if(maxRain!=null){if(maxRain>=0.25)pts+=4;else if(maxRain>=0.10)pts+=3;else if(maxRain>=0.02)pts+=1;}if(shift!=null){if(shift>=90)pts+=2;else if(shift>=45)pts+=1;}
+ const risk=pts>=6?"HIGH":pts>=2?"MODERATE":"LOW",penalty=pts>=8?25:pts>=6?18:pts>=4?12:pts>=2?7:0;
+ const observedWind=Number.isFinite(latestWind)?`${degToCompass(latestDir)} ${latestWind.toFixed(0)} mph${Number.isFinite(latestGust)?`, gust ${latestGust.toFixed(0)}`:""}`:"Unavailable";
+ return {risk,penalty,maxGust,maxWind,rainIn:maxRain,windShift:shift,observedWind,stationName:station.name||station.stationName||"Nearby station",stationId:station.stationIdentifier||"",age:ageLabel(latest.timestamp),thunder,stationPressureSeries};
+}
+
+async function fetchOpenMeteoMarineForSpot(s){
+ const u=`https://marine-api.open-meteo.com/v1/marine?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=sea_level_height_msl,sea_surface_temperature,ocean_current_velocity,ocean_current_direction&timezone=America%2FChicago&forecast_days=3&temperature_unit=fahrenheit&length_unit=imperial&cell_selection=sea`;
+ const cacheKey=`openmeteo-marine:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;const fresh=cacheRead(cacheKey,TTL.tides);let j=null,source="live";
+ if(fresh){j=fresh;source="cache";}else{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);try{const r=await fetch(u,{signal:controller.signal});if(!r.ok)throw Error(`HTTP ${r.status}`);j=await r.json();if(!j||j.error)throw Error((j&&j.reason)||"Open-Meteo Marine API error");cacheWrite(cacheKey,j);}catch(e){const stale=cacheReadStale(cacheKey);if(stale){j=stale;source="stale";}else throw Error(e.name==="AbortError"?"marine fallback timed out":e.message);}finally{clearTimeout(timer)}}
+ const h=j.hourly||{},times=h.time||[],levels=h.sea_level_height_msl||[],temps=h.sea_surface_temperature||[],curr=h.ocean_current_velocity||[],currDir=h.ocean_current_direction||[];
+ const rows=times.map((t,i)=>({time:new Date(t),level:Number(levels[i]),tempF:Number(temps[i]),current:Number(curr[i]),currentDir:Number(currDir[i])})).filter(x=>Number.isFinite(x.time.getTime()));if(!rows.length)throw Error("marine fallback returned no hourly data");return {rows,source,provider:"Open-Meteo Marine"};
+}
+function marineTideEvents(rows){const valid=(rows||[]).filter(x=>Number.isFinite(x.level)),out=[];for(let i=1;i<valid.length-1;i++){const a=valid[i-1],b=valid[i],c=valid[i+1];if(b.level>=a.level&&b.level>c.level)out.push({t:b.time.toISOString().slice(0,16).replace("T"," "),v:(b.level*3.28084).toFixed(2),type:"H"});else if(b.level<=a.level&&b.level<c.level)out.push({t:b.time.toISOString().slice(0,16).replace("T"," "),v:(b.level*3.28084).toFixed(2),type:"L"});}return out;}
+function compassToDeg(dir){const m={N:0,NNE:22.5,NE:45,ENE:67.5,E:90,ESE:112.5,SE:135,SSE:157.5,S:180,SSW:202.5,SW:225,WSW:247.5,W:270,WNW:292.5,NW:315,NNW:337.5};return m[String(dir||"").toUpperCase()]??null;}
+async function modeledRecentConditionsFallback(s){const f=await fetchOpenMeteoForSpot(s),rows=f.hourlyPeriods||[],now=Date.now(),recent=rows.filter(p=>{const t=new Date(p.startTime).getTime();return t<=now+3600000&&t>=now-6*3600000;}),use=recent.length?recent:rows.slice(0,1);let maxGust=null,maxWind=null,dirs=[];for(const p of use){const w=parseWindMph(p.windSpeed),g=Number(p.windGust);if(Number.isFinite(w))maxWind=maxWind==null?w:Math.max(maxWind,w);if(Number.isFinite(g))maxGust=maxGust==null?g:Math.max(maxGust,g);const d=compassToDeg(p.windDirection);if(Number.isFinite(d))dirs.push(d);}const latest=use[use.length-1]||f.wx,wind=parseWindMph(latest&&latest.windSpeed),dir=latest&&latest.windDirection,gust=Number(latest&&latest.windGust),shift=dirs.length>=2?circularDiff(dirs[0],dirs[dirs.length-1]):null;let pts=0;if(maxGust!=null){if(maxGust>=30)pts+=4;else if(maxGust>=22)pts+=3;else if(maxGust>=16)pts+=1;}if(maxWind!=null&&maxWind>=20)pts+=2;if(shift!=null){if(shift>=90)pts+=2;else if(shift>=45)pts+=1;}const risk=pts>=6?"HIGH":pts>=2?"MODERATE":"LOW",penalty=pts>=8?25:pts>=6?18:pts>=4?12:pts>=2?7:0;return {risk,penalty,maxGust,maxWind,rainIn:null,windShift:shift,observedWind:Number.isFinite(wind)?`${dir||""} ${wind.toFixed(0)} mph${Number.isFinite(gust)?`, gust ${gust.toFixed(0)}`:""}`.trim():"Unavailable",stationName:"Open-Meteo modeled fallback",stationId:"MODEL",age:"current model hour",thunder:false,modeled:true};}
+function stationPressureSummary(recent){
+ const rows=(recent&&recent.stationPressureSeries)||[];
+ if(!rows.length)return null;
+ const latest=rows[0].hPa,older=rows[Math.min(3,rows.length-1)].hPa;
+ if(!Number.isFinite(latest))return null;
+ const diff=(latest-older)*0.0295299831;
+ return {series:rows.map(x=>x.hPa),pressureInHg:latest*0.0295299831,trend:diff>.03?"Rising":diff<-.03?"Falling":"Stable"};
+}
+async function loadRecentObservations(s,pointData){
+ try{const stationsUrl=pointData.properties&&pointData.properties.observationStations;if(!stationsUrl)throw Error("no observation-station link");const list=await fetchJSON(stationsUrl,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points});const stationFeature=(list.data.features||[])[0];if(!stationFeature)throw Error("no nearby station");const stationId=stationFeature.properties&&stationFeature.properties.stationIdentifier;if(!stationId)throw Error("station id unavailable");const obs=await fetchJSON(`https://api.weather.gov/stations/${stationId}/observations?limit=18`,{cacheKey:`nws-observations:${stationId}`,ttl:TTL.observations});recentConditions=analyzeObservations(obs.data.features||[],stationFeature.properties||{});dataQuality.observedWind=obs.source;renderRecentConditions();updateDataQuality();updateRecoveryOutlook();updateBestWindow();return obs.source;}
+ catch(e){try{recentConditions=await modeledRecentConditionsFallback(s);dataQuality.observedWind="fallback";renderRecentConditions();const src=document.getElementById("observedWindSource");if(src)src.textContent=`Modeled fallback — Open-Meteo • NWS station observations unavailable (${e.message})`;updateDataQuality();updateRecoveryOutlook();updateBestWindow();return "fallback";}catch(f){dataQuality.observedWind="unavailable";recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};renderRecentConditions();updateDataQuality();updateRecoveryOutlook();return "unavailable";}}
+}
+async function fetchMetarPressureFallback(stationId){
+ if(!stationId)throw Error("no METAR station id");
+ const station=String(stationId).toUpperCase().replace(/[^A-Z0-9]/g,"");
+ if(!station)throw Error("invalid METAR station id");
+ const cacheKey=`metar-pressure:${station}`;
+ const fresh=cacheRead(cacheKey,TTL.weather);
+ if(fresh)return {...fresh,source:"cache"};
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+ try{
+  const r=await fetch(`/.netlify/functions/metar-pressure?station=${encodeURIComponent(station)}`,{signal:controller.signal,cache:"no-store"});
+  if(!r.ok)throw Error(`METAR pressure HTTP ${r.status}`);
+  const j=await r.json();
+  if(!j||!Number.isFinite(Number(j.pressureInHg)))throw Error((j&&j.error)||"METAR pressure returned no value");
+  cacheWrite(cacheKey,j);
+  return {...j,source:"live"};
+ }catch(e){
+  const stale=cacheReadStale(cacheKey);
+  if(stale)return {...stale,source:"stale"};
+  throw Error(e.name==="AbortError"?"METAR pressure request timed out":e.message);
+ }finally{clearTimeout(timer)}
+}
+async function fetchPressureFallback(s){
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=surface_pressure&timezone=America%2FChicago&forecast_days=2`;
+ const cacheKey=`pressure-only:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;
+ let j=null,source="live";
+ const fresh=cacheRead(cacheKey,TTL.weather);
+ if(fresh){j=fresh;source="cache";}
+ else{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+  try{
+   const r=await fetch(u,{signal:controller.signal});
+   if(!r.ok)throw Error(`HTTP ${r.status}`);
+   j=await r.json();
+   if(!j||j.error)throw Error((j&&j.reason)||"pressure API error");
+   cacheWrite(cacheKey,j);
+  }catch(e){
+   const stale=cacheReadStale(cacheKey);
+   if(stale){j=stale;source="stale";}
+   else throw Error(e.name==="AbortError"?"pressure request timed out":e.message);
+  }finally{clearTimeout(timer)}
+ }
+ const times=(j.hourly&&j.hourly.time)||[],vals=(j.hourly&&j.hourly.surface_pressure)||[];
+ if(!times.length||!vals.length)throw Error("pressure fallback returned no hourly values");
+ const now=Date.now();
+ let idx=times.findIndex(t=>new Date(t).getTime()>=now-30*60000);
+ if(idx<0)idx=Math.max(0,times.length-6);
+ const series=vals.slice(idx,idx+6).map(Number).filter(Number.isFinite);
+ if(!series.length)throw Error("pressure fallback returned no usable values");
+ const a=series[0],b=series[Math.min(3,series.length-1)],diff=(b-a)*0.0295299831;
+ return {series,pressureInHg:a*0.0295299831,trend:diff>.03?"Rising":diff<-.03?"Falling":"Stable",source};
+}
+async function loadWeatherFallback(s,nwsReason){
+ try{
+  const f=await fetchOpenMeteoForSpot(s);
+  hourlyPeriods=(f.hourlyPeriods||[]).slice(0,24);wx=f.wx||hourlyPeriods[0];
+  if(!wx)throw Error("fallback returned no hourly periods");
+  document.getElementById("wind").textContent=`${wx.windDirection} ${wx.windSpeed}`;
+  document.getElementById("weather").textContent=`${wx.temperature}°F, ${wx.shortForecast} • fallback`;
+  const sp=stationPressureSummary(recentConditions);
+  if(sp){
+   pressureSeries=sp.series;
+   document.getElementById("pressure").textContent=sp.pressureInHg.toFixed(2)+" inHg";
+   document.getElementById("pressureTrend").textContent=sp.trend;
+  }else if((f.pressureSeries||[]).length){
+   pressureSeries=f.pressureSeries;
+   const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
+   document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
+   document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+  }else{
+   try{
+    const pf=await fetchPressureFallback(s);
+    pressureSeries=pf.series;
+    document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
+    document.getElementById("pressureTrend").textContent=pf.trend;
+   }catch(pe){
+    try{
+     const mp=await fetchMetarPressureFallback(recentConditions&&recentConditions.stationId);
+     pressureSeries=mp.series||[];
+     document.getElementById("pressure").textContent=Number(mp.pressureInHg).toFixed(2)+" inHg";
+     document.getElementById("pressureTrend").textContent=mp.trend||"Stable";
+    }catch(me){
+     pressureSeries=[];
+     document.getElementById("pressure").textContent="Unavailable";
+     document.getElementById("pressureTrend").textContent="Unavailable";
+    }
+   }
+  }
+  dataQuality.weather=f.source||"live";updateDataQuality();updateBestWindow();
+  return {warning:`NWS forecast unavailable (${nwsReason}); using Open-Meteo fallback`};
+ }catch(e){
+  dataQuality.weather="unavailable";updateDataQuality();
+  document.getElementById("wind").textContent="Unavailable";
+  document.getElementById("weather").textContent="Weather unavailable";
+  document.getElementById("pressure").textContent="Unavailable";
+  document.getElementById("pressureTrend").textContent="Unavailable";
+  throw Error(`Weather unavailable (NWS: ${nwsReason}; fallback: ${e.message})`);
+ }
+}
+async function loadWeather(s){
+ const pointKey=`nws-point:${s.lat.toFixed(4)},${s.lon.toFixed(4)}`;
+ let point;
+ try{
+  point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:pointKey,ttl:TTL.points});
+ }catch(e){
+  return loadWeatherFallback(s,`location lookup ${e.message}`);
+ }
+ const p=point.data;
+ await loadRecentObservations(s,p);
+ try{
+  const h=await fetchJSON(p.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather,timeoutMs:12000});
+  hourlyPeriods=(h.data.properties.periods||[]).slice(0,24);wx=hourlyPeriods[0];
+  if(!wx)throw Error("hourly forecast returned no periods");
+  document.getElementById("wind").textContent=`${wx.windDirection} ${wx.windSpeed}`;
+  document.getElementById("weather").textContent=`${wx.temperature}°F, ${wx.shortForecast}`;
+
+  let g=null,gridWarning=null;
+  try{
+   g=await fetchJSON(p.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather,timeoutMs:15000});
+   const pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[];pressureSeries=pr.slice(0,6).map(v=>v.value/100);
+   if(pressureSeries.length){const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";}
+   else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
+  }catch(e){
+   const sp=stationPressureSummary(recentConditions);
+   if(sp){
+    pressureSeries=sp.series;
+    document.getElementById("pressure").textContent=sp.pressureInHg.toFixed(2)+" inHg";
+    document.getElementById("pressureTrend").textContent=sp.trend;
+    gridWarning=`NWS grid pressure unavailable (${e.message}); using nearby observation-station pressure`;
+   }else{
+    try{
+     const pf=await fetchPressureFallback(s);
+     pressureSeries=pf.series;
+     document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
+     document.getElementById("pressureTrend").textContent=pf.trend;
+     gridWarning=`NWS grid/station pressure unavailable; using dedicated Open-Meteo pressure fallback`;
+    }catch(pe){
+     try{
+      const mp=await fetchMetarPressureFallback(recentConditions&&recentConditions.stationId);
+      pressureSeries=mp.series||[];
+      document.getElementById("pressure").textContent=Number(mp.pressureInHg).toFixed(2)+" inHg";
+      document.getElementById("pressureTrend").textContent=mp.trend||"Stable";
+      gridWarning=`NWS/Open-Meteo pressure unavailable; using Aviation Weather METAR altimeter`;
+     }catch(me){
+      pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`Pressure unavailable (NWS: ${e.message}; Open-Meteo: ${pe.message}; METAR: ${me.message})`;
+     }
+    }
+   }
+  }
+
+  updateBestWindow();
+  const sources=[point,h].concat(g?[g]:[]);
+  const stale=sources.filter(x=>x.source==="stale");
+  dataQuality.weather=stale.length?"stale":(sources.some(x=>x.source==="cache")?"cache":"live");
+  updateDataQuality();
+  const warnings=[];if(stale.length)warnings.push("NWS live request failed; showing recent cached weather");if(gridWarning)warnings.push(gridWarning);
+  return warnings.length?{warning:warnings.join("; ")}:{ };
+ }catch(e){
+  return loadWeatherFallback(s,`forecast ${e.message}`);
+ }
+}
+async function loadTides(s){
+ const now=new Date(),tom=new Date(now.getTime()+86400000),u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(now)}&end_date=${ymd(tom)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;
+ try{const res=await fetchJSON(u,{cacheKey:`coops-tides:${s.tide}:${ymd(now)}`,ttl:TTL.tides}),j=res.data;tides=j.predictions||[];if(!tides.length)throw Error("NOAA tides returned no predictions");document.getElementById("tideStation").textContent=`NOAA ${s.tide} — ${s.tideName}`;const future=tides.filter(x=>new Date(x.t.replace(" ","T")).getTime()>Date.now()),n=future[0];if(n){document.getElementById("nextTide").textContent=`${n.type==="H"?"High":"Low"} ${n.v} ft at ${new Date(n.t.replace(" ","T")).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;document.getElementById("tideMove").textContent=n.type==="H"?"Rising toward high":"Falling toward low";}else{document.getElementById("nextTide").textContent="No later tide in cached window";document.getElementById("tideMove").textContent="Unavailable";}document.getElementById("tideTable").innerHTML="<table>"+tides.slice(0,4).map(x=>`<tr><td>${x.type==="H"?"High":"Low"}</td><td>${x.v} ft</td><td>${new Date(x.t.replace(" ","T")).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</td></tr>`).join("")+"</table>";if(selected)updateStructure(selected);updateBestWindow();dataQuality.tides=res.source;updateDataQuality();return res.source==="stale"?{warning:"NOAA live request failed; showing last cached tide predictions"}:{};}
+ catch(e){try{const m=await fetchOpenMeteoMarineForSpot(s),mt=marineTideEvents(m.rows);if(!mt.length)throw Error("no modeled high/low turning points");tides=mt;document.getElementById("tideStation").textContent="Open-Meteo Marine fallback • modeled sea level (MSL)";const future=tides.filter(x=>new Date(x.t.replace(" ","T")).getTime()>Date.now()),n=future[0];if(n){document.getElementById("nextTide").textContent=`Modeled ${n.type==="H"?"high":"low"} near ${new Date(n.t.replace(" ","T")).toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;document.getElementById("tideMove").textContent=n.type==="H"?"Modeled rising toward high":"Modeled falling toward low";}document.getElementById("tideTable").innerHTML='<p class="small muted">NOAA unavailable. Showing modeled sea-level turning points; values use mean sea level and are not navigation-grade tide heights.</p><table>'+tides.slice(0,4).map(x=>`<tr><td>${x.type==="H"?"High":"Low"}</td><td>${x.v} ft MSL</td><td>${new Date(x.t.replace(" ","T")).toLocaleString([],{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</td></tr>`).join('')+'</table>';dataQuality.tides="fallback";updateDataQuality();updateBestWindow();return {warning:`NOAA tide predictions unavailable (${e.message}); using modeled Open-Meteo Marine sea level`};}catch(f){dataQuality.tides="unavailable";updateDataQuality();document.getElementById("tideStation").textContent=`NOAA ${s.tide} — ${s.tideName}`;document.getElementById("nextTide").textContent="Unavailable";document.getElementById("tideMove").textContent="Tide data unavailable";document.getElementById("tideTable").innerHTML='<p class="small bad">Both NOAA tides and the marine fallback failed.</p>';throw Error(`Tides unavailable (NOAA: ${e.message}; fallback: ${f.message})`);}}
+}
+function ageLabel(dateText){const d=new Date(dateText);if(!Number.isFinite(d.getTime()))return "time unknown";const mins=Math.max(0,Math.round((Date.now()-d.getTime())/60000));if(mins<60)return `${mins} min ago`;const hrs=Math.round(mins/60);if(hrs<48)return `${hrs} hr ago`;return `${Math.round(hrs/24)} d ago`;}
+function qualityText(v){return v==="live"?"Live":v==="cache"?"Recent cache":v==="fallback"?"Independent fallback":v==="stale"?"Stale fallback":v==="unavailable"?"Unavailable":"Waiting";}
+function updateDataQuality(){
+ const vals=[dataQuality.weather,dataQuality.observedWind,dataQuality.tides,dataQuality.salinity];
+ document.getElementById("qualityWeather").textContent=qualityText(dataQuality.weather);
+ document.getElementById("qualityObservedWind").textContent=qualityText(dataQuality.observedWind);
+ document.getElementById("qualityTides").textContent=qualityText(dataQuality.tides);
+ document.getElementById("qualitySalinity").textContent=qualityText(dataQuality.salinity)+(dataQuality.salinity!=="none"&&dataQuality.salinity!=="unavailable"?" • regional proxy":"");
+ let pts=0;for(const v of vals){if(v==="live")pts+=2;else if(v==="cache")pts+=1.5;else if(v==="fallback")pts+=1;else if(v==="stale")pts+=0.5;}
+ const level=pts>=6.5?"High":pts>=4?"Medium":"Low";document.getElementById("qualityLevel").textContent=level;
+ let notes=[];if(dataQuality.salinityProxy&&dataQuality.salinity!=="none"&&dataQuality.salinity!=="unavailable")notes.push("salinity comes from the nearest practical station, not the exact spot");if(vals.includes("fallback"))notes.push("one or more primary sources failed and an independent fallback is active");if(vals.includes("stale"))notes.push("one or more sources are stale fallback data");if(vals.includes("unavailable"))notes.push("one or more sources are unavailable");if(recentConditions.risk==="HIGH")notes.push("recent observed conditions indicate high water-disruption risk");if(!notes.length&&pts>0)notes.push("forecast, wind, tide and water sources are live, cached, or using labeled fallbacks");document.getElementById("qualityWhy").textContent=notes.length?notes.join(" • "):"Waiting for source status.";
+}
+function speciesFromWater(sal,tempF){const month=new Date().getMonth()+1,warm=month>=4&&month<=10;let best=[],also=[],logic=[];if(sal<2){best=["Redfish","Black drum"];also=["Flounder"];logic.push("very low salinity favors fish that tolerate fresh-to-brackish water");}else if(sal<8){best=["Redfish","Black drum","Flounder"];also=["Speckled trout"];logic.push("low-brackish water is strong redfish/drum habitat; trout can still use it");}else if(sal<15){best=["Redfish","Speckled trout","Flounder"];also=["Black drum"];logic.push("moderate brackish salinity overlaps well with trout, redfish and flounder habitat");}else if(sal<25){best=["Speckled trout","Redfish","Flounder"];also=["Black drum","Sheepshead"];logic.push("higher-brackish water is especially favorable for speckled trout while still supporting redfish and flounder");}else{best=["Speckled trout","Redfish","Sheepshead"];also=["Flounder","Black drum"];logic.push("salty estuarine water strongly suits trout and other lower-bay species");}if(tempF!=null){if(tempF>=68&&tempF<=86)logic.push("water temperature is in a productive warm-season range");else if(tempF<60)logic.push("cool water can shift fish toward deeper channels and slower presentations");else if(tempF>88)logic.push("very warm water can push fish toward deeper or better-oxygenated water");}if(warm&&sal>=15)logic.push("season plus salinity also supports trout spawning-season habitat");return {best,also,logic:logic.join("; ")};}
+async function fetchUSGSWaterSite(site){const url=`https://waterservices.usgs.gov/nwis/iv/?format=json&sites=${site}&parameterCd=00480,00010&siteStatus=all`,res=await fetchJSON(url,{cacheKey:`usgs-water:${site}`,ttl:TTL.salinity}),series=((res.data.value||{}).timeSeries)||[];let sal=null,tempC=null,time=null;for(const ts of series){const code=ts.variable&&ts.variable.variableCode&&ts.variable.variableCode[0]&&ts.variable.variableCode[0].value,vals=ts.values&&ts.values[0]&&ts.values[0].value||[],v=vals.length?vals[vals.length-1]:null;if(!v)continue;if(code==="00480"){sal=Number(v.value);time=v.dateTime}else if(code==="00010")tempC=Number(v.value);}return {sal:Number.isFinite(sal)?sal:null,tempF:Number.isFinite(tempC)?tempC*9/5+32:null,time,source:res.source};}
+async function marineWaterTempFallback(s){const m=await fetchOpenMeteoMarineForSpot(s),r=m.rows.find(x=>Number.isFinite(x.tempF));if(!r)throw Error("no sea-surface temperature");return {tempF:r.tempF,source:m.source};}
+async function loadSalinity(s){const src=salinitySources[s.area]||{provider:"reference",note:"No salinity source assigned"};let data=null,label="",usedBackup=false;if(src.provider==="USGS"&&src.site){try{data=await fetchUSGSWaterSite(src.site);if(data.sal==null)data=null;else label=`USGS ${src.site} — ${src.name}`;}catch{}}if(!data&&src.backupSite){try{data=await fetchUSGSWaterSite(src.backupSite);if(data.sal==null)data=null;else{label=`USGS ${src.backupSite} — ${src.backupName||"regional backup station"}`;usedBackup=true;}}catch{}}let marineTemp=null;try{marineTemp=await marineWaterTempFallback(s);}catch{}if(!data){waterState={sal:null,tempF:marineTemp&&Number.isFinite(marineTemp.tempF)?marineTemp.tempF:null,fit:null};dataQuality.salinity="unavailable";updateDataQuality();document.getElementById("salinityStatus").textContent="Unavailable";document.getElementById("waterTempStatus").textContent=waterState.tempF==null?"Unavailable":`${waterState.tempF.toFixed(1)}°F • marine fallback`;document.getElementById("salinitySource").textContent=`${src.note||"No current salinity source"}${waterState.tempF!=null?" • water temperature backed up by Open-Meteo Marine":""}`;document.getElementById("speciesFit").textContent="Species fit: salinity not scored";document.getElementById("speciesWhy").textContent="No dependable salinity value loaded, so the app leaves salinity out rather than inventing one.";whatToThrowNow();return {warning:"Salinity unavailable; scoring continues without salinity"};}const tempF=Number.isFinite(data.tempF)?data.tempF:(marineTemp&&Number.isFinite(marineTemp.tempF)?marineTemp.tempF:null),sal=data.sal,fit=speciesFromWater(sal,tempF);waterState={sal,tempF,fit};dataQuality.salinity=usedBackup?"fallback":data.source;dataQuality.salinityAge=data.time;updateDataQuality();document.getElementById("salinityStatus").textContent=`${sal.toFixed(1)} ppt${usedBackup?" • fallback":""}`;document.getElementById("waterTempStatus").textContent=tempF==null?"Unavailable":`${tempF.toFixed(1)}°F${!Number.isFinite(data.tempF)&&marineTemp?" • marine fallback":""}`;document.getElementById("salinitySource").textContent=`${label} • ${ageLabel(data.time)} • ${src.note}${usedBackup?" • regional backup active":""}`;document.getElementById("speciesFit").textContent=`Best fit: ${fit.best.join(" • ")}`;document.getElementById("speciesWhy").textContent=`Also possible: ${fit.also.join(" • ")}. Why: ${fit.logic}.`;whatToThrowNow();return usedBackup?{warning:"Primary salinity source unavailable; using regional USGS backup"}:(data.source==="stale"?{warning:"USGS live salinity request failed; showing last cached water-quality reading"}:{});}
+
+function resetRecoveryOutlook(){
+ const a=document.getElementById("recoveryPace"),b=document.getElementById("recoveryWindow"),c=document.getElementById("recoveryTide"),d=document.getElementById("recoveryWhy");
+ if(a)a.textContent="—";if(b)b.textContent="—";if(c)c.textContent="—";if(d)d.textContent="Choose a spot to estimate how quickly disturbed water may improve after recent weather.";
+}
+function recoveryOutlookFor(data){
+ const recent=data.recent||{},wx0=data.wx||{},tideMove=data.tideMove||nextTideMovementLabel(data.tides||[]),spot=data.spot||selected;
+ const wind=parseWindMph(wx0.windSpeed);
+ const recentCompleteness=recentObservationCompleteness(recent);
+ const modeled=recent.modeled===true;
+ const hasRecent=recentCompleteness>0;
+ const hasLiveRecent=hasRecent&&!modeled;
+ const hasModeledRecent=hasRecent&&modeled;
+
+ let penalty=Number(recent.penalty)||0;
+ if(hasModeledRecent)penalty=Math.round(penalty*0.6);
+ if(!hasRecent)penalty=0;
+
+ let points=0,reasons=[];
+ if(penalty>=18){points-=4;reasons.push("strong recent disruption");}
+ else if(penalty>=7){points-=2;reasons.push("moderate recent disruption");}
+ else if(hasLiveRecent&&recent.risk==="LOW"){points+=2;reasons.push("little recent disruption observed");}
+ else if(hasModeledRecent&&recent.risk==="LOW"){points+=1;reasons.push("model suggests little recent disruption");}
+
+ if(Number.isFinite(wind)){
+  if(wind<=7){points+=3;reasons.push("light current wind helps settling");}
+  else if(wind<=12){points+=1;reasons.push("manageable current wind");}
+  else if(wind>=18){points-=4;reasons.push("strong wind can keep sediment suspended");}
+  else if(wind>=13){points-=2;reasons.push("breezy conditions may slow cleanup");}
+ }
+ if(String(tideMove).startsWith("Rising")){points+=2;reasons.push("incoming tide may bring cleaner water");}
+ else if(String(tideMove).startsWith("Falling")){points-=1;reasons.push("outgoing tide may continue draining stained water");}
+
+ const ctx=spot?structureContext(spot):null;const st=((ctx&&ctx.type)||"").toLowerCase();
+ if(st.includes("lake")||st.includes("flat")||st.includes("marsh")){points-=1;reasons.push("shallow water can re-mud easily");}
+ if(st.includes("pass")||st.includes("channel")||st.includes("reef")||st.includes("jetty")){points+=1;reasons.push("current/structure can exchange water faster");}
+
+ let pace;
+ if(points>=4)pace="FAST";
+ else if(points>=0)pace="MODERATE";
+ else pace="SLOW";
+
+ let window,basis;
+ if(hasLiveRecent){
+  basis="live recent observations";
+  window=pace==="FAST"?"~3–6 hr / about one good tide phase":pace==="MODERATE"?"~6–12 hr / one to two tide phases":"~12–24+ hr unless wind/tide improves";
+ }else if(hasModeledRecent){
+  basis="modeled recent conditions";
+  window=pace==="FAST"?"~6–12 hr • modeled estimate":pace==="MODERATE"?"~12–18 hr • modeled estimate":"~18–24+ hr • modeled estimate";
+  reasons.unshift("nearby station observations unavailable");
+ }else{
+  basis="forecast/tide only";
+  window=pace==="FAST"?"~6–12 hr • low-confidence model-only estimate":pace==="MODERATE"?"~12–24 hr • low-confidence model-only estimate":"~24+ hr • low-confidence model-only estimate";
+  reasons.unshift("recent observation data unavailable");
+ }
+
+ return {pace,window,tide:tideMove||"Unavailable",points,reasons,basis,recentCompleteness};
+}
+function updateRecoveryOutlook(){
+ if(!selected){resetRecoveryOutlook();return;}
+ const r=recoveryOutlookFor({recent:recentConditions,wx,tides,spot:selected});
+ const pe=document.getElementById("recoveryPace");pe.textContent=r.pace;pe.className=r.pace==="FAST"?"good":r.pace==="MODERATE"?"mid":"bad";
+ document.getElementById("recoveryWindow").textContent=r.window;
+ document.getElementById("recoveryTide").textContent=r.tide;
+ document.getElementById("recoveryWhy").textContent="Basis: "+r.basis+" • Why: "+(r.reasons.join(" • ")||"not enough recent-condition data");
+}
+function cleanWaterLikelihood(data){
+ const r=recoveryOutlookFor({recent:data.recent,wx:data.wx,tides:data.tides,spot:data.spot});
+ let score=70;
+ const p=(data.recent&&data.recent.penalty)||0;score-=Math.min(30,p);
+ const w=parseWindMph(data.wx&&data.wx.windSpeed);if(Number.isFinite(w)){if(w<=7)score+=10;else if(w<=12)score+=5;else if(w>=18)score-=15;else if(w>=13)score-=7;}
+ const tm=nextTideMovementLabel(data.tides);if(tm.startsWith("Rising"))score+=8;else if(tm.startsWith("Falling"))score-=2;
+ if(r.pace==="FAST")score+=8;else if(r.pace==="SLOW")score-=10;
+ const ctx=structureContext(data.spot),st=(ctx.type||"").toLowerCase();if(st.includes("pass")||st.includes("channel")||st.includes("reef")||st.includes("jetty"))score+=4;if(st.includes("flat")||st.includes("marsh"))score-=3;
+ if(data.clarity&&Number.isFinite(data.clarity.score)){
+  const weight=data.clarity.direct?0.45:0.20;
+  score=Math.round(score*(1-weight)+data.clarity.score*weight);
+ }
+ score=Math.max(0,Math.min(100,Math.round(score)));
+ return {score,recovery:r,clarity:data.clarity||null};
+}
+function representativeAreaSpots(area,max=12){
+ const arr=spots.filter(s=>s.area===area);
+ if(!arr.length)return [];
+ // A one-spot coast-wide sample used to divide by (max-1)=0, producing NaN
+ // and silently skipping every area. Return the middle listed spot for a stable representative.
+ if(max<=1)return [arr[Math.floor((arr.length-1)/2)]];
+ if(arr.length<=max)return arr;
+ const out=[];for(let i=0;i<max;i++){const idx=Math.round(i*(arr.length-1)/(max-1));if(arr[idx]&&!out.includes(arr[idx]))out.push(arr[idx]);}return out;
+}
+function tideMovementAtFor(list,date){
+ if(!list||!list.length)return "Tide unavailable";
+ const t=date.getTime(),pts=list.map(x=>({type:x.type,time:new Date(x.t.replace(" ","T")).getTime()})).filter(x=>Number.isFinite(x.time)).sort((a,b)=>a.time-b.time);
+ let next=null;for(const x of pts){if(x.time>t){next=x;break}}
+ if(!next)return "Tide unavailable";
+ return next.type==="H"?"Rising toward high":"Falling toward low";
+}
+function targetTomorrowMorning(){const d=new Date();d.setDate(d.getDate()+1);d.setHours(7,0,0,0);return d;}
+function forecastPeriodsBefore(data,target,hours=6){
+ const t=target.getTime(),lo=t-hours*3600000;
+ return (data.hourlyPeriods||[]).filter(p=>{const x=new Date(p.startTime).getTime();return x>=lo&&x<=t;});
+}
+function tomorrowCleanWaterLikelihood(data,target){
+ const periods=forecastPeriodsBefore(data,target,6),near=[...(data.hourlyPeriods||[])].sort((a,b)=>Math.abs(new Date(a.startTime)-target)-Math.abs(new Date(b.startTime)-target))[0];
+ let score=70,reasons=[];
+ const winds=periods.map(p=>parseWindMph(p.windSpeed)).filter(Number.isFinite),maxWind=winds.length?Math.max(...winds):null,avgWind=winds.length?winds.reduce((a,b)=>a+b,0)/winds.length:null;
+ if(Number.isFinite(avgWind)){if(avgWind<=7){score+=10;reasons.push("light overnight wind");}else if(avgWind<=12){score+=5;reasons.push("manageable overnight wind");}else if(avgWind>=18){score-=18;reasons.push("strong overnight wind");}else{score-=8;reasons.push("breezy overnight");}}
+ if(Number.isFinite(maxWind)&&maxWind>=20){score-=8;reasons.push("high overnight wind peak");}
+ const ftxt=periods.map(p=>String(p.shortForecast||"").toLowerCase()).join(" ");const maxPcp=Math.max(0,...periods.map(p=>Number(p.precipitation)||0));if(ftxt.includes("thunder")){score-=20;reasons.push("overnight thunderstorm risk");}else if(ftxt.includes("heavy rain")||maxPcp>=0.25){score-=10;reasons.push("overnight heavy rain");}else if(ftxt.includes("rain")||ftxt.includes("showers")||maxPcp>=0.03){score-=4;reasons.push("overnight showers");}
+ const tm=tideMovementAtFor(data.tides,target);if(tm.startsWith("Rising")){score+=8;reasons.push("incoming tide near dawn");}else if(tm.startsWith("Falling")){score-=2;reasons.push("outgoing tide near dawn");}else{reasons.push("tide feed unavailable");}
+ const ctx=structureContext(data.spot),st=(ctx.type||"").toLowerCase();if(st.includes("pass")||st.includes("channel")||st.includes("reef")||st.includes("jetty")){score+=4;reasons.push("water-exchange structure");}if(st.includes("flat")||st.includes("marsh")){score-=3;reasons.push("shallow area can re-mud");}
+ // Current disruption matters only if tomorrow morning is close enough that recovery may still be incomplete.
+ const hrs=(target-Date.now())/3600000;if(data.recent&&data.recent.penalty&&hrs<18){const residual=Math.max(0,Math.round(data.recent.penalty*(1-hrs/18)));score-=residual;if(residual>=4)reasons.push("residual current disruption risk");}
+ score=Math.max(0,Math.min(100,Math.round(score)));
+ const pace=score>=82?"FAST":score>=62?"MODERATE":"SLOW";
+ return {score,recovery:{pace,window:pace==="FAST"?"overnight conditions favor improvement":pace==="MODERATE"?"mixed overnight recovery signals":"overnight forecast may keep water disturbed",tide:tm},reasons,forecastWind:Number.isFinite(avgWind)?avgWind:null,forecastMax:Number.isFinite(maxWind)?maxWind:null,forecastText:near?near.shortForecast:"Forecast unavailable"};
+}
+function tomorrowMorningPeriods(data,target){
+ const start=new Date(target);start.setHours(5,0,0,0);const end=new Date(target);end.setHours(11,0,0,0);
+ return (data.hourlyPeriods||[]).filter(p=>{const t=new Date(p.startTime).getTime();return t>=start.getTime()&&t<=end.getTime();});
+}
+function bestTomorrowMorningWindow(data,target){
+ const periods=tomorrowMorningPeriods(data,target);if(periods.length<2)return null;
+ const rows=periods.map(p=>hourWindowScoreFor(data,p)),wins=[];
+ for(let i=0;i<rows.length-1;i++){wins.push({start:rows[i].date,end:new Date(rows[i+1].date.getTime()+3600000),score:Math.round((rows[i].score+rows[i+1].score)/2),reasons:[...rows[i].reasons,...rows[i+1].reasons]});}
+ wins.sort((a,b)=>b.score-a.score);return wins[0]||null;
+}
+function tomorrowFishingOpportunity(data,target){
+ const clean=tomorrowCleanWaterLikelihood(data,target),win=bestTomorrowMorningWindow(data,target);
+ const fish=win?win.score:50;let score=Math.round(fish*.62+clean.score*.38),reasons=[];
+ if(win)reasons.push(...[...new Set(win.reasons)].slice(0,3));
+ reasons.push(...clean.reasons.filter(x=>!reasons.includes(x)).slice(0,2));
+ if(data.confidence==="Low"){score-=6;reasons.push("lower data confidence");}else if(data.confidence==="High"){score+=2;}
+ score=Math.max(0,Math.min(100,score));
+ return {score,cleanScore:clean.score,window:win,clean,reasons:[...new Set(reasons)]};
+}
+function fmtTomorrowWindow(win){if(!win)return "No 2-hour window";return `${win.start.toLocaleTimeString([],{hour:"numeric"})}–${win.end.toLocaleTimeString([],{hour:"numeric"})}`;}
+
+
+function weatherCodeText(code){
+ const c=Number(code);if(c===0)return "Clear";if([1,2,3].includes(c))return "Partly cloudy";if([45,48].includes(c))return "Fog";if([51,53,55,56,57].includes(c))return "Drizzle";if([61,63,65,66,67].includes(c))return c>=65?"Heavy rain":"Rain";if([80,81,82].includes(c))return c===82?"Heavy showers":"Showers";if([95,96,99].includes(c))return "Thunderstorms";return "Forecast";
+}
+async function fetchOpenMeteoForSpot(s){
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure&timezone=America%2FChicago&forecast_days=3&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&cell_selection=sea`;
+ const cacheKey=`openmeteo:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;const fresh=cacheRead(cacheKey,TTL.weather);let j=null,source="live";
+ if(fresh){j=fresh;source="cache";}else{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  try{const r=await fetch(u,{signal:controller.signal});if(!r.ok)throw Error(`HTTP ${r.status}`);j=await r.json();if(!j||j.error)throw Error((j&&j.reason)||"Open-Meteo API error");cacheWrite(cacheKey,j);}catch(e){const stale=cacheReadStale(cacheKey);if(stale){j=stale;source="stale";}else throw Error(e.name==="AbortError"?"Open-Meteo request timed out":e.message);}finally{clearTimeout(timer)}
+ }
+ const hr=j.hourly||{},times=hr.time||[];
+ const periods=times.map((t,i)=>({
+  startTime:t,
+  temperature:hr.temperature_2m&&hr.temperature_2m[i],
+  temperatureUnit:"F",
+  windSpeed:`${Math.round((hr.wind_speed_10m&&hr.wind_speed_10m[i])||0)} mph`,
+  windDirection:degToCompass(Number(hr.wind_direction_10m&&hr.wind_direction_10m[i])),
+  shortForecast:weatherCodeText(hr.weather_code&&hr.weather_code[i]),
+  probabilityOfPrecipitation:{value:null},
+  precipitation:(hr.precipitation&&hr.precipitation[i])||0,
+  windGust:(hr.wind_gusts_10m&&hr.wind_gusts_10m[i])||null,
+  pressure:(hr.surface_pressure&&hr.surface_pressure[i])||null
+ })).filter(x=>x.startTime);
+ if(!periods.length)throw Error("Open-Meteo returned no hourly forecast");
+ let pi=periods.findIndex(x=>new Date(x.startTime).getTime()>=Date.now()-30*60000);if(pi<0)pi=0;
+ const pressureSeries=periods.slice(pi,pi+6).map(x=>Number(x.pressure)).filter(Number.isFinite);
+ return {wx:periods[0],hourlyPeriods:periods,pressureSeries,pressureTrend:pressureTrendFromSeries(pressureSeries),source,provider:"Open-Meteo"};
+}
+async function fetchTomorrowWeatherResilient(s){
+ try{return {...await fetchWeatherForSpotLight(s),provider:"NWS"};}
+ catch(nwsErr){
+  try{return await fetchOpenMeteoForSpot(s);}
+  catch(omErr){throw Error(`weather unavailable (NWS: ${nwsErr.message}; fallback: ${omErr.message})`);}
+ }
+}
+async function buildTomorrowScanData(s){
+ const quality={weather:"unavailable",observedWind:"unavailable",tides:"unavailable",salinity:"unavailable",salinityProxy:true};
+ let wx=null,hourlyPeriods=[],pressureSeries=[],pressureTrend="Unavailable",tidesList=[],weatherProvider="Unavailable";
+ // For the coast-wide tomorrow scan, weather is required; tides are strongly preferred but optional.
+ // NWS remains primary. Open-Meteo is a fallback so a temporary NWS failure does not kill the whole ranking.
+ try{const w=await fetchTomorrowWeatherResilient(s);wx=w.wx;hourlyPeriods=w.hourlyPeriods;pressureSeries=w.pressureSeries;pressureTrend=w.pressureTrend;quality.weather=w.source;weatherProvider=w.provider||"Forecast";}catch(e){throw e;}
+ try{const t=await fetchTidesForSpot(s);tidesList=t.tides;quality.tides=t.source;}catch(e){quality.tides="unavailable";}
+ return {spot:s,wx,hourlyPeriods,pressureSeries,pressureTrend,tides:tidesList,water:{sal:null,tempF:null,fit:null},recent:null,quality,confidence:qualitySummary(quality),weatherProvider};
+}
+async function fetchWeatherForSpotLight(s){
+ const point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:`nws-point:${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,ttl:TTL.points});
+ const hourlyUrl=point.data&&point.data.properties&&point.data.properties.forecastHourly;if(!hourlyUrl)throw Error("hourly forecast unavailable");
+ const h=await fetchJSON(hourlyUrl,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather});
+ const hourlyPeriods=(h.data.properties&&h.data.properties.periods||[]).slice(0,36);
+ if(!hourlyPeriods.length)throw Error("no hourly periods");
+ const wx=hourlyPeriods[0]||null;
+ let source="live";if([h.source,point.source].includes("stale"))source="stale";else if([h.source,point.source].includes("cache"))source="cache";
+ return {wx,hourlyPeriods,pressureSeries:[],pressureTrend:"Unavailable",source};
+}
+
+function microSpotAdjustment(data){
+ const ctx=structureContext(data.spot),st=((ctx&&ctx.type)||"").toLowerCase(),wind=parseWindMph(data.wx&&data.wx.windSpeed),tm=nextTideMovementLabel(data.tides||[]);
+ let adj=0,reasons=[];
+ // Reward structure that creates a distinct current/depth edge. Penalize broad shallow water when wind is strong enough to re-mud it.
+ if(/reef|jetty|riprap|ledge|drop|deep hole|channel|pass|current seam|pilings|point/.test(st)){adj+=3;reasons.push("defined structure/current edge");}
+ if(/artificial reef|oyster|shell|hard bottom/.test(st)){adj+=2;reasons.push("hard-bottom structure");}
+ if(/flat|shallow shoreline|open lake|marsh/.test(st)&&Number.isFinite(wind)&&wind>=12){adj-=4;reasons.push("breezy shallow-water exposure");}
+ else if(/flat|shallow shoreline|open lake|marsh/.test(st)&&Number.isFinite(wind)&&wind<=7){adj+=1;reasons.push("light wind favors shallow water");}
+ if((/pass|channel|current seam|point|reef/.test(st))&&(String(tm).startsWith("Rising")||String(tm).startsWith("Falling"))){adj+=2;reasons.push("moving tide fits structure");}
+ const c=data.clarity;if(c&&Number.isFinite(c.score)){const local=Math.max(-4,Math.min(4,Math.round((c.score-60)/10)));if(local){adj+=local;reasons.push(local>0?"better local clarity":"weaker local clarity");}}
+ if(data.spot&&data.spot.sourceNote){adj+=1;reasons.push("documented spot-specific structure");}
+ return {adj:Math.max(-8,Math.min(8,adj)),reasons:[...new Set(reasons)].slice(0,3)};
+}
+function currentFishingOpportunity(data){
+ let score=Number(data.currentScore)||50,reasons=[...(data.current&&data.current.reasons||[])];
+ const c=data.clarity;
+ if(c&&Number.isFinite(c.score)){
+  const weight=c.direct?0.30:0.14;
+  score=Math.round(score*(1-weight)+c.score*weight);
+  reasons.unshift(`${c.label.toLowerCase()} water signal`);
+ }
+ const clean=cleanWaterLikelihood(data);
+ score=Math.round(score*.72+clean.score*.28);
+ const micro=microSpotAdjustment(data);score+=micro.adj;reasons.push(...micro.reasons);
+ if(data.confidence==="Low"){score-=7;reasons.push("lower data confidence");}
+ else if(data.confidence==="High"){score+=2;reasons.push("stronger data confidence");}
+ score=Math.max(0,Math.min(100,score));
+ return {score,cleanScore:clean.score,reasons:[...new Set(reasons)].slice(0,6),clean,microAdjustment:micro.adj};
+}
+function renderWhereNowPins(top){
+ whereNowLayer.clearLayers();
+ const bounds=[];
+ top.forEach((r,i)=>{
+  const icon=L.divIcon({className:"",html:`<div class="rank-pin">${i+1}</div>`,iconSize:[28,28],iconAnchor:[14,14]});
+  const m=L.marker([r.spot.lat,r.spot.lon],{icon}).bindPopup(`<strong>#${i+1} ${r.spot.name}</strong><br>${r.spot.area}<br>Now score: ${r.now.score}/100<br>${r.now.reasons.slice(0,3).join(" • ")}`);
+  m.on("click",()=>selectSpot(r.spot));whereNowLayer.addLayer(m);bounds.push([r.spot.lat,r.spot.lon]);
+ });
+ if(bounds.length)map.fitBounds(bounds,{padding:[30,30],maxZoom:10});
+}
+async function findWhereNow(){
+ const btn=document.getElementById("whereNowBtn"),status=document.getElementById("whereNowStatus"),box=document.getElementById("whereNowResults");
+ btn.disabled=true;box.innerHTML="";whereNowLayer.clearLayers();
+ const areas=[...new Set(spots.map(s=>s.area))],stage1=[],pause=ms=>new Promise(r=>setTimeout(r,ms));let failed=0;
+ status.textContent=`Scanning ${areas.length} Louisiana coastal areas for current conditions…`;
+ for(let i=0;i<areas.length;i++){
+  const rep=representativeAreaSpots(areas[i],1)[0];if(!rep)continue;
+  try{const d=await buildCompareSpotData(rep);try{d.clarity=await fetchClarityForSpot(rep,d);}catch{}const now=currentFishingOpportunity(d);stage1.push({...d,now});}catch{failed++;}
+  status.textContent=`Coast scan ${i+1}/${areas.length}… ${stage1.length} areas loaded${failed?`, ${failed} skipped`:""}`;await pause(220);
+ }
+ if(!stage1.length){status.textContent="No areas returned enough current data. Try again in a few minutes.";btn.disabled=false;return;}
+ stage1.sort((a,b)=>b.now.score-a.now.score);
+ // Refine enough different areas to build a geographically diverse final Top 5.
+ const finalistAreas=[...new Set(stage1.slice(0,7).map(x=>x.spot.area))],rows=[];
+ status.textContent=`Refining the strongest ${finalistAreas.length} areas spot-by-spot…`;
+ for(const area of finalistAreas){
+  const reps=representativeAreaSpots(area,5);
+  for(let i=0;i<reps.length;i++){
+   const sp=reps[i];try{const d=await buildCompareSpotData(sp);try{d.clarity=await fetchClarityForSpot(sp,d);}catch{}rows.push({...d,now:currentFishingOpportunity(d)});}catch{}
+   status.textContent=`Refining ${area} (${i+1}/${reps.length})…`;await pause(180);
+  }
+ }
+ const keyed=new Map();for(const r of [...stage1,...rows]){const k=`${r.spot.area}|${r.spot.name}`,old=keyed.get(k);if(!old||r.now.score>old.now.score)keyed.set(k,r);}
+ const ranked=[...keyed.values()].sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name));
+ // Diversity rule: only the strongest spot from each area can enter the coast-wide Top 5.
+ const bestByArea=new Map();for(const r of ranked){if(!bestByArea.has(r.spot.area))bestByArea.set(r.spot.area,r);}
+ const top=[...bestByArea.values()].sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name)).slice(0,5);
+ renderWhereNowPins(top);
+ status.textContent=`Current coast scan complete. ${stage1.length}/${areas.length} areas loaded${failed?`; ${failed} skipped because a feed did not respond`:""}. Top 5 use one spot per area and are pinned on the map.`;
+ box.innerHTML='<table><thead><tr><td><strong>Rank</strong></td><td><strong>Spot / area</strong></td><td><strong>Now</strong></td><td><strong>Water</strong></td><td><strong>Why</strong></td></tr></thead><tbody>'+top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}${Number.isFinite(r.now.microAdjustment)&&r.now.microAdjustment!==0?` • Micro ${r.now.microAdjustment>0?"+":""}${r.now.microAdjustment}`:""}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Clean-water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,5).join(" • ")||"current conditions fit"}</td></tr>`).join("")+'</tbody></table><div class="small muted" style="margin-top:8px">Top 5 intentionally uses one spot per area so one bay cannot dominate the coast-wide list. Micro scoring adds spot-specific structure, moving-water fit, wind exposure and local clarity. This is a conditions recommendation, not a catch guarantee.</div>';
+ btn.disabled=false;
+}
+
+async function findTop3Tomorrow(){
+ const btn=document.getElementById("top3TomorrowBtn"),status=document.getElementById("top3TomorrowStatus"),box=document.getElementById("top3TomorrowResults"),target=targetTomorrowMorning();
+ btn.disabled=true;box.innerHTML="";
+ const areas=[...new Set(spots.map(s=>s.area))],stage1=[];let failed=0;const failures=[];
+ const pause=ms=>new Promise(r=>setTimeout(r,ms));
+ status.textContent=`Scanning ${areas.length} coastal areas one at a time for ${target.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"})}…`;
+
+ // Use the same proven area-by-area data path as Tomorrow Morning Outlook.
+ // Sequential requests avoid overloading NWS/NOAA on mobile and one failed area never stops the scan.
+ for(let i=0;i<areas.length;i++){
+  const area=areas[i],rep=representativeAreaSpots(area,1)[0];
+  if(!rep)continue;
+  try{
+   const d=await buildCompareSpotData(rep);
+   const op=tomorrowFishingOpportunity(d,target);
+   stage1.push({...d,op});
+  }catch(e){
+   failed++;
+   if(failures.length<4)failures.push(`${area}: ${e&&e.message?e.message:"unavailable"}`);
+  }
+  status.textContent=`Coast scan ${i+1}/${areas.length}… ${stage1.length} areas loaded${failed?`, ${failed} skipped`:""}`;
+  await pause(275);
+ }
+
+ if(!stage1.length){
+  status.textContent=`No coastal areas returned enough data right now. ${failures.length?"First errors: "+failures.join(" | "):""} The area-by-area Tomorrow Morning Outlook is still available.`;
+  btn.disabled=false;return;
+ }
+
+ stage1.sort((a,b)=>b.op.score-a.op.score);
+ const finalistAreas=[...new Set(stage1.slice(0,5).map(x=>x.spot.area))],rows=[];
+ status.textContent=`${stage1.length}/${areas.length} areas loaded. Refining the strongest ${finalistAreas.length} areas spot-by-spot…`;
+
+ for(let ai=0;ai<finalistAreas.length;ai++){
+  const area=finalistAreas[ai],reps=representativeAreaSpots(area,4);
+  for(let si=0;si<reps.length;si++){
+   const s=reps[si];
+   try{
+    const d=await buildCompareSpotData(s);
+    const op=tomorrowFishingOpportunity(d,target);
+    rows.push({...d,op});
+   }catch(e){}
+   status.textContent=`Refining ${area} (${si+1}/${reps.length})…`;
+   await pause(225);
+  }
+ }
+
+ const keyed=new Map();
+ for(const r of [...stage1.filter(x=>finalistAreas.includes(x.spot.area)),...rows]){
+  const k=`${r.spot.area}|${r.spot.name}`;
+  const old=keyed.get(k);if(!old||r.op.score>old.op.score)keyed.set(k,r);
+ }
+ const confRank=x=>x==="High"?0:x==="Medium"?1:2;
+ const ranked=[...keyed.values()].sort((a,b)=>{if(b.op.score!==a.op.score)return b.op.score-a.op.score;if(b.op.cleanScore!==a.op.cleanScore)return b.op.cleanScore-a.op.cleanScore;const ac=confRank(a.confidence),bc=confRank(b.confidence);if(ac!==bc)return ac-bc;const aw=parseWindMph(a.wx&&a.wx.windSpeed),bw=parseWindMph(b.wx&&b.wx.windSpeed);if(Number.isFinite(aw)&&Number.isFinite(bw)&&aw!==bw)return aw-bw;return a.spot.name.localeCompare(b.spot.name);}),top=ranked.slice(0,3);
+ if(!top.length){status.textContent=`${stage1.length}/${areas.length} areas loaded, but there was not enough spot-level data to produce a Top 3.`;btn.disabled=false;return;}
+
+ status.textContent=`Top 3 for ${target.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"})}. ${stage1.length}/${areas.length} coastal areas successfully checked${failed?`; ${failed} skipped because a feed did not respond`:""}.`;
+ box.innerHTML='<table><thead><tr><td><strong>Rank</strong></td><td><strong>Spot / area</strong></td><td><strong>Tomorrow score</strong></td><td><strong>Best morning window</strong></td><td><strong>Clean-water score</strong></td><td><strong>Why</strong></td></tr></thead><tbody>'+top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.op.score}/100</strong><div class="small muted">Confidence: ${r.confidence}</div></td><td>${fmtTomorrowWindow(r.op.window)}</td><td>${r.op.cleanScore}/100<div class="small muted">${r.op.clean.recovery.tide}</div></td><td>${r.op.reasons.slice(0,4).join(" • ")||"forecast/tide fit"}</td></tr>`).join('')+'</tbody></table><div class="small muted" style="margin-top:8px">This coast-wide ranking uses the same tomorrow-morning scoring as the area-by-area outlook. Areas are checked sequentially and failed feeds are skipped rather than cancelling the whole scan. Re-run before leaving because wind and storm forecasts can change.</div>';
+ btn.disabled=false;
+}
+
+async function findCleanestWater(mode="now"){
+ const area=areaPicker.value;if(!area){document.getElementById("cleanWaterStatus").textContent="Choose an area first.";return;}
+ const nowBtn=document.getElementById("cleanWaterBtn"),tomBtn=document.getElementById("tomorrowWaterBtn"),status=document.getElementById("cleanWaterStatus"),box=document.getElementById("cleanWaterResults");
+ nowBtn.disabled=true;tomBtn.disabled=true;box.innerHTML="";
+ const target=mode==="tomorrow"?targetTomorrowMorning():new Date();
+ status.textContent=mode==="tomorrow"?`Checking overnight forecast and tomorrow-morning tides for ${area}…`:`Checking recent observations, current wind and tides for ${area}…`;
+ const candidates=representativeAreaSpots(area,12),rows=[];
+ for(const s of candidates){try{const d=await buildCompareSpotData(s);if(mode==="now")d.clarity=await fetchClarityForSpot(s,d);const cw=mode==="tomorrow"?tomorrowCleanWaterLikelihood(d,target):cleanWaterLikelihood(d);rows.push({...d,clean:cw});status.textContent=`Checked ${rows.length}/${candidates.length} spots…`;}catch(e){}}
+ rows.sort(mode==="tomorrow"?tomorrowWaterTiebreak:currentWaterTiebreak);
+ if(!rows.length){status.textContent="Could not load enough live/forecast data to compare this area right now.";nowBtn.disabled=false;tomBtn.disabled=false;return;}
+ const sampleNote=candidates.length<spots.filter(s=>s.area===area).length?` Sampling ${candidates.length} representative spots to limit NOAA/NWS requests.`:" All listed spots checked.";
+ status.textContent=mode==="tomorrow"?`Tomorrow morning outlook for ${area} — ${target.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})} around ${target.toLocaleTimeString([],{hour:"numeric"})}.${sampleNote}`:`Cleanest-water-now estimate for ${area}.${sampleNote}`;
+ if(mode==="tomorrow"){
+  box.innerHTML='<table><thead><tr><td><strong>Spot</strong></td><td><strong>Tomorrow-morning score</strong></td><td><strong>Overnight wind</strong></td><td><strong>Weather</strong></td><td><strong>Tide near dawn</strong></td></tr></thead><tbody>'+rows.slice(0,8).map((r,i)=>`<tr><td>${i===0?"★ ":""}<strong>${r.spot.name}</strong>${tomorrowTieWhy(r,rows)?`<div class="small muted">${tomorrowTieWhy(r,rows)}</div>`:""}<button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.clean.score}/100</strong><div class="small muted">${r.clean.reasons.slice(0,3).join(" • ")}</div></td><td>${Number.isFinite(r.clean.forecastWind)?`${r.clean.forecastWind.toFixed(0)} mph avg`:"Unavailable"}${Number.isFinite(r.clean.forecastMax)?`<div class="small muted">peak ${r.clean.forecastMax.toFixed(0)} mph</div>`:""}</td><td>${r.clean.forecastText||"—"}</td><td>${r.clean.recovery.tide}</td></tr>`).join('')+'</tbody></table><div class="small muted" style="margin-top:7px">Tomorrow Morning Outlook uses forecast overnight wind/weather and predicted tide movement near dawn. Ties are broken by lower peak wind, lower average wind, then tide direction. It is not a direct water-clarity measurement; check the latest usable satellite image when cloud cover allows.</div>';
+ }else{
+  box.innerHTML='<table><thead><tr><td><strong>Spot</strong></td><td><strong>Clean-water score</strong></td><td><strong>Clarity signal</strong></td><td><strong>Recovery</strong></td><td><strong>Tide</strong></td></tr></thead><tbody>'+rows.slice(0,8).map((r,i)=>`<tr><td>${i===0?"★ ":""}<strong>${r.spot.name}</strong>${currentTieWhy(r,rows)?`<div class="small muted">${currentTieWhy(r,rows)}</div>`:""}<button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.clean.score}/100</strong></td><td>${r.clarity?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100<div class="small muted">${r.clarity.source}</div>`:"Unavailable"}</td><td>${r.clean.recovery.pace}<div class="small muted">${r.clean.recovery.window}</div></td><td>${nextTideMovementLabel(r.tides)}</td></tr>`).join('')+'</tbody></table><div class="small muted" style="margin-top:7px">Cleanest Water Now now blends direct USGS turbidity and/or NOAA VIIRS Kd490 satellite clarity when available with wind, tide and recovery. Satellite ocean-color data can be blocked by clouds and may be delayed; modeled clarity is labeled as a fallback rather than a direct measurement.</div>';
+ }
+ nowBtn.disabled=false;tomBtn.disabled=false;
+}
+
+function disruptionRank(risk){const x=String(risk||"Unknown").toUpperCase();return x==="LOW"?0:x==="MODERATE"?1:x==="UNKNOWN"?2:x==="HIGH"?3:2;}
+function recoveryRank(pace){const x=String(pace||"").toUpperCase();return x==="FAST"?0:x==="MODERATE"?1:x==="SLOW"?2:3;}
+function tidePreference(label){const x=String(label||"").toLowerCase();return x.startsWith("rising")?0:x.startsWith("falling")?1:2;}
+function currentWaterTiebreak(a,b){
+ if(b.clean.score!==a.clean.score)return b.clean.score-a.clean.score;
+ const ar=disruptionRank(a.recent&&a.recent.risk),br=disruptionRank(b.recent&&b.recent.risk);if(ar!==br)return ar-br;
+ const ap=recoveryRank(a.clean.recovery&&a.clean.recovery.pace),bp=recoveryRank(b.clean.recovery&&b.clean.recovery.pace);if(ap!==bp)return ap-bp;
+ const ag=a.recent&&Number.isFinite(a.recent.maxGust)?a.recent.maxGust:999,bg=b.recent&&Number.isFinite(b.recent.maxGust)?b.recent.maxGust:999;if(ag!==bg)return ag-bg;
+ const at=tidePreference(nextTideMovementLabel(a.tides)),bt=tidePreference(nextTideMovementLabel(b.tides));if(at!==bt)return at-bt;
+ const aw=parseWindMph(a.wx&&a.wx.windSpeed),bw=parseWindMph(b.wx&&b.wx.windSpeed);if(Number.isFinite(aw)&&Number.isFinite(bw)&&aw!==bw)return aw-bw;
+ return a.spot.name.localeCompare(b.spot.name);
+}
+function tomorrowWaterTiebreak(a,b){
+ if(b.clean.score!==a.clean.score)return b.clean.score-a.clean.score;
+ const amax=Number.isFinite(a.clean.forecastMax)?a.clean.forecastMax:999,bmax=Number.isFinite(b.clean.forecastMax)?b.clean.forecastMax:999;if(amax!==bmax)return amax-bmax;
+ const aavg=Number.isFinite(a.clean.forecastWind)?a.clean.forecastWind:999,bavg=Number.isFinite(b.clean.forecastWind)?b.clean.forecastWind:999;if(aavg!==bavg)return aavg-bavg;
+ const at=tidePreference(a.clean.recovery&&a.clean.recovery.tide),bt=tidePreference(b.clean.recovery&&b.clean.recovery.tide);if(at!==bt)return at-bt;
+ return a.spot.name.localeCompare(b.spot.name);
+}
+function currentTieWhy(row,rows){
+ const tied=rows.filter(x=>x!==row&&x.clean.score===row.clean.score);if(!tied.length)return "";
+ const risk=String(row.recent&&row.recent.risk||"Unknown");const pace=String(row.clean.recovery&&row.clean.recovery.pace||"");const gust=row.recent&&Number.isFinite(row.recent.maxGust)?`${row.recent.maxGust.toFixed(0)} mph max gust`:"no gust reading";
+ return `Tiebreak: ${risk.toLowerCase()} disruption • ${pace.toLowerCase()} recovery • ${gust}`;
+}
+function tomorrowTieWhy(row,rows){
+ const tied=rows.filter(x=>x!==row&&x.clean.score===row.clean.score);if(!tied.length)return "";
+ const max=Number.isFinite(row.clean.forecastMax)?`${row.clean.forecastMax.toFixed(0)} mph peak wind`:"peak wind unavailable";
+ const avg=Number.isFinite(row.clean.forecastWind)?`${row.clean.forecastWind.toFixed(0)} mph avg wind`:"avg wind unavailable";
+ return `Tiebreak: ${max} • ${avg} • ${row.clean.recovery.tide}`;
+}
+
+function worldviewUrlForArea(){
+ const area=areaPicker.value||selected&&selected.area;let arr=spots.filter(s=>s.area===area);if(!arr.length&&selected)arr=[selected];if(!arr.length)return 'https://worldview.earthdata.nasa.gov/';
+ const lats=arr.map(s=>s.lat),lons=arr.map(s=>s.lon),pad=.18;const west=Math.min(...lons)-pad,south=Math.min(...lats)-pad,east=Math.max(...lons)+pad,north=Math.max(...lats)+pad;
+ const d=new Date(Date.now()-24*3600000).toISOString().slice(0,10);
+ const layers='Coastlines_15m,VIIRS_NOAA21_CorrectedReflectance_TrueColor,VIIRS_NOAA20_CorrectedReflectance_TrueColor,VIIRS_SNPP_CorrectedReflectance_TrueColor,MODIS_Aqua_CorrectedReflectance_TrueColor,MODIS_Terra_CorrectedReflectance_TrueColor';
+ return `https://worldview.earthdata.nasa.gov/?l=${encodeURIComponent(layers)}&t=${d}&v=${west.toFixed(4)},${south.toFixed(4)},${east.toFixed(4)},${north.toFixed(4)}`;
+}
+function openSatelliteView(){window.open(worldviewUrlForArea(),'_blank','noopener');}
+function parseWindMph(text){const m=String(text||"").match(/\d+/g);return m?m.map(Number).reduce((a,b)=>a+b,0)/m.length:null;}
+function tideStateAt(date){
+ if(!tides.length)return {label:"tide unavailable",score:0};
+ const t=date.getTime();
+ const pts=tides.map(x=>({type:x.type,time:new Date(x.t.replace(" ","T")).getTime()})).filter(x=>Number.isFinite(x.time)).sort((a,b)=>a.time-b.time);
+ let prev=null,next=null;
+ for(const x of pts){if(x.time<=t)prev=x;else{next=x;break}}
+ if(!next)return {label:"tide unavailable",score:0};
+ const rising=next.type==="H";
+ let score=rising?9:7,motion="moving";
+ if(prev){const span=next.time-prev.time,phase=span>0?(t-prev.time)/span:null;if(phase!=null){if(phase<0.12||phase>0.88){score-=5;motion="near slack"}else if(phase>=0.30&&phase<=0.70){score+=4;motion="stronger movement"}else{score+=1;motion="moderate movement"}}}
+ return {label:`${rising?"rising":"falling"} tide, ${motion}`,score};
+}
+function hourWindowScore(period){
+ const d=new Date(period.startTime),h=d.getHours();let score=50,reasons=[];
+ const w=parseWindMph(period.windSpeed);
+ if(w!=null){if(w<=7){score+=10;reasons.push("light wind")}else if(w<=12){score+=5;reasons.push("manageable wind")}else if(w<=17){score-=3;reasons.push("breezy")}else{score-=12;reasons.push("strong wind")}const ds=windDirectionScore(period.windDirection);score+=ds;if(ds>0)reasons.push("favorable wind direction")}
+ if(h>=5&&h<9){score+=8;reasons.push("early-morning timing")}else if(h>=9&&h<12){score+=3;reasons.push("morning timing")}else if(h>=17&&h<20){score+=5;reasons.push("evening timing")}else if(h>=12&&h<16){score-=4;reasons.push("midday heat window")}
+ const ts=tideStateAt(d);score+=ts.score;if(ts.score)reasons.push(ts.label);
+ const pt=document.getElementById("pressureTrend").textContent;if(pt==="Falling"){score+=4;reasons.push("falling pressure")}else if(pt==="Stable"){score+=3;reasons.push("stable pressure")}else if(pt==="Rising"){score-=2;reasons.push("rising pressure")}
+ const fc=String(period.shortForecast||"").toLowerCase();if(fc.includes("thunder")){score-=20;reasons.push("thunderstorm risk")}else if(fc.includes("heavy rain")){score-=8;reasons.push("heavy rain")}else if(fc.includes("rain")||fc.includes("showers")){score-=2;reasons.push("showers possible")}
+ const hrsAhead=Math.max(0,(d.getTime()-Date.now())/3600000),disrupt=effectiveDisruptionPenalty();if(disrupt>0&&hrsAhead<6){const decayed=Math.round(disrupt*(1-hrsAhead/6));score-=decayed;if(decayed>=4)reasons.push("recent storm/wind disruption");}
+ return {period,date:d,score:Math.max(0,Math.min(100,Math.round(score))),reasons};
+}
+function fmtHour(d){return d.toLocaleTimeString([],{hour:"numeric"});}
+function makeWindows(rows){const windows=[];for(let i=0;i<rows.length-1;i++){const pair=[rows[i],rows[i+1]],avg=Math.round((pair[0].score+pair[1].score)/2);windows.push({start:pair[0].date,end:new Date(pair[1].date.getTime()+3600000),score:avg,rows:pair})}return windows.sort((a,b)=>b.score-a.score);}
+function updateBestWindow(){
+ if(!selected||!hourlyPeriods.length){resetBestWindow();return}
+ const now=Date.now(),rows=hourlyPeriods.filter(p=>new Date(p.startTime).getTime()>=now-30*60000).slice(0,12).map(hourWindowScore);
+ if(rows.length<2){document.getElementById("windowWhy").textContent="Not enough hourly forecast data to compare windows.";return}
+ const ranked=makeWindows(rows),best=ranked[0],second=ranked.find(w=>Math.abs(w.start-best.start)>=2*3600000)||ranked[1];
+ const label=w=>`${fmtHour(w.start)}–${fmtHour(w.end)}`;
+ document.getElementById("bestWindowScore").textContent=`${best.score}%`;
+ document.getElementById("bestWindow").textContent=label(best);document.getElementById("secondWindow").textContent=second?`${label(second)} (${second.score}%)`:"—";
+ const counts={};best.rows.flatMap(r=>r.reasons).forEach(r=>counts[r]=(counts[r]||0)+1);const reasons=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,4).map(x=>x[0]);
+ document.getElementById("windowWhy").textContent=`Why: ${reasons.join(" • ")||"best combination of the loaded hourly conditions"}.`;
+ document.getElementById("windowDetails").textContent="Compares the next 12 forecast hours using wind speed/direction, tide phase and movement, time of day, pressure trend and hazardous weather. Window scores are relative condition scores, not catch probabilities.";
+}
+
+function windAvg(){if(!wx)return null;const m=String(wx.windSpeed).match(/\d+/g);return m?m.map(Number).reduce((a,b)=>a+b,0)/m.length:null}
+function windDirectionScore(dir){
+ if(!dir)return 0;
+ const d=String(dir).toUpperCase();
+ if(["E","ESE","SE","SSE","S"].includes(d))return 5;
+ if(["ENE","NE","SSW","SW"].includes(d))return 2;
+ if(["W","WNW","NW","NNW","N"].includes(d))return -3;
+ return 0;
+}
+
+function sourceConfidenceWeight(v){
+ if(v==="live")return 1;
+ if(v==="cache")return 0.9;
+ if(v==="fallback")return 0.65;
+ if(v==="stale")return 0.35;
+ return 0;
+}
+function recentObservationCompleteness(r){
+ r=r||{};
+ const vals=[
+  !!(r.observedWind&&r.observedWind!=="Unavailable"),
+  Number.isFinite(r.maxGust),
+  Number.isFinite(r.rainIn),
+  Number.isFinite(r.windShift)
+ ];
+ return vals.filter(Boolean).length/vals.length;
+}
+function currentConfidencePercent(){
+ let pct=0;
+ pct+=25*sourceConfidenceWeight(dataQuality.weather);
+ pct+=20*sourceConfidenceWeight(dataQuality.tides);
+
+ const pt=document.getElementById("pressureTrend").textContent;
+ if(["Falling","Stable","Rising"].includes(pt))pct+=20;
+
+ const obsWeight=sourceConfidenceWeight(dataQuality.observedWind);
+ const obsCompleteness=recentObservationCompleteness(recentConditions);
+ if(obsWeight>0)pct+=20*obsWeight*(0.5+0.5*obsCompleteness);
+
+ const manualClarity=Number(document.getElementById("clarity").value);
+ if(manualClarity!==0)pct+=15;
+ else if(clarityState&&clarityState.direct&&Number.isFinite(clarityState.score))pct+=15;
+ else if(clarityState&&Number.isFinite(clarityState.score))pct+=8;
+
+ return Math.max(0,Math.min(100,Math.round(pct)));
+}
+
+function calcScore(){
+ if(!selected)return;
+ let s=50,why=[],liveParts=0,totalLive=3;
+ const w=windAvg();
+ if(w!==null){liveParts++;if(w<=7){s+=10;why.push("light wind")}else if(w<=12){s+=5;why.push("manageable wind")}else if(w<=17){s-=3;why.push("breezy")}else{s-=12;why.push("strong wind")}const ds=windDirectionScore(wx&&wx.windDirection);s+=ds;if(ds>0)why.push("favorable wind direction");else if(ds<0)why.push("less favorable wind direction");}
+ const tm=document.getElementById("tideMove").textContent;
+ if(tm.startsWith("Rising")){liveParts++;s+=9;why.push("rising tide")}else if(tm.startsWith("Falling")){liveParts++;s+=7;why.push("moving falling tide")}
+ const pt=document.getElementById("pressureTrend").textContent;
+ if(["Falling","Stable","Rising"].includes(pt)){liveParts++;if(pt==="Falling"){s+=4;why.push("falling pressure")}else if(pt==="Stable"){s+=3;why.push("stable pressure")}else{s-=2;why.push("rising pressure")}}
+ const hr=new Date().getHours();
+ if(hr>=5&&hr<9){s+=7;why.push("early-morning window")}else if(hr>=9&&hr<12){s+=3;why.push("morning window")}else if(hr>=17&&hr<20){s+=4;why.push("evening window")}else if(hr>=12&&hr<16){s-=4;why.push("midday heat window")}
+ const manualClarity=Number(document.getElementById("clarity").value);
+ if(manualClarity!==0){s+=manualClarity;if(manualClarity>0)why.push("reported cleaner water");else why.push("reported muddy water");}
+ else if(Number.isFinite(clarityState.score)){
+  let adj=0;
+  if(clarityState.score>=78)adj=clarityState.direct?8:4;
+  else if(clarityState.score>=60)adj=clarityState.direct?4:2;
+  else if(clarityState.score<25)adj=clarityState.direct?-10:-5;
+  else if(clarityState.score<42)adj=clarityState.direct?-6:-3;
+  s+=adj;
+  if(adj>=4)why.push("clear-water signal");else if(adj<=-6)why.push("muddy-water signal");else if(adj<0)why.push("stained-water signal");
+ }
+ s+=Number(document.getElementById("bait").value);
+ const disruption=effectiveDisruptionPenalty();if(disruption>0){s-=disruption;why.push(`${manualStormPenalty()>0?"reported":"observed"} recent storm/water disruption -${disruption}`);}
+ s=Math.max(0,Math.min(100,Math.round(s)));
+ const scoreEl=document.getElementById("score");scoreEl.textContent=s+"%";scoreEl.className="big "+(s>=75?"good":s>=55?"mid":"bad");
+ const rating=s>=80?"Very good":s>=70?"Good":s>=55?"Fair":s>=40?"Poor":"Very poor";document.getElementById("rating").textContent=rating;
+ const conf=currentConfidencePercent();document.getElementById("confidence").textContent="Data confidence: "+conf+"% of key inputs available";
+ document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • "+(Number(document.getElementById("clarity").value)===0&&clarityState.direct?"clarity source loaded":"you can still override clarity from the water")+". Add bait activity for a better estimate.";
+ whatToThrowNow();
+ updateRecoveryOutlook();
+ updateBestWindow();
+}
+function nextTideMovementLabel(tidesList){
+ const future=(tidesList||[]).filter(x=>new Date(x.t.replace(" ","T")).getTime()>Date.now()),n=future[0];
+ if(!n)return "Unavailable";
+ return n.type==="H"?"Rising toward high":"Falling toward low";
+}
+function pressureTrendFromSeries(series){
+ if(!series||!series.length)return "Unavailable";
+ const a=series[0],b=series[Math.min(3,series.length-1)],diff=(b-a)*0.0295299831;
+ return diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+}
+function tideStateAtFor(tidesList,date){
+ if(!tidesList.length)return {label:"tide unavailable",score:0};
+ const t=date.getTime();
+ const pts=tidesList.map(x=>({type:x.type,time:new Date(x.t.replace(" ","T")).getTime()})).filter(x=>Number.isFinite(x.time)).sort((a,b)=>a.time-b.time);
+ let prev=null,next=null;
+ for(const x of pts){if(x.time<=t)prev=x;else{next=x;break}}
+ if(!next)return {label:"tide unavailable",score:0};
+ const rising=next.type==="H";
+ let score=rising?9:7,motion="moving";
+ if(prev){const span=next.time-prev.time,phase=span>0?(t-prev.time)/span:null;if(phase!=null){if(phase<0.12||phase>0.88){score-=5;motion="near slack"}else if(phase>=0.30&&phase<=0.70){score+=4;motion="stronger movement"}else{score+=1;motion="moderate movement"}}}
+ return {label:`${rising?"rising":"falling"} tide, ${motion}`,score};
+}
+function currentScoreFromData(data){
+ let s=50;
+ const reasons=[];
+ const w=parseWindMph(data.wx&&data.wx.windSpeed);
+ if(w!=null){if(w<=7){s+=10;reasons.push("light wind")}else if(w<=12){s+=5;reasons.push("manageable wind")}else if(w<=17){s-=3;reasons.push("breezy")}else{s-=12;reasons.push("strong wind")}const ds=windDirectionScore(data.wx&&data.wx.windDirection);s+=ds;}
+ const tideMove=nextTideMovementLabel(data.tides);
+ if(tideMove.startsWith("Rising")){s+=9;reasons.push("rising tide");}else if(tideMove.startsWith("Falling")){s+=7;reasons.push("moving falling tide");}
+ const pt=data.pressureTrend;
+ if(pt==="Falling"){s+=4;reasons.push("falling pressure");}else if(pt==="Stable"){s+=3;reasons.push("stable pressure");}else if(pt==="Rising"){s-=2;reasons.push("rising pressure");}
+ const hr=new Date().getHours();
+ if(hr>=5&&hr<9){s+=7;reasons.push("early-morning window");}else if(hr>=9&&hr<12){s+=3;reasons.push("morning window");}else if(hr>=17&&hr<20){s+=4;reasons.push("evening window");}else if(hr>=12&&hr<16){s-=4;reasons.push("midday heat window");}
+ if(data.recent&&data.recent.penalty){s-=data.recent.penalty;reasons.push("recent observed disruption");}
+ const score=Math.max(0,Math.min(100,Math.round(s)));
+ return {score,reasons};
+}
+function hourWindowScoreFor(data,period){
+ const d=new Date(period.startTime),h=d.getHours();let score=50,reasons=[];
+ const w=parseWindMph(period.windSpeed);
+ if(w!=null){if(w<=7){score+=10;reasons.push("light wind")}else if(w<=12){score+=5;reasons.push("manageable wind")}else if(w<=17){score-=3;reasons.push("breezy")}else{score-=12;reasons.push("strong wind")}const ds=windDirectionScore(period.windDirection);score+=ds;if(ds>0)reasons.push("favorable wind direction");}
+ if(h>=5&&h<9){score+=8;reasons.push("early-morning timing")}else if(h>=9&&h<12){score+=3;reasons.push("morning timing")}else if(h>=17&&h<20){score+=5;reasons.push("evening timing")}else if(h>=12&&h<16){score-=4;reasons.push("midday heat window")}
+ const ts=tideStateAtFor(data.tides,d);score+=ts.score;if(ts.score)reasons.push(ts.label);
+ const pt=data.pressureTrend;if(pt==="Falling"){score+=4;reasons.push("falling pressure")}else if(pt==="Stable"){score+=3;reasons.push("stable pressure")}else if(pt==="Rising"){score-=2;reasons.push("rising pressure")}
+ const fc=String(period.shortForecast||"").toLowerCase();if(fc.includes("thunder")){score-=20;reasons.push("thunderstorm risk")}else if(fc.includes("heavy rain")){score-=8;reasons.push("heavy rain")}else if(fc.includes("rain")||fc.includes("showers")){score-=2;reasons.push("showers possible")}
+ if(data.recent&&data.recent.penalty){const hrsAhead=Math.max(0,(d.getTime()-Date.now())/3600000);if(hrsAhead<6){const decayed=Math.round(data.recent.penalty*(1-hrsAhead/6));score-=decayed;if(decayed>=4)reasons.push("recent observed disruption");}}
+ return {period,date:d,score:Math.max(0,Math.min(100,Math.round(score))),reasons};
+}
+function bestWindowsFromData(data){
+ const now=Date.now();
+ const rows=(data.hourlyPeriods||[]).filter(p=>new Date(p.startTime).getTime()>=now-30*60000).slice(0,12).map(p=>hourWindowScoreFor(data,p));
+ if(rows.length<2)return null;
+ const windows=[];for(let i=0;i<rows.length-1;i++){const pair=[rows[i],rows[i+1]],avg=Math.round((pair[0].score+pair[1].score)/2);windows.push({start:pair[0].date,end:new Date(pair[1].date.getTime()+3600000),score:avg,rows:pair});}
+ windows.sort((a,b)=>b.score-a.score);
+ const best=windows[0],second=windows.find(w=>Math.abs(w.start-best.start)>=2*3600000)||windows[1];
+ return {best,second};
+}
+function qualitySummary(q){
+ const vals=[q.weather,q.observedWind,q.tides,q.salinity];
+ let pts=0;for(const v of vals){if(v==="live")pts+=2;else if(v==="cache")pts+=1.5;else if(v==="fallback")pts+=1;else if(v==="stale")pts+=0.5;}
+ const level=pts>=6.5?"High":pts>=4?"Medium":"Low";
+ return level;
+}
+async function fetchWeatherForSpot(s){try{const point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:`nws-point:${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,ttl:TTL.points}),[h,g]=await Promise.all([fetchJSON(point.data.properties.forecastHourly,{cacheKey:`nws-hourly:${s.name}`,ttl:TTL.weather}),fetchJSON(point.data.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather})]),hourlyPeriods=(h.data.properties.periods||[]).slice(0,24),wx=hourlyPeriods[0]||null,pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[],pressureSeries=pr.slice(0,6).map(v=>v.value/100);let source="live";if([h.source,g.source,point.source].includes("stale"))source="stale";else if([h.source,g.source,point.source].includes("cache"))source="cache";let recent=null,observedSource="unavailable";try{const stations=await fetchJSON(point.data.properties.observationStations,{cacheKey:`nws-stations:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:TTL.points}),sf=(stations.data.features||[])[0],sid=sf&&sf.properties&&sf.properties.stationIdentifier;if(sid){const obs=await fetchJSON(`https://api.weather.gov/stations/${sid}/observations?limit=18`,{cacheKey:`nws-observations:${sid}`,ttl:TTL.observations});recent=analyzeObservations(obs.data.features||[],sf.properties||{});observedSource=obs.source;}}catch{try{recent=await modeledRecentConditionsFallback(s);observedSource="fallback";}catch{}}return {wx,hourlyPeriods,pressureSeries,pressureTrend:pressureTrendFromSeries(pressureSeries),source,recent,observedSource};}catch(e){const f=await fetchOpenMeteoForSpot(s);let recent=null;try{recent=await modeledRecentConditionsFallback(s);}catch{}return {wx:f.wx,hourlyPeriods:f.hourlyPeriods,pressureSeries:f.pressureSeries||[],pressureTrend:f.pressureTrend||pressureTrendFromSeries(f.pressureSeries||[]),source:"fallback",recent,observedSource:recent?"fallback":"unavailable"};}}
+async function fetchTidesForSpot(s){const now=new Date(),tom=new Date(now.getTime()+86400000),u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(now)}&end_date=${ymd(tom)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;try{const res=await fetchJSON(u,{cacheKey:`coops-tides:${s.tide}:${ymd(now)}`,ttl:TTL.tides}),tt=res.data.predictions||[];if(!tt.length)throw Error("no NOAA predictions");return {tides:tt,source:res.source};}catch{const m=await fetchOpenMeteoMarineForSpot(s),tt=marineTideEvents(m.rows);if(!tt.length)throw Error("no marine fallback tide turning points");return {tides:tt,source:"fallback"};}}
+async function fetchSalinityForSpot(s){const src=salinitySources[s.area]||{};let d=null,usedBackup=false;if(src.provider==="USGS"&&src.site){try{d=await fetchUSGSWaterSite(src.site);if(d.sal==null)d=null;}catch{}}if(!d&&src.backupSite){try{d=await fetchUSGSWaterSite(src.backupSite);if(d.sal==null)d=null;else usedBackup=true;}catch{}}let mt=null;if(!d||d.tempF==null){try{mt=await marineWaterTempFallback(s);}catch{}}if(!d)return {sal:null,tempF:mt&&mt.tempF||null,fit:null,source:"unavailable",sourceLabel:src.note||"No salinity source assigned"};const tempF=Number.isFinite(d.tempF)?d.tempF:(mt&&mt.tempF||null);return {sal:d.sal,tempF,fit:speciesFromWater(d.sal,tempF),source:usedBackup?"fallback":d.source,sourceLabel:`USGS ${usedBackup?src.backupSite:src.site} — ${usedBackup?(src.backupName||"regional backup"):src.name} • ${ageLabel(d.time)}`};}
+async function buildCompareSpotData(s){
+ const quality={weather:"unavailable",observedWind:"unavailable",tides:"unavailable",salinity:"unavailable",salinityProxy:true};
+ let wx=null,hourlyPeriods=[],pressureSeries=[],pressureTrend="Unavailable",tidesList=[],salData={sal:null,tempF:null,fit:null,source:"unavailable"},recent=null;
+ try{const w=await fetchWeatherForSpot(s);wx=w.wx;hourlyPeriods=w.hourlyPeriods;pressureSeries=w.pressureSeries;pressureTrend=w.pressureTrend;recent=w.recent;quality.weather=w.source;quality.observedWind=w.observedSource;}catch{}
+ try{const t=await fetchTidesForSpot(s);tidesList=t.tides;quality.tides=t.source;}catch{}
+ try{salData=await fetchSalinityForSpot(s);quality.salinity=salData.source;}catch{}
+ const current=currentScoreFromData({wx,pressureTrend,tides:tidesList,recent});
+ const windows=bestWindowsFromData({hourlyPeriods,pressureTrend,tides:tidesList,recent});
+ return {spot:s,current,currentScore:current.score,wx,hourlyPeriods,pressureSeries,pressureTrend,tides:tidesList,water:salData,recent,bestWindows:windows,quality,confidence:qualitySummary(quality)};
+}
+function compareTableHtml(rows){
+ if(!rows.length)return '<p class="small bad">No comparison rows to display.</p>';
+ const fmtWin=w=>w?`${fmtHour(w.start)}–${fmtHour(w.end)} (${w.score}/100)`:'—';
+ return '<table><tr><td><strong>Spot</strong></td><td><strong>Current</strong></td><td><strong>Best window</strong></td><td><strong>Second best</strong></td><td><strong>Species fit</strong></td><td><strong>Confidence</strong></td></tr>'+
+ rows.map(r=>`<tr><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td>${r.currentScore}/100<div class="small muted">${r.current.reasons.slice(0,3).join(' • ')||'conditions based'}</div></td><td>${fmtWin(r.bestWindows&&r.bestWindows.best)}</td><td>${fmtWin(r.bestWindows&&r.bestWindows.second)}</td><td>${r.water.fit&&r.water.fit.best?r.water.fit.best.slice(0,2).join(' • '):'Unavailable'}</td><td>${r.confidence}<div class="small muted">F:${qualityText(r.quality.weather)} • O:${qualityText(r.quality.observedWind)} • T:${qualityText(r.quality.tides)} • S:${qualityText(r.quality.salinity)}</div></td></tr>`).join('')+'</table>';
+}
+async function compareSpots(){
+ const chosen=chosenCompareSpots();
+ if(chosen.length<2){document.getElementById('compareStatus').textContent='Choose at least 2 spots to compare.';document.getElementById('compareResults').innerHTML='';return;}
+ document.getElementById('compareStatus').textContent='Comparing spots…';
+ document.getElementById('compareResults').innerHTML='';
+ const settled=await Promise.allSettled(chosen.map(buildCompareSpotData));
+ const rows=settled.filter(x=>x.status==='fulfilled').map(x=>x.value).sort((a,b)=>b.currentScore-a.currentScore||((b.bestWindows&&b.bestWindows.best?b.bestWindows.best.score:0)-(a.bestWindows&&a.bestWindows.best?a.bestWindows.best.score:0)));
+ const failures=settled.filter(x=>x.status==='rejected').length;
+ document.getElementById('compareResults').innerHTML=compareTableHtml(rows);
+ if(rows.length){const leader=rows[0];const bestLead=leader.bestWindows&&leader.bestWindows.best?` Best upcoming window: ${fmtHour(leader.bestWindows.best.start)}–${fmtHour(leader.bestWindows.best.end)} (${leader.bestWindows.best.score}/100).`:'';document.getElementById('compareStatus').textContent=`Current leader: ${leader.spot.name} at ${leader.currentScore}/100.${bestLead}${failures?` ${failures} spot${failures===1?'':'s'} could not be fully compared.`:''}`;}else{document.getElementById('compareStatus').textContent='No spots could be compared right now. Try again later.';}
+}
+
+function dateOnlyKey(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function addDaysLocal(d,n){const x=new Date(d);x.setDate(x.getDate()+n);x.setHours(12,0,0,0);return x;}
+function minutesApart(a,b){return Math.abs(a.getTime()-b.getTime())/60000;}
+function tideEventsForDay(all,day){const key=dateOnlyKey(day);return (all||[]).filter(x=>String(x.t||"").slice(0,10)===key).map(x=>({type:x.type,v:Number(x.v),time:new Date(x.t.replace(" ","T"))})).filter(x=>Number.isFinite(x.time.getTime()));}
+function movingTideWindows(all,day){
+ const dayStart=new Date(day);dayStart.setHours(0,0,0,0);const dayEnd=new Date(dayStart);dayEnd.setDate(dayEnd.getDate()+1);
+ const pts=(all||[]).map(x=>({type:x.type,v:Number(x.v),time:new Date(x.t.replace(" ","T"))})).filter(x=>Number.isFinite(x.time.getTime())).sort((a,b)=>a.time-b.time);
+ const out=[];
+ for(let i=0;i<pts.length-1;i++){
+  const a=pts[i],b=pts[i+1]; if(a.type===b.type)continue;
+  const mid=new Date((a.time.getTime()+b.time.getTime())/2);
+  if(mid>=dayStart&&mid<dayEnd){out.push({time:mid,direction:b.type==="H"?"rising":"falling",range:Math.abs(b.v-a.v)});}
+ }
+ return out;
+}
+function seasonBonus(day,target){
+ const m=day.getMonth()+1;let b=0,why=[];
+ if(target==="Speckled trout"){
+  if([4,5,6,7,8,9,10,11].includes(m)){b+=5;why.push("season favors trout activity");}
+  else if([12,1,2].includes(m)){b+=1;why.push("winter trout can concentrate in deeper water");}
+ }else if(target==="Redfish"){
+  if([8,9,10,11].includes(m)){b+=6;why.push("strong fall redfish season");}else{b+=3;why.push("redfish are available year-round");}
+ }else if(target==="Flounder"){
+  if([3,4,5,9,10,11].includes(m)){b+=4;why.push("season can favor flounder movement");}
+ }else{
+  if([9,10,11].includes(m)){b+=5;why.push("productive fall inshore season");}
+  else if([4,5,6].includes(m)){b+=4;why.push("productive spring inshore season");}
+ }
+ return {bonus:b,why};
+}
+function lunarWindows(day,lat,lon){
+ if(typeof SunCalc==="undefined")return {major:[],minor:[],illum:null};
+ try{
+  const mt=SunCalc.getMoonTimes(day,lat,lon,true),ill=SunCalc.getMoonIllumination(day);
+  const minor=[];if(mt.rise)minor.push(mt.rise);if(mt.set)minor.push(mt.set);
+  const major=[];
+  if(mt.rise&&mt.set){
+   let rise=mt.rise.getTime(),set=mt.set.getTime();if(set<rise)set+=86400000;
+   const upper=new Date((rise+set)/2),lower=new Date((rise+set)/2+12*3600000);
+   major.push(upper,lower);
+  }else if(mt.rise){major.push(new Date(mt.rise.getTime()+6*3600000),new Date(mt.rise.getTime()+18*3600000));}
+  else if(mt.set){major.push(new Date(mt.set.getTime()-6*3600000),new Date(mt.set.getTime()+6*3600000));}
+  return {major,minor,illum:ill&&Number.isFinite(ill.fraction)?ill.fraction:null};
+ }catch{return {major:[],minor:[],illum:null};}
+}
+function sunTimes(day,lat,lon){
+ if(typeof SunCalc==="undefined")return null;
+ try{return SunCalc.getTimes(day,lat,lon);}catch{return null;}
+}
+function planningWeatherPenalty(periods,day){
+ const key=dateOnlyKey(day),ps=(periods||[]).filter(p=>dateOnlyKey(new Date(p.startTime))===key);
+ if(!ps.length)return {score:0,why:[],text:"No detailed weather yet"};
+ let score=0,why=[],maxWind=0,bad=false;
+ for(const p of ps){const w=parseWindMph(p.windSpeed);if(w!=null)maxWind=Math.max(maxWind,w);const fc=String(p.shortForecast||"").toLowerCase();if(fc.includes("thunder")){bad=true;score-=15;}else if(fc.includes("heavy rain")){score-=8;}else if(fc.includes("showers")||fc.includes("rain")){score-=3;}}
+ if(maxWind<=8){score+=8;why.push("light forecast wind");}else if(maxWind<=12){score+=4;why.push("manageable forecast wind");}else if(maxWind<=17){score-=3;why.push("breezy forecast");}else{score-=10;why.push("strong forecast wind");}
+ if(bad)why.push("thunderstorm risk");
+ return {score,why,text:maxWind?`Forecast wind up to ~${Math.round(maxWind)} mph`:"Detailed NWS forecast loaded"};
+}
+async function fetchPlanningWeather(s){
+ try{
+  const point=await fetchJSON(`https://api.weather.gov/points/${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,{cacheKey:`nws-point:${s.lat.toFixed(4)},${s.lon.toFixed(4)}`,ttl:TTL.points});
+  const forecastUrl=point.data.properties.forecast;
+  const res=await fetchJSON(forecastUrl,{cacheKey:`nws-7day:${s.area}`,ttl:TTL.weather});
+  return res.data.properties.periods||[];
+ }catch{return [];}
+}
+async function fetchPlanningTides(s,start,end){
+ const u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(start)}&end_date=${ymd(end)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;
+ const res=await fetchJSON(u,{cacheKey:`planning-tides:${s.tide}:${ymd(start)}:${ymd(end)}`,ttl:12*60*60*1000,timeoutMs:10000});
+ return res.data.predictions||[];
+}
+function scorePlanningDay(day,offset,s,tidePreds,weatherPeriods,target){
+ let score=48,reasons=[];
+ const windows=movingTideWindows(tidePreds,day);
+ const events=tideEventsForDay(tidePreds,day);
+ let maxRange=0;for(const w of windows)maxRange=Math.max(maxRange,w.range||0);
+ if(maxRange>=1.5){score+=16;reasons.push(`strong tide swing ~${maxRange.toFixed(1)} ft`);}else if(maxRange>=1.0){score+=12;reasons.push(`good tide swing ~${maxRange.toFixed(1)} ft`);}else if(maxRange>=0.6){score+=7;reasons.push(`moderate tide swing ~${maxRange.toFixed(1)} ft`);}else if(maxRange>=0.3){score+=2;reasons.push(`light tide movement ~${maxRange.toFixed(1)} ft`);}else{score-=5;reasons.push("weak predicted tide movement");}
+ const sun=sunTimes(day,s.lat,s.lon),moon=lunarWindows(day,s.lat,s.lon);
+ let bestWindow=null,bestWindowPts=-999,bestWhy=[];
+ for(const w of windows){
+  let pts=0,ww=[];
+  if(w.range>=1.2)pts+=6;else if(w.range>=0.7)pts+=3;
+  if(sun&&sun.sunrise&&minutesApart(w.time,sun.sunrise)<=120){pts+=8;ww.push("moving water near sunrise");}
+  if(sun&&sun.sunset&&minutesApart(w.time,sun.sunset)<=120){pts+=6;ww.push("moving water near sunset");}
+  const maj=moon.major.some(t=>minutesApart(w.time,t)<=90),min=moon.minor.some(t=>minutesApart(w.time,t)<=75);
+  if(maj){pts+=8;ww.push("tide overlaps estimated major moon period");}else if(min){pts+=5;ww.push("tide overlaps moonrise/moonset period");}
+  if(pts>bestWindowPts){bestWindowPts=pts;bestWindow=w;bestWhy=ww;}
+ }
+ if(bestWindow){score+=Math.max(0,bestWindowPts);reasons.push(...bestWhy);}
+ const seas=seasonBonus(day,target);score+=seas.bonus;reasons.push(...seas.why);
+ let wxText="Weather too far out for a detailed NWS forecast";
+ if(offset<=6){const wxp=planningWeatherPenalty(weatherPeriods,day);score+=wxp.score;reasons.push(...wxp.why);wxText=wxp.text;}
+ const confidence=offset<=6?"Fishing forecast":offset<=13?"Developing opportunity":"Planning opportunity";
+ const confRank=offset<=6?3:offset<=13?2:1;
+ score=Math.max(0,Math.min(100,Math.round(score)));
+ const fmt=t=>t?t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"—";
+ const bestText=bestWindow?`${fmt(bestWindow.time)} ${bestWindow.direction}`:(events[0]?`${fmt(events[0].time)} ${events[0].type==="H"?"high":"low"}`:"—");
+ return {day,offset,score,reasons:[...new Set(reasons)].slice(0,5),confidence,confRank,bestText,maxRange,wxText};
+}
+function renderOpportunityCalendar(rows,area,target){
+ const top=[...rows].sort((a,b)=>b.score-a.score||a.offset-b.offset).slice(0,6);
+ document.getElementById("calendarTop").innerHTML='<div style="font-weight:700;margin-bottom:6px">Top opportunities</div><div class="grid">'+top.map(r=>`<div style="border:1px solid #38566d;border-radius:10px;padding:10px"><div class="small muted">${r.day.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div><div style="font-size:24px;font-weight:800">${r.score}/100</div><div><strong>${r.bestText}</strong></div><div class="small muted">${r.confidence}</div><div class="small" style="margin-top:4px">${r.reasons.slice(0,3).join(" • ")}</div></div>`).join('')+'</div>';
+ document.getElementById("calendarResults").innerHTML='<table><tr><td><strong>Date</strong></td><td><strong>Score</strong></td><td><strong>Best tide timing</strong></td><td><strong>Confidence</strong></td><td><strong>Why</strong></td></tr>'+rows.map(r=>`<tr><td>${r.day.toLocaleDateString([],{month:"short",day:"numeric",weekday:"short"})}</td><td><strong>${r.score}/100</strong></td><td>${r.bestText}</td><td>${r.confidence}</td><td>${r.reasons.join(" • ")}<div class="small muted">${r.wxText}</div></td></tr>`).join('')+'</table>';
+ document.getElementById("calendarStatus").textContent=`${area} • ${target} • 28-day planning calendar built from NOAA tide predictions and sun/moon timing${rows.some(r=>r.offset<=6)?", with NWS weather added to the first 7 days":""}.`;
+}
+async function buildOpportunityCalendar(){
+ const area=(calendarArea&&calendarArea.value)||areaPicker.value;
+ const target=(calendarTarget&&calendarTarget.value)||"Any";
+ if(!area){document.getElementById("calendarStatus").textContent="Choose an area first.";return;}
+ const areaSpots=spots.filter(s=>s.area===area);if(!areaSpots.length){document.getElementById("calendarStatus").textContent="No verified spots are available in this area yet.";return;}
+ const s=areaSpots[0],start=new Date();start.setHours(12,0,0,0);const end=addDaysLocal(start,27);
+ document.getElementById("calendarStatus").textContent=`Building 28-day opportunity calendar for ${area}…`;
+ document.getElementById("calendarTop").innerHTML='';document.getElementById("calendarResults").innerHTML='';
+ try{
+  const [tidePreds,weatherPeriods]=await Promise.all([fetchPlanningTides(s,start,end),fetchPlanningWeather(s)]);
+  if(!tidePreds.length)throw Error("NOAA returned no tide predictions");
+  const rows=[];for(let i=0;i<28;i++){const d=addDaysLocal(start,i);rows.push(scorePlanningDay(d,i,s,tidePreds,weatherPeriods,target));}
+  renderOpportunityCalendar(rows,area,target);
+ }catch(e){document.getElementById("calendarStatus").textContent=`Could not build the calendar: ${e.message}. Try again later.`;}
+}
+
+function journalRows(){try{return JSON.parse(localStorage.getItem("bayfishJournal")||"[]")}catch{return []}}
+function updateJournalPattern(){const rows=journalRows();const caught=rows.filter(r=>Number(r.catchCount)>0);if(caught.length<3){document.getElementById("journalPattern").textContent=`Your pattern: ${caught.length}/3 productive trips logged.`;return;}const sums={};for(const r of caught){const k=r.spot||"Unknown";sums[k]=(sums[k]||0)+Number(r.catchCount||0)}const bestSpot=Object.entries(sums).sort((a,b)=>b[1]-a[1])[0];const lureSums={};for(const r of caught){if(r.lure){lureSums[r.lure]=(lureSums[r.lure]||0)+Number(r.catchCount||0)}}const bestLure=Object.entries(lureSums).sort((a,b)=>b[1]-a[1])[0];document.getElementById("journalPattern").textContent=`Your pattern: best logged spot ${bestSpot?bestSpot[0]:"—"}${bestLure?` • best logged lure ${bestLure[0]}`:""}.`; }
+function saveLog(){if(!selected){logStatus.textContent="Choose a spot first.";return}const a=journalRows();const entry={time:new Date().toISOString(),area:selected.area,spot:selected.name,species:catchSpecies.value,catchCount:Number(catchCount.value||0),keptCount:Number(keptCount.value||0),lure:lure.value,depth:depth.value,notes:notes.value,currentScore:score.textContent,bestWindow:bestWindow.textContent,bestWindowScore:bestWindowScore.textContent,wind:wind.textContent,forecast:weather.textContent,pressure:pressure.textContent,pressureTrend:pressureTrend.textContent,tide:tideMove.textContent,salinity:waterState.sal,waterTempF:waterState.tempF,recommendedTarget:throwTarget.textContent,recommendedLure:throwLure.textContent,recommendedWeight:throwWeight.textContent,dataConfidence:qualityLevel.textContent,observedWind:observedWind.textContent,recentMaxGust:recentMaxGust.textContent,disruptionRisk:disruptionRisk.textContent};a.unshift(entry);localStorage.setItem("bayfishJournal",JSON.stringify(a));logStatus.textContent=`Saved. ${a.length} entr${a.length===1?"y":"ies"} on this device.`;updateJournalPattern()}
+function exportLog(){const blob=new Blob([localStorage.getItem("bayfishJournal")||"[]"],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="way-more-fish-journal.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+resetRecentConditionsUI();resetRecoveryOutlook();updateDataQuality();updateJournalPattern();document.getElementById("status").textContent="Choose a fishing location from the drop-down above.";
+</script></body></html>

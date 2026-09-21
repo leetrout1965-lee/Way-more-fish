@@ -63,6 +63,11 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 If this file is opened in iPad Quick Look, live JavaScript may not run. Open the hosted version in Safari for live NOAA/NWS data and the fishing percentage.
 </div><div class="grid">
 <section class="card full">
+<h3>CCA Artificial Reefs</h3>
+<div class="small muted">The map now includes a dedicated CCA Artificial Reefs overlay with 24 reef coordinates verified from published LDWF/CCA sources. Tap a reef marker for its name, GPS, source, Copy GPS, and Open in Maps.</div>
+<div class="small muted" style="margin-top:6px">Important: this layer only includes reefs for which a public coordinate could be verified. CCA has additional newer reefs whose coordinates were still described by CCA as pending survey/publication in the sources checked; those are not guessed or plotted.</div>
+</section>
+<section class="card full">
 <h3>Live conditions</h3>
 <p><strong>Choose a fishing area, then choose a spot.</strong> The app will load NOAA/NWS conditions and calculate a fishing percentage.</p>
 <p class="small muted">For the live version, open the hosted site in Safari. iPad Quick Look may display the file without running the live data calls.</p>
@@ -561,6 +566,7 @@ function resetBestWindow(){
 }
 
 let selected=null,wx=null,tides=[],pressureSeries=[],waterState={sal:null,tempF:null,fit:null},clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false},hourlyPeriods=[],recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false},dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
+const ccaReefs=[{"name":"Cypremort Point II Reef","lat":29.7388,"lon":-91.8794,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Sweet Lake Reef","lat":29.9419,"lon":-93.29025,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Turner's Bay Island Reef","lat":30.055433,"lon":-93.307833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Redfish Pointe Reef","lat":29.677917,"lon":-92.118467,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Bird Island Reef","lat":29.059333,"lon":-90.723833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Point Mast Reef","lat":29.1074,"lon":-90.635717,"group":"Inshore","source":"LDWF Oct 2023 \u2014 NOAA disaster grant + CCA"},{"name":"Independence Island Reef","lat":29.3075,"lon":-89.933367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Laketown Reef","lat":30.043883,"lon":-90.239367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 East","lat":29.320417,"lon":-92.133333,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 West","lat":29.323133,"lon":-92.143767,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Timbalier 51 Reef","lat":28.883817,"lon":-90.484283,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 D","lat":29.095167,"lon":-92.500433,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 G","lat":29.120567,"lon":-92.503117,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 E","lat":29.08715,"lon":-92.505467,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 H","lat":29.086833,"lon":-92.517017,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Z.T. Jack Cart Reef \u2014 Vermilion 69","lat":29.29415,"lon":-92.264533,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"West Cameron 45 Reef","lat":29.674833,"lon":-93.607633,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"Green Monster Reef \u2014 West Delta 23","lat":29.18,"lon":-89.5527,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Green Monster Reef \u2014 West Delta 24","lat":29.1773,"lon":-89.5348,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 A","lat":29.108417,"lon":-91.05055,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 B","lat":29.104783,"lon":-91.057367,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Bay Marchand 3 CCA Reef","lat":29.053067,"lon":-90.1692,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Marsh Island 235 Reef","lat":29.312904,"lon":-92.054691,"group":"Nearshore","source":"CCA published center point, 2023"},{"name":"Raising Cane's Grand Isle Reef","lat":29.330917,"lon":-89.969817,"group":"Inshore/Nearshore","source":"LDWF published reef center, 2024"}];
 const map=L.map("map").setView([29.55,-91.88],9);
 
 // Base map choices. NOAA Chart Display uses NOAA ENC data with traditional chart symbology.
@@ -590,7 +596,19 @@ const baseMaps={
  "NOAA Nautical Chart":noaaChartLayer,
  "Satellite":satelliteLayer
 };
-L.control.layers(baseMaps,null,{position:"topright",collapsed:false}).addTo(map);
+const ccaReefLayer=L.layerGroup();
+ccaReefs.forEach((r,i)=>{
+ const m=L.circleMarker([r.lat,r.lon],{radius:6,weight:2,fillOpacity:.9});
+ const coords=`${r.lat.toFixed(6)}, ${r.lon.toFixed(6)}`;
+ m.bindPopup(
+  `<strong>${r.name}</strong><br>${r.group}<br>${coords}<br><span style="font-size:11px">${r.source}</span>`+
+  `<br><button onclick="copyCcaReefGps(${i})" style="margin-top:6px">Copy GPS</button>`+
+  ` <button onclick="openCcaReefInMaps(${i})" style="margin-top:6px">Open in Maps</button>`
+ );
+ ccaReefLayer.addLayer(m);
+});
+ccaReefLayer.addTo(map);
+L.control.layers(baseMaps,{"CCA Artificial Reefs":ccaReefLayer},{position:"topright",collapsed:false}).addTo(map);
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
 let myLocationMarker=null,myLocationAccuracy=null;
@@ -626,6 +644,20 @@ map.on("locationfound",e=>{
 map.on("locationerror",e=>{
  alert("Could not get your location. On iPad, allow location access for this site in Safari settings.");
 });
+
+
+function copyCcaReefGps(i){
+ const r=ccaReefs[Number(i)]; if(!r)return;
+ const value=`${r.lat.toFixed(6)}, ${r.lon.toFixed(6)}`;
+ if(navigator.clipboard&&navigator.clipboard.writeText){
+  navigator.clipboard.writeText(value).catch(()=>{});
+ }
+}
+function openCcaReefInMaps(i){
+ const r=ccaReefs[Number(i)]; if(!r)return;
+ const q=encodeURIComponent(`${r.lat},${r.lon}`);
+ window.open(`https://maps.apple.com/?ll=${q}&q=${encodeURIComponent(r.name)}`,"_blank","noopener");
+}
 
 const fg=L.featureGroup().addTo(map);
 const whereNowLayer=L.layerGroup().addTo(map);

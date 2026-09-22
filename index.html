@@ -84,7 +84,9 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
     <button id="copyGpsBtn" onclick="copySpotGps()" disabled>Copy GPS</button>
     <button id="appleMapsBtn" onclick="openSpotInAppleMaps()" disabled>Apple Maps</button>
     <button id="googleMapsBtn" onclick="openSpotInGoogleMaps()" disabled>Google Maps</button>
+    <button id="marineRouteBtn" class="primary" onclick="prepareMarineRoute()" disabled>Marine Route</button>
   </div>
+  <div id="marineRouteStatus" class="small muted" style="margin-top:6px"></div>
   <div id="spotGpsNote" class="small muted" style="margin-top:6px">Fishing-reference coordinates only — not a safe-navigation waypoint.</div>
 </div>
 <div class="row"><span><strong>Current Conditions Score</strong></span><span id="score" class="big">—%</span></div><div id="rating" style="font-weight:700;margin:4px 0">Waiting for a location</div><div id="confidence" class="small muted">Data confidence: —</div><div id="why" class="muted" style="margin-top:7px">How favorable this selected spot is right now.</div></section>
@@ -804,11 +806,13 @@ function updateSpotGps(s){
  if(!coords)return;
  if(!s){
   coords.textContent="—";
-  ["copyGpsBtn","appleMapsBtn","googleMapsBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=true;});
+  ["copyGpsBtn","appleMapsBtn","googleMapsBtn","marineRouteBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=true;});
+  const ms=document.getElementById("marineRouteStatus");if(ms)ms.textContent="";
   return;
  }
  coords.textContent=`${Number(s.lat).toFixed(5)}, ${Number(s.lon).toFixed(5)}`;
- ["copyGpsBtn","appleMapsBtn","googleMapsBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=false;});
+ ["copyGpsBtn","appleMapsBtn","googleMapsBtn","marineRouteBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=false;});
+ const ms=document.getElementById("marineRouteStatus");if(ms)ms.textContent="Marine Route copies this GPS point for use as a waypoint in a marine-navigation app.";
  const note=document.getElementById("spotGpsNote");
  if(note)note.textContent=(s.sourceNote?`${s.sourceNote} • `:"")+"Fishing-reference coordinates only — verify local access, hazards and navigation before using on the water.";
 }
@@ -828,6 +832,18 @@ function openSpotInGoogleMaps(){
  if(!selected)return;
  const dest=encodeURIComponent(`${selected.lat},${selected.lon}`);
  window.open(`https://www.google.com/maps/search/?api=1&query=${dest}`,"_blank","noopener");
+}
+async function prepareMarineRoute(){
+ if(!selected)return;
+ const value=`${Number(selected.lat).toFixed(5)}, ${Number(selected.lon).toFixed(5)}`;
+ let copied=false;
+ try{
+  if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(value);copied=true;}
+ }catch{}
+ const status=document.getElementById("marineRouteStatus");
+ if(status)status.innerHTML=(copied?"<strong>GPS copied.</strong> ":"")+"In Aqua Map: Route Planner → Add Waypoint → globe / Set Coordinates → enter this GPS point. Aqua Map can then evaluate hazards using your boat settings. This does not draw a straight-line boat route.";
+ const btn=document.getElementById("marineRouteBtn");
+ if(btn){const old=btn.textContent;btn.textContent=copied?"GPS Copied":"Marine Route";setTimeout(()=>btn.textContent=old,1600);}
 }
 
 async function selectSpot(s){

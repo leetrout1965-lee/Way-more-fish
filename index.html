@@ -57,7 +57,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 </div>
 
 <div style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
+<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
 </div>
 <div id="map"></div>
 <div class="wrap"><div id="status" class="small muted" style="padding:10px;border:1px solid #38566d;border-radius:10px;margin-bottom:10px">
@@ -721,7 +721,16 @@ function viewSpotOnMap(spotIndex){
   if(mapEl&&mapEl.scrollIntoView)mapEl.scrollIntoView({behavior:"smooth",block:"center"});
  },120);
 }
-showArea("Vermilion Bay");areaPicker.value="Vermilion Bay";
+// Fresh start: no fishing area or spot selected on load.
+areaPicker.value="";
+picker.disabled=true;
+picker.innerHTML='<option value="">Select an area first…</option>';
+areaStatus.textContent='Choose an area, then pick a fishing spot.';
+fg.clearLayers();
+whereNowLayer.clearLayers();
+selected=null;
+updateSpotGps(null);
+map.setView([29.55,-91.88],7);
 
 ["clarity","bait"].forEach(id=>document.getElementById(id).onchange=calcScore);
 document.getElementById("recentStorm").onchange=()=>{renderRecentConditions();updateRecoveryOutlook();calcScore();};

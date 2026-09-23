@@ -88,7 +88,12 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
   </div>
   <div id="spotGpsNote" class="small muted" style="margin-top:6px">Fishing-reference coordinates only — not a safe-navigation waypoint.</div>
 </div>
-<div class="row"><span><strong>Current Conditions Score</strong></span><span id="score" class="big">—%</span></div><div id="rating" style="font-weight:700;margin:4px 0">Waiting for a location</div><div id="confidence" class="small muted">Data confidence: —</div><div id="why" class="muted" style="margin-top:7px">How favorable this selected spot is right now.</div></section>
+<div class="row"><span><strong>Current Conditions Score</strong></span><span id="score" class="big">—%</span></div><div id="rating" style="font-weight:700;margin:4px 0">Waiting for a location</div><div id="confidence" class="small muted">Data confidence: —</div><div id="why" class="muted" style="margin-top:7px">How favorable this selected spot is right now.</div>
+<details style="margin-top:10px">
+  <summary style="cursor:pointer;font-weight:700">Why this score?</summary>
+  <div id="scoreBreakdown" class="small" style="margin-top:8px">Choose a spot to see the score inputs.</div>
+</details>
+</section>
 <section class="card"><h3>Best Upcoming Window</h3>
 <div class="row"><span><strong>Window Score</strong></span><span id="bestWindowScore" class="big">—%</span></div>
 <div class="row"><span>Best time</span><strong id="bestWindow">—</strong></div>
@@ -131,6 +136,18 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div class="row"><span>Clarity</span><select id="clarity"><option value="0">Unknown</option><option value="10">Clean / green</option><option value="5">Fair / stained</option><option value="-10">Muddy</option></select></div>
 <div class="row"><span>Bait</span><select id="bait"><option value="0">Unknown</option><option value="12">Heavy bait / birds / slicks</option><option value="5">Some bait</option><option value="-6">No bait seen</option></select></div>
 <button class="primary" onclick="calcScore()">Recalculate</button></section>
+<section class="card"><h3>One-tap fishing report</h3>
+<div class="small muted" style="margin-bottom:8px">Quick local observations are saved on this device for now. When login/database is added, these can become community reports.</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<button onclick="saveQuickReport('clarity','clean')">💧 Clean water</button>
+<button onclick="saveQuickReport('clarity','stained')">🌫️ Stained</button>
+<button onclick="saveQuickReport('clarity','muddy')">🟤 Muddy</button>
+<button onclick="saveQuickReport('bait','showing')">🐟 Bait showing</button>
+<button onclick="saveQuickReport('bite','active')">🎣 Bite active</button>
+<button onclick="saveQuickReport('bite','slow')">⏳ Slow / no bite</button>
+</div>
+<div id="quickReportStatus" class="small muted" style="margin-top:8px">Choose a spot first, then tap an observation.</div>
+</section>
 <section class="card"><h3>Water conditions</h3>
 <div class="row"><span>Water clarity</span><strong id="autoClarityStatus">—</strong></div>
 <div id="autoClaritySource" class="small muted">Choose a spot to load measured/satellite clarity when available.</div>
@@ -148,6 +165,21 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div class="row"><span>Tides</span><strong id="qualityTides">—</strong></div>
 <div class="row"><span>Salinity</span><strong id="qualitySalinity">—</strong></div>
 <div id="qualityWhy" class="small muted" style="margin-top:6px">Choose a spot to see which recommendations are based on live, cached or proxy data.</div>
+</section>
+<section class="card"><h3>Source freshness</h3>
+<div class="row"><span>Weather</span><strong id="freshWeather">—</strong></div>
+<div class="row"><span>Tides</span><strong id="freshTides">—</strong></div>
+<div class="row"><span>Observed wind</span><strong id="freshObserved">—</strong></div>
+<div class="row"><span>Water clarity</span><strong id="freshClarity">—</strong></div>
+<div class="small muted" id="freshnessWhy">Live, cached, modeled and stale inputs are labeled separately.</div>
+</section>
+
+<section class="card"><h3>Observed vs predicted water</h3>
+<div class="row"><span>Observed level</span><strong id="observedWaterLevel">—</strong></div>
+<div class="row"><span>Predicted level</span><strong id="predictedWaterLevel">—</strong></div>
+<div class="row"><span>Difference</span><strong id="waterLevelDiff">—</strong></div>
+<div class="row"><span>Observed trend</span><strong id="observedWaterTrend">—</strong></div>
+<div id="waterLevelSource" class="small muted">Choose a spot to compare NOAA observed water level with the predicted tide when that station supports both.</div>
 </section>
 
 <section class="card"><h3>Louisiana regulations</h3>
@@ -567,6 +599,8 @@ function resetBestWindow(){
 }
 
 let selected=null,wx=null,tides=[],pressureSeries=[],waterState={sal:null,tempF:null,fit:null},clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false},hourlyPeriods=[],recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false},dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
+
+let freshnessState={weather:"unavailable",tides:"unavailable",observed:"unavailable",clarity:"unavailable"};
 const ccaReefs=[{"name":"Cypremort Point II Reef","lat":29.7388,"lon":-91.8794,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Sweet Lake Reef","lat":29.9419,"lon":-93.29025,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Turner's Bay Island Reef","lat":30.055433,"lon":-93.307833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Redfish Pointe Reef","lat":29.677917,"lon":-92.118467,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Bird Island Reef","lat":29.059333,"lon":-90.723833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Point Mast Reef","lat":29.1074,"lon":-90.635717,"group":"Inshore","source":"LDWF Oct 2023 \u2014 NOAA disaster grant + CCA"},{"name":"Independence Island Reef","lat":29.3075,"lon":-89.933367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Laketown Reef","lat":30.043883,"lon":-90.239367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 East","lat":29.320417,"lon":-92.133333,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 West","lat":29.323133,"lon":-92.143767,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Timbalier 51 Reef","lat":28.883817,"lon":-90.484283,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 D","lat":29.095167,"lon":-92.500433,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 G","lat":29.120567,"lon":-92.503117,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 E","lat":29.08715,"lon":-92.505467,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 H","lat":29.086833,"lon":-92.517017,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Z.T. Jack Cart Reef \u2014 Vermilion 69","lat":29.29415,"lon":-92.264533,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"West Cameron 45 Reef","lat":29.674833,"lon":-93.607633,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"Green Monster Reef \u2014 West Delta 23","lat":29.18,"lon":-89.5527,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Green Monster Reef \u2014 West Delta 24","lat":29.1773,"lon":-89.5348,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 A","lat":29.108417,"lon":-91.05055,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 B","lat":29.104783,"lon":-91.057367,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Bay Marchand 3 CCA Reef","lat":29.053067,"lon":-90.1692,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Marsh Island 235 Reef","lat":29.312904,"lon":-92.054691,"group":"Nearshore","source":"CCA published center point, 2023"},{"name":"Raising Cane's Grand Isle Reef","lat":29.330917,"lon":-89.969817,"group":"Inshore/Nearshore","source":"LDWF published reef center, 2024"}];
 const map=L.map("map").setView([29.55,-91.88],9);
 
@@ -686,7 +720,7 @@ function chosenCompareSpots(){const seen=new Set(),picked=[];compareIds.forEach(
 function showArea(area){
  if(calendarArea)calendarArea.value=area;
  fg.clearLayers();whereNowLayer.clearLayers();selected=null;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
- document.getElementById("spotTitle").textContent="Choose a spot";updateSpotGps(null);
+ document.getElementById("spotTitle").textContent="Choose a spot";updateSpotGps(null); freshnessState={weather:"unavailable",tides:"unavailable",observed:"unavailable",clarity:"unavailable"};updateFreshnessUI();resetWaterLevelComparison();
  document.getElementById("score").textContent="—/100";
  document.getElementById("rating").textContent="Waiting for a location";
  document.getElementById("confidence").textContent="Data confidence: —";
@@ -745,6 +779,88 @@ function cacheRead(key,maxAge){
 }
 function cacheReadStale(key){try{const raw=localStorage.getItem(CACHE_PREFIX+key);return raw?JSON.parse(raw).data:null}catch{return null}}
 function cacheWrite(key,data){try{localStorage.setItem(CACHE_PREFIX+key,JSON.stringify({savedAt:Date.now(),data}))}catch{}}
+
+function freshnessText(source,kind){
+ const s=String(source||"unavailable").toLowerCase();
+ if(s==="live")return "Live now";
+ if(s==="cache")return kind==="tides"?"Cached <6 hr":"Cached <10 min";
+ if(s==="stale")return "Stale cache";
+ if(s==="fallback")return "Modeled / backup";
+ if(s==="unavailable"||s==="none")return "Unavailable";
+ return source||"Unavailable";
+}
+function updateFreshnessUI(){
+ const fw=document.getElementById("freshWeather"),ft=document.getElementById("freshTides"),fo=document.getElementById("freshObserved"),fc=document.getElementById("freshClarity");
+ if(fw)fw.textContent=freshnessText(freshnessState.weather,"weather");
+ if(ft)ft.textContent=freshnessText(freshnessState.tides,"tides");
+ if(fo)fo.textContent=recentConditions&&recentConditions.age?`${freshnessText(freshnessState.observed,"observed")} • ${recentConditions.age}`:freshnessText(freshnessState.observed,"observed");
+ if(fc){
+  if(clarityState&&clarityState.direct&&Number.isFinite(clarityState.age))fc.textContent=`Direct • ${clarityState.age.toFixed(1)} hr old`;
+  else fc.textContent=freshnessText(freshnessState.clarity,"clarity");
+ }
+}
+function resetWaterLevelComparison(){
+ ["observedWaterLevel","predictedWaterLevel","waterLevelDiff","observedWaterTrend"].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent="—";});
+ const s=document.getElementById("waterLevelSource");if(s)s.textContent="Choose a spot to compare NOAA observed water level with the predicted tide when that station supports both.";
+}
+function localNoaaTimeToDate(t){
+ if(!t)return null;
+ const d=new Date(String(t).replace(" ","T"));
+ return Number.isFinite(d.getTime())?d:null;
+}
+async function loadObservedVsPredictedWater(s){
+ resetWaterLevelComparison();
+ const src=document.getElementById("waterLevelSource");
+ if(src)src.textContent="Checking NOAA observed water level and prediction…";
+ const now=new Date(),day=ymd(now);
+ const base="https://api.tidesandcurrents.noaa.gov/api/prod/datagetter";
+ const common=`station=${encodeURIComponent(s.tide)}&datum=MLLW&time_zone=lst_ldt&units=english&application=WayMoreFish&format=json`;
+ const obsUrl=`${base}?begin_date=${day}&end_date=${day}&product=water_level&${common}`;
+ const predUrl=`${base}?begin_date=${day}&end_date=${day}&product=predictions&interval=6&${common}`;
+ try{
+  const [obsRes,predRes]=await Promise.all([
+   fetchJSON(obsUrl,{cacheKey:`coops-water:${s.tide}:${day}`,ttl:10*60*1000,timeoutMs:9000}),
+   fetchJSON(predUrl,{cacheKey:`coops-pred6:${s.tide}:${day}`,ttl:60*60*1000,timeoutMs:9000})
+  ]);
+  const obs=(obsRes.data.data||[]).map(x=>({t:localNoaaTimeToDate(x.t),v:Number(x.v)})).filter(x=>x.t&&Number.isFinite(x.v));
+  const preds=(predRes.data.predictions||[]).map(x=>({t:localNoaaTimeToDate(x.t),v:Number(x.v)})).filter(x=>x.t&&Number.isFinite(x.v));
+  if(!obs.length||!preds.length)throw Error("station does not publish both observed and predicted water level");
+  const latest=obs[obs.length-1];
+  let nearest=preds[0],best=Infinity;
+  for(const p of preds){const d=Math.abs(p.t-latest.t);if(d<best){best=d;nearest=p;}}
+  const diff=latest.v-nearest.v;
+  let trend="Stable";
+  if(obs.length>=3){
+   const prev=obs[Math.max(0,obs.length-6)];
+   const dv=latest.v-prev.v;
+   trend=dv>0.08?"Rising":dv<-0.08?"Falling":"Stable";
+  }
+  document.getElementById("observedWaterLevel").textContent=`${latest.v.toFixed(2)} ft`;
+  document.getElementById("predictedWaterLevel").textContent=`${nearest.v.toFixed(2)} ft`;
+  document.getElementById("waterLevelDiff").textContent=`${diff>=0?"+":""}${diff.toFixed(2)} ft`;
+  document.getElementById("observedWaterTrend").textContent=trend;
+  if(src)src.textContent=`NOAA ${s.tide} • observation ${latest.t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})} • ${obsRes.source==="live"?"live":"cached"} observed vs predicted`;
+ }catch(e){
+  if(src)src.textContent=`Observed-vs-predicted water unavailable for this station: ${e.message}.`;
+ }
+}
+function quickReportRows(){try{return JSON.parse(localStorage.getItem("wmfQuickReports")||"[]")}catch{return []}}
+function saveQuickReport(type,value){
+ if(!selected){const s=document.getElementById("quickReportStatus");if(s)s.textContent="Choose a fishing spot first.";return;}
+ const rows=quickReportRows();
+ rows.unshift({time:new Date().toISOString(),area:selected.area,spot:selected.name,type,value});
+ localStorage.setItem("wmfQuickReports",JSON.stringify(rows.slice(0,200)));
+ if(type==="clarity"){
+  if(value==="clean")document.getElementById("clarity").value="10";
+  else if(value==="stained")document.getElementById("clarity").value="5";
+  else if(value==="muddy")document.getElementById("clarity").value="-10";
+  calcScore();
+ }
+ if(type==="bait"&&value==="showing"){document.getElementById("bait").value="12";calcScore();}
+ const s=document.getElementById("quickReportStatus");
+ if(s)s.textContent=`Saved locally: ${value.replaceAll("_"," ")} at ${selected.name} • ${new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;
+}
+
 async function fetchJSON(url,{cacheKey,ttl,timeoutMs=8000}={}){
  const fresh=cacheKey?cacheRead(cacheKey,ttl):null;
  if(fresh)return {data:fresh,source:"cache"};
@@ -1621,6 +1737,19 @@ function calcScore(){
  const rating=s>=80?"Very good":s>=70?"Good":s>=55?"Fair":s>=40?"Poor":"Very poor";document.getElementById("rating").textContent=rating;
  const conf=currentConfidencePercent();document.getElementById("confidence").textContent="Data confidence: "+conf+"% of key inputs available";
  document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • "+(Number(document.getElementById("clarity").value)===0&&clarityState.direct?"clarity source loaded":"you can still override clarity from the water")+". Add bait activity for a better estimate.";
+ const br=document.getElementById("scoreBreakdown");
+ if(br){
+  const inputs=[
+   `Final score: ${s}/100`,
+   `Wind: ${w===null?"unavailable":w.toFixed(0)+" mph"}`,
+   `Tide: ${tm||"unavailable"}`,
+   `Pressure: ${pt||"unavailable"}`,
+   `Water clarity: ${document.getElementById("clarity").options[document.getElementById("clarity").selectedIndex].text}${Number(document.getElementById("clarity").value)===0&&clarityState&&Number.isFinite(clarityState.score)?` (auto ${Math.round(clarityState.score)}/100)`:``}`,
+   `Recent disruption penalty: -${disruption}`,
+   `Reasons: ${why.join(" • ")||"base estimate only"}`
+  ];
+  br.innerHTML=inputs.map(x=>`<div style="margin:4px 0">${x}</div>`).join("");
+ }
  whatToThrowNow();
  updateRecoveryOutlook();
  updateBestWindow();
@@ -1844,7 +1973,7 @@ function journalRows(){try{return JSON.parse(localStorage.getItem("bayfishJourna
 function updateJournalPattern(){const rows=journalRows();const caught=rows.filter(r=>Number(r.catchCount)>0);if(caught.length<3){document.getElementById("journalPattern").textContent=`Your pattern: ${caught.length}/3 productive trips logged.`;return;}const sums={};for(const r of caught){const k=r.spot||"Unknown";sums[k]=(sums[k]||0)+Number(r.catchCount||0)}const bestSpot=Object.entries(sums).sort((a,b)=>b[1]-a[1])[0];const lureSums={};for(const r of caught){if(r.lure){lureSums[r.lure]=(lureSums[r.lure]||0)+Number(r.catchCount||0)}}const bestLure=Object.entries(lureSums).sort((a,b)=>b[1]-a[1])[0];document.getElementById("journalPattern").textContent=`Your pattern: best logged spot ${bestSpot?bestSpot[0]:"—"}${bestLure?` • best logged lure ${bestLure[0]}`:""}.`; }
 function saveLog(){if(!selected){logStatus.textContent="Choose a spot first.";return}const a=journalRows();const entry={time:new Date().toISOString(),area:selected.area,spot:selected.name,species:catchSpecies.value,catchCount:Number(catchCount.value||0),keptCount:Number(keptCount.value||0),lure:lure.value,depth:depth.value,notes:notes.value,currentScore:score.textContent,bestWindow:bestWindow.textContent,bestWindowScore:bestWindowScore.textContent,wind:wind.textContent,forecast:weather.textContent,pressure:pressure.textContent,pressureTrend:pressureTrend.textContent,tide:tideMove.textContent,salinity:waterState.sal,waterTempF:waterState.tempF,recommendedTarget:throwTarget.textContent,recommendedLure:throwLure.textContent,recommendedWeight:throwWeight.textContent,dataConfidence:qualityLevel.textContent,observedWind:observedWind.textContent,recentMaxGust:recentMaxGust.textContent,disruptionRisk:disruptionRisk.textContent};a.unshift(entry);localStorage.setItem("bayfishJournal",JSON.stringify(a));logStatus.textContent=`Saved. ${a.length} entr${a.length===1?"y":"ies"} on this device.`;updateJournalPattern()}
 function exportLog(){const blob=new Blob([localStorage.getItem("bayfishJournal")||"[]"],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="way-more-fish-journal.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-resetRecentConditionsUI();resetRecoveryOutlook();updateDataQuality();updateJournalPattern();document.getElementById("status").textContent="Choose a fishing location from the drop-down above.";
+resetRecentConditionsUI();resetRecoveryOutlook();updateDataQuality();updateFreshnessUI();resetWaterLevelComparison();updateJournalPattern();document.getElementById("status").textContent="Choose a fishing location from the drop-down above.";
 </script>
 
 </body></html>

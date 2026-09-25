@@ -782,7 +782,7 @@ function showArea(area){
 }
 areaPicker.addEventListener("change",()=>{if(areaPicker.value)showArea(areaPicker.value);else{picker.disabled=true;picker.innerHTML='<option value="">Select an area first…</option>';areaStatus.textContent='Choose an area, then pick a fishing spot.';fg.clearLayers();}areaPicker.blur();});
 
-picker.addEventListener("change",()=>{if(picker.value!=="")selectSpot(spots[Number(picker.value)]);});
+picker.addEventListener("change",()=>{if(picker.value!=="")selectSpot(spots[Number(picker.value)]);picker.blur();});
 function viewSpotOnMap(spotIndex){
  const i=Number(spotIndex),s=spots[i];
  if(!s)return;

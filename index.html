@@ -768,7 +768,7 @@ function showArea(area){
  document.getElementById("confidence").textContent="Data confidence: —";
  document.getElementById("why").textContent="Live data loads after you select a spot."; resetRecentConditionsUI();resetRecoveryOutlook();document.getElementById("cleanWaterResults").innerHTML="";document.getElementById("cleanWaterStatus").textContent="Choose an area, then run either current or tomorrow-morning comparison.";
  document.getElementById("salinityStatus").textContent="—";document.getElementById("waterTempStatus").textContent="—";document.getElementById("salinitySource").textContent="Choose a spot to load the nearest salinity station.";document.getElementById("speciesFit").textContent="Species fit: —";document.getElementById("speciesWhy").textContent="Salinity, season and water temperature will be combined into a short fishing explanation.";resetStructure();resetThrowNow();resetBestWindow();updateDataQuality();updateJournalPattern();
- const matches=spots.map((s,i)=>({s,i})).filter(x=>x.s.area===area);
+ const matches=spots.map((s,i)=>({s,i})).filter(x=>area==="Big Lake / Calcasieu"?["West Cove","Hackberry"].includes(x.s.area):x.s.area===area);
  picker.innerHTML='<option value="">Select a fishing spot…</option>'+matches.map(x=>`<option value="${x.i}">${x.s.name}</option>`).join('');
  picker.disabled=matches.length===0;
  populateCompareSelectors(matches);

@@ -780,7 +780,7 @@ function showArea(area){
   areaStatus.textContent=`${area} is added. Individual spots will be added after their locations and NOAA tide sources are verified.`;
  }
 }
-areaPicker.addEventListener("change",()=>{if(areaPicker.value)showArea(areaPicker.value);else{picker.disabled=true;picker.innerHTML='<option value="">Select an area first…</option>';areaStatus.textContent='Choose an area, then pick a fishing spot.';fg.clearLayers();}});
+areaPicker.addEventListener("change",()=>{if(areaPicker.value)showArea(areaPicker.value);else{picker.disabled=true;picker.innerHTML='<option value="">Select an area first…</option>';areaStatus.textContent='Choose an area, then pick a fishing spot.';fg.clearLayers();}areaPicker.blur();});
 
 picker.addEventListener("change",()=>{if(picker.value!=="")selectSpot(spots[Number(picker.value)]);});
 function viewSpotOnMap(spotIndex){

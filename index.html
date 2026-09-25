@@ -130,7 +130,9 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div id="windowDetails" class="small muted" style="margin-top:5px">Uses hourly NWS wind/forecast plus NOAA tide movement, time of day and pressure trend. It is a conditions-based estimate, not a guarantee of fish activity.</div>
 </section>
 <section class="card"><h3>Weather</h3><div class="row"><span>Forecast wind</span><strong id="wind">—</strong></div><div class="row"><span>Forecast</span><strong id="weather">—</strong></div><div class="row"><span>Pressure</span><strong id="pressure">—</strong></div><div class="row"><span>Trend</span><strong id="pressureTrend">—</strong></div></section>
-<section class="card"><h3>Recent Conditions Memory</h3>
+<details class="card">
+<summary style="cursor:pointer;font-size:20px;font-weight:700">Fishing details • Recent conditions</summary>
+<div style="margin-top:12px">
 <div class="row"><span>Last observed</span><strong id="recentObservedTime">—</strong></div>
 <div class="row"><span>Observed wind</span><strong id="observedWind">—</strong></div>
 <div class="row"><span>Max gust • last 6 hr</span><strong id="recentMaxGust">—</strong></div>
@@ -140,14 +142,18 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div class="row"><span>Did you see a recent storm / churned water?</span><select id="recentStorm"><option value="0">Unknown / no report</option><option value="1">Yes — recent storm or churned water</option></select></div>
 <div id="observedWindSource" class="small muted">Choose a spot to load nearby observed conditions.</div>
 <div id="disruptionWhy" class="small muted" style="margin-top:6px">Recent gusts, rain and fast wind shifts can reduce confidence even after the weather calms down.</div>
-</section>
-<section class="card"><h3>Recovery Outlook</h3>
+</div>
+</details>
+<details class="card">
+<summary style="cursor:pointer;font-size:20px;font-weight:700">Fishing details • Recovery outlook</summary>
+<div style="margin-top:12px">
 <div class="row"><span>Recovery pace</span><strong id="recoveryPace">—</strong></div>
 <div class="row"><span>Estimated cleanup window</span><strong id="recoveryWindow">—</strong></div>
 <div class="row"><span>Next tide effect</span><strong id="recoveryTide">—</strong></div>
 <div id="recoveryWhy" class="small muted">Choose a spot to estimate how quickly disturbed water may improve after recent weather.</div>
 <div class="small muted" style="margin-top:7px">Heuristic estimate only. When recent station observations are missing, the app labels recovery as modeled or forecast/tide-only and widens the cleanup window instead of treating missing observations as live evidence. Actual clarity can still change faster or slower with bottom type, fetch and freshwater runoff.</div>
-</section>
+</div>
+</details>
 <section class="card full"><h3>Tomorrow's Top 3 Fishing Spots</h3>
 <div class="small muted">Compares the Louisiana areas in Way More Fish and ranks the three strongest spots for tomorrow morning using forecast wind/weather, tide movement when available, recent-disruption recovery and likely water cleanliness. NWS is primary weather; a backup forecast source is used if NWS is temporarily unavailable. It is a conditions score, not a catch guarantee.</div>
 <p><button class="primary" id="top3TomorrowBtn" onclick="findTop3Tomorrow()">Find Top 3 for Tomorrow</button></p>

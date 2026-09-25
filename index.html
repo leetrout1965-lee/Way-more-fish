@@ -1004,7 +1004,10 @@ function openSpotInGoogleMaps(){
 
 async function selectSpot(s){
  selected=s;updateSpotGps(s);wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];resetRecoveryOutlook();recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};resetBestWindow();updateDataQuality();document.getElementById("spotTitle").textContent=s.name;
- const idx=spots.indexOf(s);if(s.area&&areaPicker.value!==s.area){areaPicker.value=s.area;showArea(s.area);}if(idx>=0)document.getElementById("locationPicker").value=String(idx);
+const idx=spots.indexOf(s);
+const keepBigLake=areaPicker.value==="Big Lake / Calcasieu"&&["West Cove","Hackberry"].includes(s.area);
+if(s.area&&areaPicker.value!==s.area&&!keepBigLake){areaPicker.value=s.area;showArea(s.area);}
+if(idx>=0)document.getElementById("locationPicker").value=String(idx);
  map.setView([s.lat,s.lon],11);
  updateStructure(s);
  document.getElementById("status").textContent="Loading weather, tides and salinity…";

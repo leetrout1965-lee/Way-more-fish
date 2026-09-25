@@ -1337,7 +1337,7 @@ async function loadWeather(s){
    g=await fetchJSON(p.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather,timeoutMs:15000});
    const pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[];pressureSeries=pr.slice(0,6).map(v=>v.value/100);
    if(pressureSeries.length){const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";}
-   else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
+   else{throw Error("NWS grid returned no pressure values");}
   }catch(e){
    const sp=stationPressureSummary(recentConditions);
    if(sp){

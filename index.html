@@ -197,6 +197,7 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 </section>
 <section class="card"><h3>Source freshness</h3>
 <div class="row"><span>Weather</span><strong id="freshWeather">—</strong></div>
+<div class="row"><span>Pressure</span><strong id="freshPressure">—</strong></div>
 <div class="row"><span>Tides</span><strong id="freshTides">—</strong></div>
 <div class="row"><span>Observed wind</span><strong id="freshObserved">—</strong></div>
 <div class="row"><span>Water clarity</span><strong id="freshClarity">—</strong></div>
@@ -832,13 +833,35 @@ function freshnessText(source,kind){
  return source||"Unavailable";
 }
 function updateFreshnessUI(){
- const fw=document.getElementById("freshWeather"),ft=document.getElementById("freshTides"),fo=document.getElementById("freshObserved"),fc=document.getElementById("freshClarity");
- if(fw)fw.textContent=freshnessText(freshnessState.weather,"weather");
- if(ft)ft.textContent=freshnessText(freshnessState.tides,"tides");
- if(fo)fo.textContent=recentConditions&&recentConditions.age?`${freshnessText(freshnessState.observed,"observed")} • ${recentConditions.age}`:freshnessText(freshnessState.observed,"observed");
+ const fw=document.getElementById("freshWeather"),fp=document.getElementById("freshPressure"),ft=document.getElementById("freshTides"),fo=document.getElementById("freshObserved"),fc=document.getElementById("freshClarity");
+
+ const getValue=id=>{
+  const e=document.getElementById(id);
+  if(!e)return "";
+  const v=e.textContent.trim();
+  return ["","—","Loading…","Unavailable"].includes(v)?"":v;
+ };
+
+ const weather=[getValue("weather"),getValue("wind")].filter(Boolean).join(" • ");
+ const pressure=[getValue("pressure"),getValue("pressureTrend")].filter(Boolean).join(" • ");
+ const tide=[getValue("nextTide"),getValue("tideMove")].filter(Boolean).join(" • ");
+ const observed=getValue("observedWind");
+ const clarity=getValue("autoClarityStatus");
+
+ if(fw)fw.textContent=weather?`${weather} • ${freshnessText(freshnessState.weather,"weather")}`:freshnessText(freshnessState.weather,"weather");
+ if(fp)fp.textContent=pressure?`${pressure} • ${freshnessText(freshnessState.weather,"weather")}`:freshnessText(freshnessState.weather,"weather");
+ if(ft)ft.textContent=tide?`${tide} • ${freshnessText(freshnessState.tides,"tides")}`:freshnessText(freshnessState.tides,"tides");
+
+ if(fo){
+  const age=recentConditions&&recentConditions.age?` • ${recentConditions.age}`:"";
+  fo.textContent=observed?`${observed} • ${freshnessText(freshnessState.observed,"observed")}${age}`:`${freshnessText(freshnessState.observed,"observed")}${age}`;
+ }
+
  if(fc){
-  if(clarityState&&clarityState.direct&&Number.isFinite(clarityState.age))fc.textContent=`Direct • ${clarityState.age.toFixed(1)} hr old`;
-  else fc.textContent=freshnessText(freshnessState.clarity,"clarity");
+  const clarityFresh=clarityState&&clarityState.direct&&Number.isFinite(clarityState.age)
+   ?`Direct • ${clarityState.age.toFixed(1)} hr old`
+   :freshnessText(freshnessState.clarity,"clarity");
+  fc.textContent=clarity?`${clarity} • ${clarityFresh}`:clarityFresh;
  }
 }
 function resetWaterLevelComparison(){

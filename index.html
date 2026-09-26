@@ -1088,7 +1088,22 @@ async function selectSpot(s){
  document.getElementById("status").textContent="Loading weather, tides and salinity…";
  document.getElementById("autoClarityStatus").textContent="Loading…";document.getElementById("autoClaritySource").textContent="Checking measured/satellite clarity…";document.getElementById("salinityStatus").textContent="Loading…";document.getElementById("waterTempStatus").textContent="Loading…";document.getElementById("salinitySource").textContent="Finding nearest monitoring station…";document.getElementById("speciesFit").textContent="Species fit: calculating…";document.getElementById("speciesWhy").textContent="Waiting for water-quality data.";
  resetWaterLevelComparison();
- const results=await Promise.allSettled([loadWeather(s),loadTides(s),loadSalinity(s),loadWaterClarity(s),loadObservedVsPredictedWater(s)]);
+ // Populate the quick-view progressively instead of leaving it blank until every feed finishes.
+ // Each feed updates the shared condition fields; recalculate after that feed settles so the
+ // bottom sheet immediately shows whatever data is already available.
+ calcScore();
+ const progressiveLoad=(promise)=>Promise.resolve(promise).then(
+  value=>{if(selected===s){calcScore();updateSpotQuickSheet();}return value;},
+  error=>{if(selected===s){calcScore();updateSpotQuickSheet();}throw error;}
+ );
+ const results=await Promise.allSettled([
+  progressiveLoad(loadWeather(s)),
+  progressiveLoad(loadTides(s)),
+  progressiveLoad(loadSalinity(s)),
+  progressiveLoad(loadWaterClarity(s)),
+  progressiveLoad(loadObservedVsPredictedWater(s))
+ ]);
+ if(selected!==s)return;
  freshnessState.weather=dataQuality.weather||"unavailable";
  freshnessState.tides=dataQuality.tides||"unavailable";
  freshnessState.observed=dataQuality.observedWind||"unavailable";
@@ -1099,6 +1114,7 @@ async function selectSpot(s){
  if(failed.length===0){document.getElementById("status").textContent=warnings.length?"Loaded cached conditions because a live source was unavailable: "+warnings.join("; "):"Conditions loaded (live or recent cache).";}
  else{document.getElementById("status").textContent="Some conditions are unavailable: "+failed.map(r=>r.reason.message).join("; ")+". The score uses only the factors that loaded.";}
  calcScore();
+ updateSpotQuickSheet();
 }
 function msToMph(v){return Number.isFinite(v)?v*2.236936:null;}
 function qvToMph(qv){

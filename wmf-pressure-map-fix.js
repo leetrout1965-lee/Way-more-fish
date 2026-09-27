@@ -1,13 +1,59 @@
-/* Way More Fish — Pressure reliability + simplified map choices + CCA reefs
-   Map chooser shows only Satellite and NOAA Nautical Chart.
-   CCA reefs remain visible as an always-on overlay.
-   Bottom contours and Standard are removed from the chooser/view.
-   Adds an independent sea-level pressure loader.
-   Adds the exact timestamp of the newest usable Satellite Water sample.
-*/
+/* Way More Fish — pressure + simple map + always-visible CCA reefs + satellite timestamp */
 (function () {
-  if (window.__wmfPressureMapFixV2Loaded) return;
-  window.__wmfPressureMapFixV2Loaded = true;
+  if (window.__wmfPressureMapFixV3Loaded) return;
+  window.__wmfPressureMapFixV3Loaded = true;
+
+  let ccaAlwaysLayer = null;
+
+  function buildAlwaysVisibleCcaLayer() {
+    try {
+      if (typeof map === 'undefined' || typeof L === 'undefined' || typeof ccaReefs === 'undefined') return;
+
+      // Remove the old CCA layer if present so we do not create duplicate reef markers.
+      try {
+        if (typeof ccaReefLayer !== 'undefined' && map.hasLayer(ccaReefLayer)) {
+          map.removeLayer(ccaReefLayer);
+        }
+      } catch (_) {}
+
+      if (ccaAlwaysLayer && map.hasLayer(ccaAlwaysLayer)) map.removeLayer(ccaAlwaysLayer);
+      ccaAlwaysLayer = L.layerGroup();
+
+      ccaReefs.forEach(function (r, i) {
+        const coords = Number(r.lat).toFixed(6) + ', ' + Number(r.lon).toFixed(6);
+        const marker = L.circleMarker([r.lat, r.lon], {
+          radius: 7,
+          weight: 2,
+          color: '#fff4c2',
+          fillColor: '#ffb000',
+          fillOpacity: 0.95,
+          pane: 'markerPane'
+        });
+
+        marker.bindTooltip('CCA Reef • ' + r.name, {
+          direction: 'top',
+          opacity: 0.95
+        });
+
+        marker.bindPopup(
+          '<strong>CCA Artificial Reef</strong><br>' +
+          '<strong>' + r.name + '</strong><br>' +
+          (r.group ? r.group + '<br>' : '') +
+          coords + '<br>' +
+          '<span style="font-size:11px">' + (r.source || 'Published CCA/LDWF reef coordinate') + '</span>' +
+          '<br><button onclick="copyCcaReefGps(' + i + ')" style="margin-top:6px">Copy GPS</button>' +
+          ' <button onclick="openCcaReefInMaps(' + i + ')" style="margin-top:6px">Open in Maps</button>'
+        );
+
+        ccaAlwaysLayer.addLayer(marker);
+      });
+
+      ccaAlwaysLayer.addTo(map);
+      window.__wmfCcaAlwaysLayer = ccaAlwaysLayer;
+    } catch (e) {
+      console.warn('CCA reef layer rebuild failed:', e);
+    }
+  }
 
   function simplifyMapChoices() {
     try {
@@ -17,25 +63,12 @@
         el.remove();
       });
 
-      if (typeof standardLayer !== 'undefined' && map.hasLayer(standardLayer)) {
-        map.removeLayer(standardLayer);
-      }
-      if (typeof bottomContoursLayer !== 'undefined' && map.hasLayer(bottomContoursLayer)) {
-        map.removeLayer(bottomContoursLayer);
-      }
+      if (typeof standardLayer !== 'undefined' && map.hasLayer(standardLayer)) map.removeLayer(standardLayer);
+      if (typeof bottomContoursLayer !== 'undefined' && map.hasLayer(bottomContoursLayer)) map.removeLayer(bottomContoursLayer);
 
-      // Keep CCA reefs visible, but do not put them in the menu.
-      if (typeof ccaReefLayer !== 'undefined' && !map.hasLayer(ccaReefLayer)) {
-        ccaReefLayer.addTo(map);
-      }
-
-      // Default to Satellite.
-      if (typeof satelliteLayer !== 'undefined' && !map.hasLayer(satelliteLayer)) {
-        satelliteLayer.addTo(map);
-      }
+      if (typeof satelliteLayer !== 'undefined' && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
       try { activeBaseLayer = satelliteLayer; } catch (_) {}
 
-      // Only the two requested map choices.
       if (typeof satelliteLayer !== 'undefined' && typeof noaaChartLayer !== 'undefined') {
         L.control.layers(
           {
@@ -47,11 +80,14 @@
         ).addTo(map);
       }
 
+      buildAlwaysVisibleCcaLayer();
+
       var info = document.querySelector('div[style*="background:#0f1f2d"] .small.muted');
       if (info) {
         info.innerHTML =
           '<strong>Map:</strong> Choose <strong>Satellite</strong> or <strong>NOAA Nautical Chart</strong>. ' +
-          '<strong>CCA Artificial Reefs stay visible automatically.</strong> Not a substitute for an approved navigation system.';
+          '<strong>Gold markers are verified CCA Artificial Reefs and stay visible automatically.</strong> ' +
+          'Not a substitute for an approved navigation system.';
       }
     } catch (e) {
       console.warn('Map simplification failed:', e);
@@ -219,12 +255,20 @@
     updateLatestSatelliteTimestamp();
   }, 0);
 
+  // Reassert CCA reefs after actions that can alter the map view/layers.
+  if (typeof map !== 'undefined') {
+    map.on('baselayerchange zoomend moveend', function () {
+      if (ccaAlwaysLayer && !map.hasLayer(ccaAlwaysLayer)) ccaAlwaysLayer.addTo(map);
+    });
+  }
+
   try {
     if (typeof selectSpot === 'function') {
       var originalSelectSpot = selectSpot;
       selectSpot = async function (s) {
         var result = await originalSelectSpot(s);
         loadDedicatedPressure(s);
+        if (ccaAlwaysLayer && !map.hasLayer(ccaAlwaysLayer)) ccaAlwaysLayer.addTo(map);
         return result;
       };
     }
@@ -238,6 +282,7 @@
       setTimeout(function () {
         try {
           if (typeof selected !== 'undefined' && selected) loadDedicatedPressure(selected);
+          if (ccaAlwaysLayer && !map.hasLayer(ccaAlwaysLayer)) ccaAlwaysLayer.addTo(map);
         } catch (_) {}
       }, 700);
     });
@@ -246,6 +291,8 @@
   setTimeout(function () {
     try {
       if (typeof selected !== 'undefined' && selected) loadDedicatedPressure(selected);
+      if (ccaAlwaysLayer && !map.hasLayer(ccaAlwaysLayer)) ccaAlwaysLayer.addTo(map);
     } catch (_) {}
   }, 1200);
 })();
+

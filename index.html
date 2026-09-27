@@ -86,7 +86,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 </div>
 
 <div style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
+<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite, with optional NOAA Bottom Contours. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
 </div>
 <div id="map"></div>
 <div id="spotQuickSheet" role="dialog" aria-modal="false" aria-labelledby="quickSpotName" aria-hidden="true">
@@ -704,6 +704,19 @@ const noaaChartLayer=L.tileLayer.wms(
  }
 );
 
+// NOAA Digital Coast bathymetric contour overlay. This is a planning/reference
+// layer only; contour coverage and resolution vary by location and survey source.
+const bottomContoursLayer=L.tileLayer(
+ "https://www.coast.noaa.gov/arcgis/rest/services/OceanReports/BathymetricContours/MapServer/tile/{z}/{y}/{x}",
+ {
+  minZoom:3,
+  maxZoom:16,
+  maxNativeZoom:16,
+  opacity:.72,
+  attribution:"NOAA Digital Coast — Bathymetric Contours • Planning reference"
+ }
+);
+
 standardLayer.addTo(map);
 
 const baseMaps={
@@ -723,7 +736,16 @@ ccaReefs.forEach((r,i)=>{
  ccaReefLayer.addLayer(m);
 });
 ccaReefLayer.addTo(map);
-L.control.layers(baseMaps,{"CCA Artificial Reefs":ccaReefLayer},{position:"topright",collapsed:false}).addTo(map);
+// Show contours by default, matching the fishing-first map view; users can turn them off.
+bottomContoursLayer.addTo(map);
+L.control.layers(
+ baseMaps,
+ {
+  "CCA Artificial Reefs":ccaReefLayer,
+  "Bottom Contours (NOAA)":bottomContoursLayer
+ },
+ {position:"topright",collapsed:false}
+).addTo(map);
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
 let myLocationMarker=null,myLocationAccuracy=null;

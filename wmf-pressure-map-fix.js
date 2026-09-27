@@ -1,31 +1,41 @@
-/* Way More Fish — Pressure reliability + simplified map choices
-   Keeps only Satellite and NOAA Nautical Chart in the Leaflet layer chooser.
-   Adds an independent sea-level barometric pressure loader so pressure does not
-   depend on the main NWS weather/grid request succeeding.
+/* Way More Fish — Pressure reliability + simplified map choices + CCA reefs
+   Map chooser shows only Satellite and NOAA Nautical Chart.
+   CCA reefs remain visible as an always-on overlay.
+   Bottom contours and Standard are removed from the chooser/view.
+   Adds an independent sea-level pressure loader.
+   Adds the exact timestamp of the newest usable Satellite Water sample.
 */
 (function () {
-  if (window.__wmfPressureMapFixLoaded) return;
-  window.__wmfPressureMapFixLoaded = true;
+  if (window.__wmfPressureMapFixV2Loaded) return;
+  window.__wmfPressureMapFixV2Loaded = true;
 
   function simplifyMapChoices() {
     try {
       if (typeof map === 'undefined' || typeof L === 'undefined') return;
 
-      // Remove the existing layer-control UI.
       document.querySelectorAll('.leaflet-control-layers').forEach(function (el) {
         el.remove();
       });
 
-      // Turn off layers the user does not want in the main chooser.
-      if (typeof standardLayer !== 'undefined' && map.hasLayer(standardLayer)) map.removeLayer(standardLayer);
-      if (typeof ccaReefLayer !== 'undefined' && map.hasLayer(ccaReefLayer)) map.removeLayer(ccaReefLayer);
-      if (typeof bottomContoursLayer !== 'undefined' && map.hasLayer(bottomContoursLayer)) map.removeLayer(bottomContoursLayer);
+      if (typeof standardLayer !== 'undefined' && map.hasLayer(standardLayer)) {
+        map.removeLayer(standardLayer);
+      }
+      if (typeof bottomContoursLayer !== 'undefined' && map.hasLayer(bottomContoursLayer)) {
+        map.removeLayer(bottomContoursLayer);
+      }
 
-      // Make Satellite the default view.
-      if (typeof satelliteLayer !== 'undefined' && !map.hasLayer(satelliteLayer)) satelliteLayer.addTo(map);
+      // Keep CCA reefs visible, but do not put them in the menu.
+      if (typeof ccaReefLayer !== 'undefined' && !map.hasLayer(ccaReefLayer)) {
+        ccaReefLayer.addTo(map);
+      }
+
+      // Default to Satellite.
+      if (typeof satelliteLayer !== 'undefined' && !map.hasLayer(satelliteLayer)) {
+        satelliteLayer.addTo(map);
+      }
       try { activeBaseLayer = satelliteLayer; } catch (_) {}
 
-      // Rebuild a clean chooser with only the two requested base maps.
+      // Only the two requested map choices.
       if (typeof satelliteLayer !== 'undefined' && typeof noaaChartLayer !== 'undefined') {
         L.control.layers(
           {
@@ -37,13 +47,11 @@
         ).addTo(map);
       }
 
-      // Update the helper text so it matches the simpler UI.
       var info = document.querySelector('div[style*="background:#0f1f2d"] .small.muted');
       if (info) {
         info.innerHTML =
-          '<strong>Map:</strong> Choose <strong>Satellite</strong> for shoreline/water-color context or ' +
-          '<strong>NOAA Nautical Chart</strong> for chart reference. Fishing overlays stay out of this menu to keep the map clean. ' +
-          'Not a substitute for an approved navigation system.';
+          '<strong>Map:</strong> Choose <strong>Satellite</strong> or <strong>NOAA Nautical Chart</strong>. ' +
+          '<strong>CCA Artificial Reefs stay visible automatically.</strong> Not a substitute for an approved navigation system.';
       }
     } catch (e) {
       console.warn('Map simplification failed:', e);
@@ -56,7 +64,6 @@
     if (p) p.textContent = value;
     if (t) t.textContent = trend;
 
-    // Add a small source line once, directly under the Weather card's Trend row.
     var src = document.getElementById('pressureSource');
     if (!src && t) {
       var row = t.closest('.row');
@@ -69,6 +76,7 @@
       }
     }
     if (src) src.textContent = source ? ('Pressure source: ' + source) : '';
+
     try { if (typeof updateSpotQuickSheet === 'function') updateSpotQuickSheet(); } catch (_) {}
     try { if (typeof updateBestWindow === 'function') updateBestWindow(); } catch (_) {}
   }
@@ -85,7 +93,6 @@
   async function loadDedicatedPressure(spot) {
     if (!spot || !Number.isFinite(Number(spot.lat)) || !Number.isFinite(Number(spot.lon))) return;
 
-    // Primary independent source: Open-Meteo sea-level pressure.
     try {
       var url =
         'https://api.open-meteo.com/v1/forecast?latitude=' + Number(spot.lat).toFixed(4) +
@@ -100,8 +107,7 @@
       if (!times.length || !vals.length) throw new Error('No pressure values');
 
       var now = Date.now();
-      var idx = 0;
-      var best = Infinity;
+      var idx = 0, best = Infinity;
       for (var i = 0; i < times.length; i++) {
         var d = Math.abs(new Date(times[i]).getTime() - now);
         if (d < best) { best = d; idx = i; }
@@ -120,7 +126,6 @@
       console.warn('Dedicated pressure primary failed:', primaryErr);
     }
 
-    // Secondary source: existing METAR Netlify helper if the app has a station ID.
     try {
       if (typeof fetchMetarPressureFallback === 'function' &&
           typeof recentConditions !== 'undefined' &&
@@ -140,17 +145,80 @@
       console.warn('Dedicated pressure METAR fallback failed:', secondaryErr);
     }
 
-    // Do not overwrite a good value that the main weather loader may already have.
     var current = document.getElementById('pressure');
     if (!current || /Unavailable|No pressure feed|^—$/.test(current.textContent || '')) {
       setPressureUI('Unavailable', 'Unavailable', 'No pressure source available');
     }
   }
 
-  // Run the map cleanup after the original map/control setup has finished.
-  setTimeout(simplifyMapChoices, 0);
+  function formatSatelliteTime(iso) {
+    var d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return null;
+    return d.toLocaleString([], {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
 
-  // Hook spot selection so pressure gets its own independent request every time.
+  async function updateLatestSatelliteTimestamp() {
+    try {
+      if (typeof spots === 'undefined') return;
+      var candidates = spots.filter(function (s) {
+        return s.area === 'Big Lake / Calcasieu' || s.area === 'West Cove';
+      });
+      if (!candidates.length) return;
+
+      var results = await Promise.allSettled(candidates.map(async function (p) {
+        var r = await fetch('/.netlify/functions/water-clarity?lat=' + p.lat + '&lon=' + p.lon, { cache: 'no-store' });
+        if (!r.ok) return null;
+        var j = await r.json();
+        var sat = j && j.satellite;
+        if (!sat || !sat.time) return null;
+        var ms = Date.parse(sat.time);
+        if (!Number.isFinite(ms)) return null;
+        return { ms: ms, time: sat.time, spot: p.name };
+      }));
+
+      var usable = results
+        .filter(function (x) { return x.status === 'fulfilled' && x.value; })
+        .map(function (x) { return x.value; })
+        .sort(function (a, b) { return b.ms - a.ms; });
+
+      var box = document.getElementById('satelliteLatestTime');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'satelliteLatestTime';
+        box.className = 'small muted';
+        box.style.padding = '6px 12px';
+        box.style.background = '#0f1f2d';
+        box.style.borderBottom = '1px solid #284153';
+        var mapEl = document.getElementById('map');
+        if (mapEl && mapEl.parentNode) mapEl.parentNode.insertBefore(box, mapEl);
+      }
+
+      if (!usable.length) {
+        box.textContent = 'Satellite Water: no usable recent VIIRS sample found right now (clouds/missing pixels may be the reason).';
+        return;
+      }
+
+      var latest = usable[0];
+      box.textContent =
+        'Latest usable Satellite Water sample: ' + formatSatelliteTime(latest.time) +
+        ' • near ' + latest.spot +
+        ' • NOAA VIIRS Kd490';
+    } catch (e) {
+      console.warn('Satellite timestamp lookup failed:', e);
+    }
+  }
+
+  setTimeout(function () {
+    simplifyMapChoices();
+    updateLatestSatelliteTimestamp();
+  }, 0);
+
   try {
     if (typeof selectSpot === 'function') {
       var originalSelectSpot = selectSpot;
@@ -164,8 +232,6 @@
     console.warn('Could not wrap selectSpot:', e);
   }
 
-  // Extra safety for iPad/browser event ordering: when the spot dropdown changes,
-  // run the independent pressure loader after the app has updated `selected`.
   var picker = document.getElementById('locationPicker');
   if (picker) {
     picker.addEventListener('change', function () {
@@ -177,7 +243,6 @@
     });
   }
 
-  // If a spot was already selected before this file executed, fill pressure now.
   setTimeout(function () {
     try {
       if (typeof selected !== 'undefined' && selected) loadDedicatedPressure(selected);

@@ -86,7 +86,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 </div>
 
 <div style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite, with optional NOAA Bottom Contours. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
+<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite, with optional NOAA Bottom Contours. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is best for wider planning views; at close zoom the app switches to Satellite while keeping contours and fishing overlays available. Not a substitute for an approved navigation system.</div>
 </div>
 <div id="map"></div>
 <div id="spotQuickSheet" role="dialog" aria-modal="false" aria-labelledby="quickSpotName" aria-hidden="true">
@@ -692,6 +692,7 @@ const satelliteLayer=L.tileLayer(
  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
  {maxZoom:19,attribution:"Tiles © Esri"}
 );
+const NOAA_CHART_DETAIL_MAX_ZOOM=13;
 const noaaChartLayer=L.tileLayer.wms(
  "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer",
  {
@@ -700,6 +701,8 @@ const noaaChartLayer=L.tileLayer.wms(
   transparent:false,
   version:"1.3.0",
   maxZoom:18,
+  updateWhenZooming:false,
+  keepBuffer:3,
   attribution:"NOAA Office of Coast Survey — ENC Chart Display • Not for navigation"
  }
 );
@@ -746,6 +749,22 @@ L.control.layers(
  },
  {position:"topright",collapsed:false}
 ).addTo(map);
+
+// Keep NOAA chart for wider planning views; switch to Satellite for close zoom.
+let activeBaseLayer=standardLayer;
+function closeZoomFallbackFromNoaa(){
+ if(activeBaseLayer!==noaaChartLayer || map.getZoom()<=NOAA_CHART_DETAIL_MAX_ZOOM)return;
+ map.removeLayer(noaaChartLayer);
+ satelliteLayer.addTo(map);
+ activeBaseLayer=satelliteLayer;
+ const s=document.getElementById("areaStatus");
+ if(s)s.textContent="Close-up view: switched from NOAA Nautical Chart to Satellite. Bottom contours and fishing overlays stay available.";
+}
+map.on("baselayerchange",e=>{
+ activeBaseLayer=e.layer;
+ if(e.layer===noaaChartLayer)closeZoomFallbackFromNoaa();
+});
+map.on("zoomend",closeZoomFallbackFromNoaa);
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
 let myLocationMarker=null,myLocationAccuracy=null;

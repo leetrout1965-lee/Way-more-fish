@@ -1,29 +1,20 @@
-/* Way More Fish — Satellite Water prototype
-   Big Lake / Calcasieu + West Cove
-   Uses NOAA VIIRS Kd490 returned by the existing Netlify water-clarity function.
-   This is a satellite-derived water-color/attenuation signal, not a live camera or navigation layer.
+/* Way More Fish — Satellite Water credibility rules
+   Fresh <= 36 hr
+   Usable <= 72 hr
+   Stale > 72 hr and <= 7 days: clearly labeled, NOT current water conditions
+   Older than 7 days: no current water reading
 */
 (function () {
-  if (typeof L === 'undefined' || typeof map === 'undefined' || typeof spots === 'undefined') {
-    console.warn('Satellite Water: map/spots not ready.');
-    return;
-  }
-  if (window.__wmfSatelliteWaterLoaded) return;
-  window.__wmfSatelliteWaterLoaded = true;
+  if (typeof L === 'undefined' || typeof map === 'undefined' || typeof spots === 'undefined') return;
+  if (window.__wmfSatelliteWaterV2Loaded) return;
+  window.__wmfSatelliteWaterV2Loaded = true;
 
-  const style = document.createElement('style');
-  style.textContent = `
-    .satwater-control{background:#0b668d!important;color:#fff!important;width:auto!important;min-width:44px!important;padding:0 10px!important;font-size:13px!important;font-weight:800!important;line-height:32px!important;text-decoration:none!important;white-space:nowrap}
-    .satwater-control.active{background:#19a974!important}
-    .satwater-legend{background:rgba(15,31,45,.96);color:#eef6fb;padding:9px 10px;border:1px solid #38566d;border-radius:10px;box-shadow:0 2px 12px #0007;font:12px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;max-width:230px}
-    .satwater-legend strong{display:block;margin-bottom:4px}.satwater-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-  `;
-  document.head.appendChild(style);
+  const FRESH_HOURS = 36;
+  const USABLE_HOURS = 72;
+  const STALE_MAX_HOURS = 168;
 
   const satelliteWaterLayer = L.layerGroup();
-  let loading = false;
-  let legend = null;
-  let button = null;
+  let loading = false, legend = null, button = null;
 
   function bucket(score) {
     if (score >= 75) return { label: 'Relatively clearer', fill: '#36c275' };
@@ -37,10 +28,23 @@
     return Math.max(1, Math.round(hours / 24)) + ' days old';
   }
 
+  function freshness(ageHours) {
+    if (!Number.isFinite(ageHours)) return 'unknown';
+    if (ageHours <= FRESH_HOURS) return 'fresh';
+    if (ageHours <= USABLE_HOURS) return 'usable';
+    if (ageHours <= STALE_MAX_HOURS) return 'stale';
+    return 'expired';
+  }
+
+  function label(state) {
+    if (state === 'fresh') return 'Fresh satellite sample';
+    if (state === 'usable') return 'Recent usable satellite sample';
+    if (state === 'stale') return 'STALE satellite sample — not current water conditions';
+    return 'No current satellite water reading';
+  }
+
   function prototypeSpots() {
-    return spots.filter(function (x) {
-      return x.area === 'Big Lake / Calcasieu' || x.area === 'West Cove';
-    });
+    return spots.filter(x => x.area === 'Big Lake / Calcasieu' || x.area === 'West Cove');
   }
 
   function showLegend() {
@@ -49,85 +53,96 @@
     legend.onAdd = function () {
       const d = L.DomUtil.create('div', 'satwater-legend');
       d.innerHTML =
-        '<strong>Satellite Water • prototype</strong>' +
+        '<strong>Satellite Water</strong>' +
         '<div><span class="satwater-dot" style="background:#36c275"></span>Relatively clearer</div>' +
         '<div><span class="satwater-dot" style="background:#e5b84b"></span>Mixed / moderate</div>' +
         '<div><span class="satwater-dot" style="background:#a66a3f"></span>Relatively murkier</div>' +
-        '<div style="margin-top:5px;color:#9fb0bf">NOAA VIIRS Kd490 point samples. Cloud/missing pixels can limit coverage. Not a live camera.</div>';
+        '<div><span class="satwater-dot" style="background:#7f8c98"></span>Stale / unavailable</div>' +
+        '<div style="margin-top:5px;color:#9fb0bf">Colored readings are shown only when the VIIRS sample is ≤72 hr old. Older samples are labeled stale and are not presented as current conditions.</div>';
       return d;
     };
     legend.addTo(map);
   }
 
   function hideLegend() {
-    if (legend) {
-      map.removeControl(legend);
-      legend = null;
-    }
+    if (legend) { map.removeControl(legend); legend = null; }
   }
 
   async function refresh() {
     if (loading) return;
     loading = true;
     satelliteWaterLayer.clearLayers();
-    const pts = prototypeSpots();
 
-    const jobs = pts.map(async function (p) {
+    const pts = prototypeSpots();
+    let freshCount = 0, usableCount = 0, staleCount = 0, unavailableCount = 0;
+
+    await Promise.allSettled(pts.map(async function (p) {
       try {
         const r = await fetch('/.netlify/functions/water-clarity?lat=' + p.lat + '&lon=' + p.lon, { cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const j = await r.json();
         const sat = j && j.satellite;
-        if (!sat || !Number.isFinite(Number(sat.score))) throw new Error('No usable satellite pixel');
+        if (!sat || !Number.isFinite(Number(sat.ageHours))) throw new Error('No usable satellite sample');
 
-        const score = Math.round(Number(sat.score));
-        const b = bucket(score);
-        const age = ageText(Number(sat.ageHours));
-        const kd = Number.isFinite(Number(sat.kd)) ? Number(sat.kd).toFixed(2) : '—';
+        const ageHours = Number(sat.ageHours);
+        const state = sat.freshness || freshness(ageHours);
+        const age = ageText(ageHours);
+        const sampleTime = sat.time ? new Date(sat.time).toLocaleString([], {
+          month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'
+        }) : 'time unavailable';
 
-        const m = L.circleMarker([p.lat, p.lon], {
-          radius: 10,
-          weight: 2,
-          color: '#eef6fb',
-          fillColor: b.fill,
-          fillOpacity: 0.78
-        });
-        m.bindTooltip(p.name + ': ' + b.label, { direction: 'top' });
-        m.bindPopup(
-          '<strong>' + p.name + '</strong><br>' +
-          '<strong>' + b.label + '</strong> • ' + score + '/100<br>' +
-          'VIIRS Kd490: ' + kd + ' m⁻¹<br>' +
-          'Satellite sample: ' + age + '<br>' +
-          '<span style="font-size:11px">Lower Kd490 generally means clearer water. Cloud cover, shallow bottom and missing pixels can affect interpretation. This is a satellite-derived point sample, not a live camera.</span><br>' +
-          '<button onclick="openSatelliteView()" style="margin-top:7px">Open NASA imagery</button>'
-        );
-        satelliteWaterLayer.addLayer(m);
-        return true;
-      } catch (e) {
-        const m = L.circleMarker([p.lat, p.lon], {
-          radius: 7,
-          weight: 1,
-          color: '#9fb0bf',
-          fillColor: '#607b8e',
-          fillOpacity: 0.45
-        });
-        m.bindTooltip(p.name + ': satellite unavailable', { direction: 'top' });
-        m.bindPopup(
-          '<strong>' + p.name + '</strong><br>' +
-          'Satellite water sample unavailable right now.<br>' +
-          '<span style="font-size:11px">Clouds or a missing VIIRS pixel are common causes.</span>'
-        );
-        satelliteWaterLayer.addLayer(m);
-        return false;
+        if (state === 'fresh' || state === 'usable') {
+          const score = Math.round(Number(sat.score));
+          if (!Number.isFinite(score)) throw new Error('No usable satellite score');
+          const b = bucket(score);
+          if (state === 'fresh') freshCount++; else usableCount++;
+
+          const m = L.circleMarker([p.lat, p.lon], {
+            radius: 10, weight: 2, color: '#eef6fb',
+            fillColor: b.fill, fillOpacity: 0.78
+          });
+          m.bindTooltip(p.name + ': ' + b.label + ' • ' + age, { direction: 'top' });
+          m.bindPopup(
+            '<strong>' + p.name + '</strong><br>' +
+            '<strong>' + b.label + '</strong> • ' + score + '/100<br>' +
+            '<strong>' + label(state) + '</strong><br>' +
+            'Sample: ' + sampleTime + ' • ' + age + '<br>' +
+            '<span style="font-size:11px">Satellite-derived water color/attenuation, not a live camera.</span>'
+          );
+          satelliteWaterLayer.addLayer(m);
+          return;
+        }
+
+        if (state === 'stale') {
+          staleCount++;
+          const m = L.circleMarker([p.lat, p.lon], {
+            radius: 8, weight: 2, color: '#d6dde3',
+            fillColor: '#7f8c98', fillOpacity: 0.58
+          });
+          m.bindTooltip(p.name + ': STALE • ' + age, { direction: 'top' });
+          m.bindPopup(
+            '<strong>' + p.name + '</strong><br>' +
+            '<strong>STALE — not current water conditions</strong><br>' +
+            'Newest usable pixel: ' + sampleTime + ' • ' + age
+          );
+          satelliteWaterLayer.addLayer(m);
+          return;
+        }
+
+        unavailableCount++;
+      } catch (_) {
+        unavailableCount++;
       }
-    });
+    }));
 
-    const results = await Promise.allSettled(jobs);
     loading = false;
-    const ok = results.filter(function (x) { return x.status === 'fulfilled' && x.value === true; }).length;
     const status = document.getElementById('areaStatus');
     if (status) {
-      status.textContent = 'Satellite Water prototype: ' + ok + '/' + pts.length + ' Big Lake / West Cove spots have a usable recent VIIRS sample. Tap a colored circle for details.';
+      status.textContent =
+        'Satellite Water: ' + freshCount + ' fresh • ' +
+        usableCount + ' recent usable • ' +
+        staleCount + ' stale • ' +
+        unavailableCount + ' unavailable. Stale samples are not treated as current water conditions.';
     }
   }
 
@@ -148,12 +163,6 @@
       button.classList.add('active');
       button.textContent = '✓ Satellite Water';
     }
-
-    const pts = prototypeSpots();
-    if (pts.length) {
-      const bounds = L.latLngBounds(pts.map(function (p) { return [p.lat, p.lon]; }));
-      if (!bounds.contains(map.getCenter())) map.fitBounds(bounds.pad(0.12), { maxZoom: 11 });
-    }
     await refresh();
   }
 
@@ -163,8 +172,6 @@
       const box = L.DomUtil.create('div', 'leaflet-bar');
       const btn = L.DomUtil.create('a', 'satwater-control', box);
       btn.href = '#';
-      btn.title = 'Show recent satellite-derived water clarity for Big Lake / West Cove';
-      btn.setAttribute('aria-label', 'Toggle Satellite Water prototype');
       btn.textContent = '💧 Satellite Water';
       button = btn;
       L.DomEvent.disableClickPropagation(box);

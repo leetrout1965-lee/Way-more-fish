@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Way More Fish</title>
-<!-- Spot quick-view bottom sheet added 2026-09-26; Netlify badge clearance added -->
+<!-- Spot quick-view bottom sheet added 2026-09-26; Netlify badge clearance + observed-wind freshness wording refined -->
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0b1520">
 <link rel="apple-touch-icon" href="/icon-192.png">
@@ -13,7 +13,7 @@
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1520;color:#eef6fb}
 header{padding:14px 16px;background:#0f1f2d;position:sticky;top:0;z-index:1000;border-bottom:1px solid #284153}
 h1{margin:0;font-size:22px}.sub{font-size:12px;color:#9fb0bf;margin-top:3px}
-#map{height:42vh;min-height:320px}.wrap{max-width:900px;margin:auto;padding:12px}
+#map{height:42vh;min-height:320px}.wrap{max-width:900px;margin:auto;padding:12px 12px 120px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{background:#132332;border:1px solid #284153;border-radius:14px;padding:12px}
 .full{grid-column:1/-1}.row{display:flex;justify-content:space-between;gap:8px;margin:7px 0}
 button,select,input,textarea{font:inherit;border-radius:9px;border:1px solid #38566d;background:#0d1c28;color:#eef6fb;padding:9px}
@@ -895,7 +895,12 @@ function updateFreshnessUI(){
  const fw=document.getElementById("freshWeather"),ft=document.getElementById("freshTides"),fo=document.getElementById("freshObserved"),fc=document.getElementById("freshClarity");
  if(fw)fw.textContent=freshnessText(freshnessState.weather,"weather");
  if(ft)ft.textContent=freshnessText(freshnessState.tides,"tides");
- if(fo)fo.textContent=recentConditions&&recentConditions.age?`${freshnessText(freshnessState.observed,"observed")} • ${recentConditions.age}`:freshnessText(freshnessState.observed,"observed");
+ if(fo){
+  const observedBase=freshnessText(freshnessState.observed,"observed");
+  if(recentConditions&&recentConditions.age){
+   fo.textContent=String(freshnessState.observed||"").toLowerCase()==="cache"?`Cached • ${recentConditions.age}`:`${observedBase} • ${recentConditions.age}`;
+  }else fo.textContent=observedBase;
+ }
  if(fc){
   if(clarityState&&clarityState.direct&&Number.isFinite(clarityState.age))fc.textContent=`Direct • ${clarityState.age.toFixed(1)} hr old`;
   else fc.textContent=freshnessText(freshnessState.clarity,"clarity");

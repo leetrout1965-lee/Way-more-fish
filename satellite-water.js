@@ -230,20 +230,38 @@
     else el.remove();
   });
 
-  const SatelliteWaterControl = L.Control.extend({
-    options:{position:'topleft'},
-    onAdd:function(){
-      const box = L.DomUtil.create('div','leaflet-bar');
-      const btn = L.DomUtil.create('a','satwater-control',box);
-      btn.href = '#';
-      btn.textContent = '💧 Satellite Water';
-      btn.title = 'Show satellite-derived water conditions for every spot in the selected area';
-      button = btn;
-      L.DomEvent.disableClickPropagation(box);
-      L.DomEvent.on(btn,'click',L.DomEvent.stop).on(btn,'click',toggle);
-      return box;
-    }
-  });
+ const SatelliteWaterControl = L.Control.extend({
+  options:{position:'topleft'},
+  onAdd:function(){
+    const box = L.DomUtil.create('div','satwater-wrap');
+    const btn = L.DomUtil.create('a','satwater-control',box);
+    btn.href = '#';
+    btn.textContent = '💧 Satellite Water';
+    btn.title = 'Show satellite-derived water conditions for every spot in the selected area';
+
+    box.style.background = 'transparent';
+    box.style.border = '0';
+    box.style.boxShadow = 'none';
+
+    btn.style.display = 'block';
+    btn.style.background = '#0b668d';
+    btn.style.color = '#ffffff';
+    btn.style.padding = '10px 14px';
+    btn.style.borderRadius = '10px';
+    btn.style.border = '1px solid #3289aa';
+    btn.style.fontWeight = '800';
+    btn.style.fontSize = '16px';
+    btn.style.lineHeight = '1.2';
+    btn.style.textDecoration = 'none';
+    btn.style.boxShadow = '0 2px 8px rgba(0,0,0,.25)';
+    btn.style.whiteSpace = 'nowrap';
+
+    button = btn;
+    L.DomEvent.disableClickPropagation(box);
+    L.DomEvent.on(btn,'click',L.DomEvent.stop).on(btn,'click',toggle);
+    return box;
+  }
+});
 
   map.addControl(new SatelliteWaterControl());
 

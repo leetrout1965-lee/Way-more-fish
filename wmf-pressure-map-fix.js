@@ -251,9 +251,8 @@
   }
 
   setTimeout(function () {
-    simplifyMapChoices();
-    updateLatestSatelliteTimestamp();
-  }, 0);
+  simplifyMapChoices();
+}, 0);
 
   // Reassert CCA reefs after actions that can alter the map view/layers.
   if (typeof map !== 'undefined') {

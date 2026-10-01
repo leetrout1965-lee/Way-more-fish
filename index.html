@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Way More Fish</title>
-<!-- Spot quick-view bottom sheet added 2026-09-26; Netlify badge clearance + observed-wind freshness wording refined -->
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0b1520">
 <link rel="apple-touch-icon" href="/icon-192.png">
@@ -13,7 +12,7 @@
 body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b1520;color:#eef6fb}
 header{padding:14px 16px;background:#0f1f2d;position:sticky;top:0;z-index:1000;border-bottom:1px solid #284153}
 h1{margin:0;font-size:22px}.sub{font-size:12px;color:#9fb0bf;margin-top:3px}
-#map{height:42vh;min-height:320px}.wrap{max-width:900px;margin:auto;padding:12px 12px 120px}
+#map{height:42vh;min-height:320px}.wrap{max-width:900px;margin:auto;padding:12px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.card{background:#132332;border:1px solid #284153;border-radius:14px;padding:12px}
 .full{grid-column:1/-1}.row{display:flex;justify-content:space-between;gap:8px;margin:7px 0}
 button,select,input,textarea{font:inherit;border-radius:9px;border:1px solid #38566d;background:#0d1c28;color:#eef6fb;padding:9px}
@@ -21,16 +20,17 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .good{color:#7bdc7b}.mid{color:#ffd166}.bad{color:#ff8585}table{width:100%;border-collapse:collapse}td{padding:5px;border-bottom:1px solid #284153}
 .rank-pin{background:#eef6fb;color:#0b1520;border:2px solid #0b1520;border-radius:50%;width:28px;height:28px;line-height:24px;text-align:center;font-weight:800;box-shadow:0 1px 5px #0008}.rank-list button{padding:6px 8px;margin-top:4px}.spot-map-link{padding:5px 8px;margin-top:4px;background:#0b668d;border-color:#3289aa;font-weight:700}.spot-map-link:focus{outline:2px solid #8fd3ff;outline-offset:2px}
 
-
-/* Way More Fish spot quick-view bottom sheet */
-#spotQuickSheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,110%);width:min(720px,calc(100% - 16px));z-index:1600;background:rgba(15,31,45,.97);border:1px solid #38566d;border-bottom:0;border-radius:20px 20px 0 0;box-shadow:0 -12px 36px #0009;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:transform .24s ease;padding:7px 14px calc(14px + env(safe-area-inset-bottom));box-sizing:border-box}
-#spotQuickSheet.open{transform:translate(-50%,0)}
-.quick-handle{width:44px;height:5px;border-radius:9px;background:#607b8e;margin:0 auto 8px}
-.quick-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.quick-name{font-size:21px;font-weight:800;line-height:1.15}.quick-area{font-size:12px;color:#9fb0bf;margin-top:3px}.quick-close{border:0;background:transparent;font-size:25px;padding:0 3px;line-height:1;color:#eef6fb}
-.quick-score-row{display:flex;align-items:center;gap:12px;margin-top:10px}.quick-score{font-size:38px;font-weight:900;line-height:1}.quick-status{font-size:16px;font-weight:800}.quick-confidence{font-size:11px;color:#9fb0bf;margin-top:2px}
-.quick-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:11px}.quick-metric{background:#0b1924;border:1px solid #284153;border-radius:11px;padding:8px;min-width:0}.quick-label{display:block;color:#9fb0bf;font-size:10px;text-transform:uppercase;letter-spacing:.45px;margin-bottom:3px}.quick-value{font-size:13px;font-weight:750;overflow-wrap:anywhere}
-.quick-why{font-size:12px;line-height:1.35;color:#c9d8e3;margin:10px 1px 0}.quick-actions{display:grid;grid-template-columns:1.4fr 1fr;gap:8px;margin-top:11px;margin-bottom:72px}.quick-actions button{font-weight:800;padding:11px}.quick-live{display:inline-flex;align-items:center;gap:5px}.quick-dot{width:7px;height:7px;border-radius:50%;background:#7bdc7b;display:inline-block}
-@media(max-width:430px){#spotQuickSheet{width:calc(100% - 8px);padding-left:10px;padding-right:10px}.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.quick-name{font-size:19px}.quick-score{font-size:34px}}
+/* Touch-friendly fishing spot markers: small when viewing the coast, thumb-sized when zoomed into fishing water. */
+.wmf-spot-icon{background:transparent;border:0}
+.wmf-spot-btn{
+  box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+  border-radius:999px;background:#0b668d;border:3px solid #eef6fb;color:#fff;
+  box-shadow:0 2px 8px #0009;transition:width .14s ease,height .14s ease,transform .14s ease,background .14s ease;
+  font-weight:900;line-height:1;user-select:none;-webkit-user-select:none;
+}
+.wmf-spot-btn::after{content:"";width:28%;height:28%;min-width:4px;min-height:4px;border-radius:50%;background:#eef6fb}
+.wmf-spot-btn.selected{background:#eef6fb;border-color:#0b668d;box-shadow:0 0 0 3px #8fd3ff,0 3px 11px #000b;transform:scale(1.08)}
+.wmf-spot-btn.selected::after{background:#0b668d}
 
 @media(max-width:650px){
   html,body{max-width:100%;overflow-x:hidden}
@@ -86,35 +86,9 @@ Offline / weak signal — showing the most recently cached app and any previousl
 </div>
 
 <div style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite, with optional NOAA Bottom Contours. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is best for wider planning views; at close zoom the app switches to Satellite while keeping contours and fishing overlays available. Not a substitute for an approved navigation system.</div>
+<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
 </div>
 <div id="map"></div>
-<div id="spotQuickSheet" role="dialog" aria-modal="false" aria-labelledby="quickSpotName" aria-hidden="true">
-  <div class="quick-handle"></div>
-  <div class="quick-head">
-    <div><div id="quickSpotName" class="quick-name">Fishing spot</div><div id="quickSpotArea" class="quick-area">—</div></div>
-    <button class="quick-close" type="button" aria-label="Close spot summary" onclick="closeSpotQuickSheet()">×</button>
-  </div>
-  <div class="quick-score-row">
-    <div id="quickScore" class="quick-score">—%</div>
-    <div><div id="quickStatus" class="quick-status">Loading conditions…</div><div id="quickConfidence" class="quick-confidence">Data confidence: —</div></div>
-  </div>
-  <div class="quick-grid">
-    <div class="quick-metric"><span class="quick-label">Wind</span><span id="quickWind" class="quick-value">—</span></div>
-    <div class="quick-metric"><span class="quick-label">Tide</span><span id="quickTide" class="quick-value">—</span></div>
-    <div class="quick-metric"><span class="quick-label">Water</span><span id="quickWater" class="quick-value">—</span></div>
-    <div class="quick-metric"><span class="quick-label">Salinity</span><span id="quickSalinity" class="quick-value">—</span></div>
-    <div class="quick-metric"><span class="quick-label">Pressure</span><span id="quickPressure" class="quick-value">—</span></div>
-    <div class="quick-metric"><span class="quick-label">Best bite</span><span id="quickBite" class="quick-value">—</span></div>
-  </div>
-  <div id="quickSpecies" class="quick-why">Target species: calculating…</div>
-  <div id="quickWhy" class="quick-why">Checking why this spot scores the way it does…</div>
-  <div class="quick-actions">
-    <button class="primary" type="button" onclick="openFullConditions()">Full Conditions</button>
-    <button type="button" onclick="openSpotInAppleMaps()">Navigate</button>
-  </div>
-</div>
-
 <div class="wrap"><div id="status" class="small muted" style="padding:10px;border:1px solid #38566d;border-radius:10px;margin-bottom:10px">
 If this file is opened in iPad Quick Look, live JavaScript may not run. Open the hosted version in Safari for live NOAA/NWS data and the fishing percentage.
 </div><div class="grid">
@@ -692,7 +666,6 @@ const satelliteLayer=L.tileLayer(
  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
  {maxZoom:19,attribution:"Tiles © Esri"}
 );
-const NOAA_CHART_DETAIL_MAX_ZOOM=13;
 const noaaChartLayer=L.tileLayer.wms(
  "https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/WMSServer",
  {
@@ -701,22 +674,7 @@ const noaaChartLayer=L.tileLayer.wms(
   transparent:false,
   version:"1.3.0",
   maxZoom:18,
-  updateWhenZooming:false,
-  keepBuffer:3,
   attribution:"NOAA Office of Coast Survey — ENC Chart Display • Not for navigation"
- }
-);
-
-// NOAA Digital Coast bathymetric contour overlay. This is a planning/reference
-// layer only; contour coverage and resolution vary by location and survey source.
-const bottomContoursLayer=L.tileLayer(
- "https://www.coast.noaa.gov/arcgis/rest/services/OceanReports/BathymetricContours/MapServer/tile/{z}/{y}/{x}",
- {
-  minZoom:3,
-  maxZoom:16,
-  maxNativeZoom:16,
-  opacity:.72,
-  attribution:"NOAA Digital Coast — Bathymetric Contours • Planning reference"
  }
 );
 
@@ -739,32 +697,7 @@ ccaReefs.forEach((r,i)=>{
  ccaReefLayer.addLayer(m);
 });
 ccaReefLayer.addTo(map);
-// Show contours by default, matching the fishing-first map view; users can turn them off.
-bottomContoursLayer.addTo(map);
-L.control.layers(
- baseMaps,
- {
-  "CCA Artificial Reefs":ccaReefLayer,
-  "Bottom Contours (NOAA)":bottomContoursLayer
- },
- {position:"topright",collapsed:false}
-).addTo(map);
-
-// Keep NOAA chart for wider planning views; switch to Satellite for close zoom.
-let activeBaseLayer=standardLayer;
-function closeZoomFallbackFromNoaa(){
- if(activeBaseLayer!==noaaChartLayer || map.getZoom()<=NOAA_CHART_DETAIL_MAX_ZOOM)return;
- map.removeLayer(noaaChartLayer);
- satelliteLayer.addTo(map);
- activeBaseLayer=satelliteLayer;
- const s=document.getElementById("areaStatus");
- if(s)s.textContent="Close-up view: switched from NOAA Nautical Chart to Satellite. Bottom contours and fishing overlays stay available.";
-}
-map.on("baselayerchange",e=>{
- activeBaseLayer=e.layer;
- if(e.layer===noaaChartLayer)closeZoomFallbackFromNoaa();
-});
-map.on("zoomend",closeZoomFallbackFromNoaa);
+L.control.layers(baseMaps,{"CCA Artificial Reefs":ccaReefLayer},{position:"topright",collapsed:false}).addTo(map);
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
 let myLocationMarker=null,myLocationAccuracy=null;
@@ -818,7 +751,35 @@ function openCcaReefInMaps(i){
 const fg=L.featureGroup().addTo(map);
 const whereNowLayer=L.layerGroup().addTo(map);
 const spotMarkers=new Map();
-spots.forEach((s,i)=>{const m=L.circleMarker([s.lat,s.lon],{radius:7,weight:2,fillOpacity:.85}).bindTooltip(`${s.name}<br><span style="font-size:11px">${Number(s.lat).toFixed(5)}, ${Number(s.lon).toFixed(5)}</span>`);m.on("click",()=>selectSpot(s));spotMarkers.set(i,m);});
+function spotMarkerSize(zoom,isSelected=false){
+ // Keep the coast-wide view clean, then become easy to hit with a thumb in fishing-area views.
+ let size=zoom<=8?16:zoom===9?22:zoom===10?34:46;
+ if(zoom>=13)size=50;
+ if(isSelected)size=Math.min(60,size+10);
+ return size;
+}
+function makeSpotIcon(s,isSelected=false){
+ const size=spotMarkerSize(map.getZoom(),isSelected);
+ return L.divIcon({
+  className:"wmf-spot-icon",
+  html:`<div class="wmf-spot-btn${isSelected?' selected':''}" style="width:${size}px;height:${size}px" aria-label="${s.name}"></div>`,
+  iconSize:[size,size],iconAnchor:[size/2,size/2],tooltipAnchor:[0,-Math.round(size/2)]
+ });
+}
+function updateSpotMarkerIcons(){
+ spotMarkers.forEach((m,i)=>{
+  const s=spots[i],isSelected=!!(selected&&selected===s);
+  m.setIcon(makeSpotIcon(s,isSelected));
+  if(m.setZIndexOffset)m.setZIndexOffset(isSelected?1000:0);
+ });
+}
+spots.forEach((s,i)=>{
+ const m=L.marker([s.lat,s.lon],{icon:makeSpotIcon(s,false),riseOnHover:true})
+  .bindTooltip(`${s.name}<br><span style="font-size:11px">${Number(s.lat).toFixed(5)}, ${Number(s.lon).toFixed(5)}</span>`,{direction:"top",offset:[0,-4]});
+ m.on("click",()=>selectSpot(s));
+ spotMarkers.set(i,m);
+});
+map.on("zoomend",updateSpotMarkerIcons);
 const areaPicker=document.getElementById("areaPicker");
 const picker=document.getElementById("locationPicker");
 const areaStatus=document.getElementById("areaStatus");
@@ -841,6 +802,7 @@ function chosenCompareSpots(){const seen=new Set(),picked=[];compareIds.forEach(
 function showArea(area){
  if(calendarArea)calendarArea.value=area;
  fg.clearLayers();whereNowLayer.clearLayers();selected=null;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
+ updateSpotMarkerIcons();
  document.getElementById("spotTitle").textContent="Choose a spot";updateSpotGps(null); freshnessState={weather:"unavailable",tides:"unavailable",observed:"unavailable",clarity:"unavailable"};updateFreshnessUI();resetWaterLevelComparison();
  document.getElementById("score").textContent="—/100";
  document.getElementById("rating").textContent="Waiting for a location";
@@ -914,12 +876,7 @@ function updateFreshnessUI(){
  const fw=document.getElementById("freshWeather"),ft=document.getElementById("freshTides"),fo=document.getElementById("freshObserved"),fc=document.getElementById("freshClarity");
  if(fw)fw.textContent=freshnessText(freshnessState.weather,"weather");
  if(ft)ft.textContent=freshnessText(freshnessState.tides,"tides");
- if(fo){
-  const observedBase=freshnessText(freshnessState.observed,"observed");
-  if(recentConditions&&recentConditions.age){
-   fo.textContent=String(freshnessState.observed||"").toLowerCase()==="cache"?`Cached • ${recentConditions.age}`:`${observedBase} • ${recentConditions.age}`;
-  }else fo.textContent=observedBase;
- }
+ if(fo)fo.textContent=recentConditions&&recentConditions.age?`${freshnessText(freshnessState.observed,"observed")} • ${recentConditions.age}`:freshnessText(freshnessState.observed,"observed");
  if(fc){
   if(clarityState&&clarityState.direct&&Number.isFinite(clarityState.age))fc.textContent=`Direct • ${clarityState.age.toFixed(1)} hr old`;
   else fc.textContent=freshnessText(freshnessState.clarity,"clarity");
@@ -1086,70 +1043,15 @@ function openSpotInGoogleMaps(){
  window.open(`https://www.google.com/maps/search/?api=1&query=${dest}`,"_blank","noopener");
 }
 
-
-function quickText(id,fallback="—"){
- const e=document.getElementById(id);if(!e)return fallback;
- const t=String(e.textContent||"").trim();return t&&t!=="Loading…"?t:fallback;
-}
-function openSpotQuickSheet(s){
- const sh=document.getElementById("spotQuickSheet");if(!sh||!s)return;
- document.getElementById("quickSpotName").textContent=s.name||"Fishing spot";
- document.getElementById("quickSpotArea").textContent=s.area||"South Louisiana coast";
- document.getElementById("quickScore").textContent="—%";
- document.getElementById("quickScore").className="quick-score";
- document.getElementById("quickStatus").textContent="Loading conditions…";
- document.getElementById("quickConfidence").textContent="Live data is loading";
- ["quickWind","quickTide","quickWater","quickSalinity","quickPressure","quickBite"].forEach(id=>document.getElementById(id).textContent="—");
- document.getElementById("quickSpecies").textContent="Target species: calculating…";
- document.getElementById("quickWhy").textContent="Checking wind, tide, water and recent conditions…";
- sh.classList.add("open");sh.setAttribute("aria-hidden","false");
-}
-function closeSpotQuickSheet(){const sh=document.getElementById("spotQuickSheet");if(sh){sh.classList.remove("open");sh.setAttribute("aria-hidden","true");}}
-function updateSpotQuickSheet(){
- const sh=document.getElementById("spotQuickSheet");if(!sh||!selected)return;
- document.getElementById("quickSpotName").textContent=selected.name||"Fishing spot";
- document.getElementById("quickSpotArea").textContent=selected.area||"South Louisiana coast";
- const score=quickText("score","—%");const scoreEl=document.getElementById("quickScore");scoreEl.textContent=score;const n=parseInt(score,10);scoreEl.className="quick-score "+(Number.isFinite(n)?(n>=75?"good":n>=55?"mid":"bad"):"");
- document.getElementById("quickStatus").textContent=quickText("rating","Loading conditions…");
- document.getElementById("quickConfidence").textContent=quickText("confidence","Data confidence: —");
- document.getElementById("quickWind").textContent=quickText("wind","Unavailable");
- document.getElementById("quickTide").textContent=quickText("tideMove","Unavailable");
- document.getElementById("quickWater").textContent=quickText("autoClarityStatus","Unavailable");
- document.getElementById("quickSalinity").textContent=quickText("salinityStatus","Unavailable");
- const p=quickText("pressure","Unavailable"),pt=quickText("pressureTrend","");document.getElementById("quickPressure").textContent=pt&&pt!=="—"?`${p} • ${pt}`:p;
- document.getElementById("quickBite").textContent=quickText("bestWindow","Calculating…");
- const species=quickText("speciesFit","Species fit: unavailable");document.getElementById("quickSpecies").textContent=species.replace(/^Best fit:\s*/i,"Target: ").replace(/^Species fit:\s*/i,"Target: ");
- let why=quickText("why","Current live conditions estimate.");why=why.replace(/\. Add bait activity.*$/i,".");document.getElementById("quickWhy").textContent=why;
-}
-function openFullConditions(){
- closeSpotQuickSheet();
- const target=document.getElementById("spotTitle");if(target)target.scrollIntoView({behavior:"smooth",block:"start"});
-}
-
 async function selectSpot(s){
- selected=s;updateSpotGps(s);wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];resetRecoveryOutlook();recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};resetBestWindow();updateDataQuality();document.getElementById("spotTitle").textContent=s.name;openSpotQuickSheet(s);
+ selected=s;updateSpotMarkerIcons();updateSpotGps(s);wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];resetRecoveryOutlook();recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};resetBestWindow();updateDataQuality();document.getElementById("spotTitle").textContent=s.name;
  const idx=spots.indexOf(s);if(s.area&&areaPicker.value!==s.area){areaPicker.value=s.area;showArea(s.area);}if(idx>=0)document.getElementById("locationPicker").value=String(idx);
  map.setView([s.lat,s.lon],11);
  updateStructure(s);
  document.getElementById("status").textContent="Loading weather, tides and salinity…";
  document.getElementById("autoClarityStatus").textContent="Loading…";document.getElementById("autoClaritySource").textContent="Checking measured/satellite clarity…";document.getElementById("salinityStatus").textContent="Loading…";document.getElementById("waterTempStatus").textContent="Loading…";document.getElementById("salinitySource").textContent="Finding nearest monitoring station…";document.getElementById("speciesFit").textContent="Species fit: calculating…";document.getElementById("speciesWhy").textContent="Waiting for water-quality data.";
  resetWaterLevelComparison();
- // Populate the quick-view progressively instead of leaving it blank until every feed finishes.
- // Each feed updates the shared condition fields; recalculate after that feed settles so the
- // bottom sheet immediately shows whatever data is already available.
- calcScore();
- const progressiveLoad=(promise)=>Promise.resolve(promise).then(
-  value=>{if(selected===s){calcScore();updateSpotQuickSheet();}return value;},
-  error=>{if(selected===s){calcScore();updateSpotQuickSheet();}throw error;}
- );
- const results=await Promise.allSettled([
-  progressiveLoad(loadWeather(s)),
-  progressiveLoad(loadTides(s)),
-  progressiveLoad(loadSalinity(s)),
-  progressiveLoad(loadWaterClarity(s)),
-  progressiveLoad(loadObservedVsPredictedWater(s))
- ]);
- if(selected!==s)return;
+ const results=await Promise.allSettled([loadWeather(s),loadTides(s),loadSalinity(s),loadWaterClarity(s),loadObservedVsPredictedWater(s)]);
  freshnessState.weather=dataQuality.weather||"unavailable";
  freshnessState.tides=dataQuality.tides||"unavailable";
  freshnessState.observed=dataQuality.observedWind||"unavailable";
@@ -1160,7 +1062,6 @@ async function selectSpot(s){
  if(failed.length===0){document.getElementById("status").textContent=warnings.length?"Loaded cached conditions because a live source was unavailable: "+warnings.join("; "):"Conditions loaded (live or recent cache).";}
  else{document.getElementById("status").textContent="Some conditions are unavailable: "+failed.map(r=>r.reason.message).join("; ")+". The score uses only the factors that loaded.";}
  calcScore();
- updateSpotQuickSheet();
 }
 function msToMph(v){return Number.isFinite(v)?v*2.236936:null;}
 function qvToMph(qv){
@@ -2059,7 +1960,6 @@ function calcScore(){
  whatToThrowNow();
  updateRecoveryOutlook();
  updateBestWindow();
- updateSpotQuickSheet();
 }
 function nextTideMovementLabel(tidesList){
  const future=(tidesList||[]).filter(x=>new Date(x.t.replace(" ","T")).getTime()>Date.now()),n=future[0];
@@ -2375,8 +2275,5 @@ if("serviceWorker" in navigator){
  window.addEventListener("load",()=>navigator.serviceWorker.register("/service-worker.js").catch(()=>{}));
 }
 </script>
-<script src="/satellite-water.js?v=5"></script>
-<script src="/wmf-pressure-map-fix.js?v=3"></script>
-<script src="/wmf-cca-layout-v1.js"></script>
-<script src="/wmf-map-first-v1.js?v=1"></script>
+
 </body></html>

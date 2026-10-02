@@ -61,6 +61,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <option value="Tiger Shoal West">Tiger Shoal West</option>
 <option value="Tiger Shoal East">Tiger Shoal East</option>
 <option value="Big Lake / Calcasieu">Big Lake / Calcasieu</option>
+<option value="Lake Charles">Lake Charles</option>
 <option value="Cameron Beaches">Cameron Beaches</option>
 <option value="Dularge">Dularge</option>
 <option value="Cocodrie">Cocodrie</option>
@@ -415,6 +416,12 @@ const spots=[
 {name:"Fifi Island",area:"Grand Isle",lat:29.257172,lon:-89.973961,tide:"8761724",tideName:"Grand Isle"},
 {name:"Barataria Pass",area:"Grand Isle",lat:29.272833,lon:-89.946806,tide:"8761724",tideName:"Grand Isle"},
 {name:"Grand Terre Island",area:"Grand Isle",lat:29.30245,lon:-89.89563,tide:"8761724",tideName:"Grand Isle"},
+// Lake Charles proper — published fishing-reference locations. These are fishing references, not navigation waypoints.
+{name:"Lake Charles – I-10 Ship Channel Ledge",area:"Lake Charles",lat:30.23715,lon:-93.24738,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference at the I-10 / Calcasieu River channel; published reports target the adjacent ship-channel ledges and current breaks."},
+{name:"Lake Charles – North Beach Hard Bottom",area:"Lake Charles",lat:30.23505,lon:-93.23520,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference just offshore of North Beach / I-10 Beach; published reports describe trout, redfish and hard bottom along this north shoreline."},
+{name:"Lake Charles – Civic Center Deep Hole",area:"Lake Charles",lat:30.22820,lon:-93.22535,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference about 200 yards off the Civic Center seawall, matching published descriptions of the dredged 30–50+ ft winter hole."},
+{name:"Lake Charles – East Entrance Flat",area:"Lake Charles",lat:30.22880,lon:-93.24050,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference on the east edge of the Calcasieu River / west side of Lake Charles, where published reports describe a 5–6 ft flat dropping into deeper water."},
+
 {name:"I-210 North Channel Ledge",area:"Prien Lake",lat:30.19855,lon:-93.28410,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference moved to channel-side water after chart/map cross-check; not an official agency waypoint."},
 {name:"East Island Flat",area:"Prien Lake",lat:30.1910,lon:-93.2810,tide:"8767816",tideName:"Lake Charles"},
 {name:"North Point / Ship Channel Junction",area:"Prien Lake",lat:30.19685,lon:-93.28600,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference moved to the ship-channel side after chart/map cross-check; not an official agency waypoint."},
@@ -477,6 +484,7 @@ const salinitySources={
  "Vermilion Bay":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional proxy for Vermilion Bay spots; backup is a broad coastal proxy"},
  "Cote Blanche / Nickel Reef":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional Vermilion Bay proxy for Cote Blanche / Nickel Reef; backup is a broad coastal proxy"},
  "Big Lake / Calcasieu":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy for Big Lake spots; backup is farther north in the Calcasieu system"},
+ "Lake Charles":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional Calcasieu-system salinity proxy for Lake Charles; local salinity can differ after rainfall and river runoff"},
  "West Cove":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy; conditions can differ inside West Cove; backup is farther north"},
  "Hackberry":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Nearest continuous Calcasieu Lake salinity source; backup is farther north"},
  "Dularge":{provider:"USGS",site:"073813498",backupSite:"073802516",backupName:"Barataria Pass at Grand Isle",name:"Caillou Bay SW of Cocodrie",note:"Regional salinity proxy for Dularge waters; backup is a broader coastal proxy"},
@@ -540,6 +548,10 @@ const structureDetails={
  "Lake Mechant":{type:"Large interior lake / shell reefs / shoreline points",depth:"Shoreline flats, reef edges and bayou mouths",how:"Use bait, birds and shell/reef markers to narrow the lake; work reef edges and north-shore points when conditions allow."},
  "Lake Decade / Lake De Cade":{type:"Interior lake / oyster reefs / washouts",depth:"Reef edges, shoreline washouts and nearby deeper canals",how:"Fish oyster reefs and shoreline washouts; in cold weather, nearby dead-end canals can concentrate trout and redfish."},
  "Moss Bay":{type:"Shallow oyster-reef bay",depth:"Very shallow shell mounds and reef edges",how:"Fish shell edges and pockets carefully; this bay is productive but shallow and hazardous, so treat the map point as fishing reference only."},
+ "Lake Charles – I-10 Ship Channel Ledge":{type:"Ship-channel ledge / bridge-current zone",depth:"Sharp drop from shallow lake water into the Calcasieu River / ship channel",how:"Fish the current break along the ledge rather than the middle of the channel. Work soft plastics near bottom when cold and higher in the water column when bait is suspended."},
+ "Lake Charles – North Beach Hard Bottom":{type:"North-shore beach / hard-bottom edge",depth:"Shallow beachfront and shell/hard bottom grading toward deeper channel water",how:"Look for mullet, birds, slicks and cleaner water. Fish the hard-bottom edge and nearby drop, especially in late fall and winter."},
+ "Lake Charles – Civic Center Deep Hole":{type:"Dredged deep hole / steep drop",depth:"Published reports describe 30–50+ ft water with fish often suspended much shallower",how:"Use sonar to find the depth holding bait and fish the edge first. In cold weather, slow soft plastics along the drop and adjust to suspended fish rather than automatically fishing the bottom."},
+ "Lake Charles – East Entrance Flat":{type:"5–6 ft flat beside deeper Calcasieu River water",depth:"Shallow flat dropping quickly toward the deeper river / lake basin",how:"Cover the flat early or when bait is present, then work the break into deeper water. This transition has a published history of holding quality trout."},
  "I-210 North Channel Ledge":{type:"Ship-channel ledge north of I-210",depth:"18–22 ft ledge",how:"Follow the deep ledge north of the bridge; in cold water slow the presentation near bottom."},
  "East Island Flat":{type:"Shallow flat beside the island / trough",depth:"Flat edge into deeper trough",how:"Cover the flat on moving water, then work the break where the flat falls into the trough."},
  "North Point / Ship Channel Junction":{type:"Point + channel-current seam",depth:"Point edge / channel break",how:"Set up where moving water sweeps past the point and fish the seam rather than the slack water."},
@@ -1032,6 +1044,7 @@ async function loadWaterClarity(s){
 
 function spotCoordinateClass(s){
  const note=(s&&s.sourceNote?String(s.sourceNote):"").toLowerCase();
+ if(/approximate|approx\.|not an official|fishing-reference/.test(note))return "Approximate fishing-reference point";
  const officialNames=new Set([
   "Cypremort Artificial Reef","Nickel Reef","Tiger Shoal – LDWF Station",
   "North West Cove / Rabbit Island North","Bodwin's Point Reef","Bird Island Reef","Point Mast Reef",

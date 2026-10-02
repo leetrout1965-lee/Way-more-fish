@@ -1064,7 +1064,7 @@ function openSpotInGoogleMaps(){
 async function selectSpot(s){
  selected=s;updateSpotMarkerIcons();updateSpotGps(s);wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];resetRecoveryOutlook();recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};resetBestWindow();updateDataQuality();document.getElementById("spotTitle").textContent=s.name;
  const idx=spots.indexOf(s),parentArea=parentAreaForArea(s.area);if(parentArea&&areaPicker.value!==parentArea){areaPicker.value=parentArea;showArea(parentArea);}if(idx>=0)document.getElementById("locationPicker").value=String(idx);
- map.setView([s.lat,s.lon],11);
+ map.setView([s.lat,s.lon],Math.max(map.getZoom(),13));
  updateStructure(s);
  document.getElementById("status").textContent="Loading weather, tides and salinity…";
  document.getElementById("autoClarityStatus").textContent="Loading…";document.getElementById("autoClaritySource").textContent="Checking measured/satellite clarity…";document.getElementById("salinityStatus").textContent="Loading…";document.getElementById("waterTempStatus").textContent="Loading…";document.getElementById("salinitySource").textContent="Finding nearest monitoring station…";document.getElementById("speciesFit").textContent="Species fit: calculating…";document.getElementById("speciesWhy").textContent="Waiting for water-quality data.";

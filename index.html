@@ -415,9 +415,9 @@ const spots=[
 {name:"Fifi Island",area:"Grand Isle",lat:29.257172,lon:-89.973961,tide:"8761724",tideName:"Grand Isle"},
 {name:"Barataria Pass",area:"Grand Isle",lat:29.272833,lon:-89.946806,tide:"8761724",tideName:"Grand Isle"},
 {name:"Grand Terre Island",area:"Grand Isle",lat:29.30245,lon:-89.89563,tide:"8761724",tideName:"Grand Isle"},
-{name:"I-210 North Channel Ledge",area:"Prien Lake",lat:30.1988,lon:-93.2818,tide:"8767816",tideName:"Lake Charles"},
+{name:"I-210 North Channel Ledge",area:"Prien Lake",lat:30.19855,lon:-93.28410,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference moved to channel-side water after chart/map cross-check; not an official agency waypoint."},
 {name:"East Island Flat",area:"Prien Lake",lat:30.1910,lon:-93.2810,tide:"8767816",tideName:"Lake Charles"},
-{name:"North Point / Ship Channel Junction",area:"Prien Lake",lat:30.1968,lon:-93.2835,tide:"8767816",tideName:"Lake Charles"},
+{name:"North Point / Ship Channel Junction",area:"Prien Lake",lat:30.19685,lon:-93.28600,tide:"8767816",tideName:"Lake Charles",sourceNote:"Approximate fishing reference moved to the ship-channel side after chart/map cross-check; not an official agency waypoint."},
 {name:"Indian Bay / Northeast Point",area:"Prien Lake",lat:30.1922,lon:-93.2748,tide:"8767816",tideName:"Lake Charles"},
 {name:"South Bridge Mud Flats",area:"Prien Lake",lat:30.1930,lon:-93.2795,tide:"8767816",tideName:"Lake Charles"},
 {name:"Southeast Shoreline",area:"Prien Lake",lat:30.1785,lon:-93.2718,tide:"8767816",tideName:"Lake Charles"},
@@ -1030,6 +1030,26 @@ async function loadWaterClarity(s){
  return c.direct?{}:{warning:"Direct clarity unavailable; using modeled clarity fallback"};
 }
 
+function spotCoordinateClass(s){
+ const note=(s&&s.sourceNote?String(s.sourceNote):"").toLowerCase();
+ const officialNames=new Set([
+  "Cypremort Artificial Reef","Nickel Reef","Tiger Shoal – LDWF Station",
+  "North West Cove / Rabbit Island North","Bodwin's Point Reef","Bird Island Reef","Point Mast Reef",
+  "Sabine Lake North","Sabine Lake South","Bayou d’Inde Confluence / West Flats",
+  "Lake Barre","Bayou Perot / Point Legard"
+ ]);
+ const publishedNames=new Set([
+  "Rabbit Island Pass","Pencil Canal / Little Lake","Lake Coquille / Bernard-Pisana Mouth",
+  "Bayou Dosgris Deep Hole","Horseshoe Reef"
+ ]);
+ if(officialNames.has(s.name)||/louisiana deq|ldwf|monitoring station|water quality|usgs/.test(note)){
+  return "Verified official coordinate";
+ }
+ if(publishedNames.has(s.name)||/^published\b/.test(note)||/published .*reference|published .*coordinate/.test(note)){
+  return "Cross-checked published fishing reference";
+ }
+ return "Approximate fishing-reference point";
+}
 function updateSpotGps(s){
  const coords=document.getElementById("spotCoords");
  if(!coords)return;
@@ -1041,7 +1061,7 @@ function updateSpotGps(s){
  coords.textContent=`${Number(s.lat).toFixed(5)}, ${Number(s.lon).toFixed(5)}`;
  ["copyGpsBtn","appleMapsBtn","googleMapsBtn"].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=false;});
  const note=document.getElementById("spotGpsNote");
- if(note)note.textContent=(s.sourceNote?`${s.sourceNote} • `:"")+"Fishing-reference coordinates only — verify local access, hazards and navigation before using on the water.";
+ if(note)note.textContent=spotCoordinateClass(s)+" • "+(s.sourceNote?`${s.sourceNote} • `:"")+"Fishing-reference coordinates only — verify local access, hazards and navigation before using on the water.";
 }
 function copySpotGps(){
  if(!selected)return;

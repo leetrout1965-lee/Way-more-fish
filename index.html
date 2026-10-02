@@ -58,7 +58,6 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <option value="Vermilion Bay">Vermilion Bay</option>
 <option value="Tiger Shoal West">Tiger Shoal West</option>
 <option value="Tiger Shoal East">Tiger Shoal East</option>
-<option value="Cote Blanche / Nickel Reef">Cote Blanche / Nickel Reef</option>
 <option value="Big Lake / Calcasieu">Big Lake / Calcasieu</option>
 <option value="West Cove">West Cove</option>
 <option value="Hackberry">Hackberry</option>
@@ -311,8 +310,8 @@ const spots=[
 {name:"Diamond Reef",area:"Vermilion Bay",lat:29.517882,lon:-91.98532,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
 {name:"Grassy Island Point",area:"Vermilion Bay",lat:29.530382,lon:-91.962748,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
 {name:"Shell Keys Reef",area:"Vermilion Bay",lat:29.40656833,lon:-91.85370667,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
-{name:"Nickel Reef",area:"Cote Blanche / Nickel Reef",lat:29.41945,lon:-91.7075,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"LDWF nearshore reef"},
-{name:"Rabbit Island Pass",area:"Cote Blanche / Nickel Reef",lat:29.42695,lon:-91.70750,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published LDWF nearshore reference"},
+{name:"Nickel Reef",area:"Vermilion Bay",lat:29.41945,lon:-91.7075,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"LDWF nearshore reef"},
+{name:"Rabbit Island Pass",area:"Vermilion Bay",lat:29.42695,lon:-91.70750,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published LDWF nearshore reference"},
 {name:"Lake Tom",area:"Vermilion Bay",lat:29.57111,lon:-91.82639,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Oyster Lake",area:"Vermilion Bay",lat:29.52917,lon:-91.86861,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Mound Point",area:"Vermilion Bay",lat:29.47472,lon:-91.82278,tide:"8765251",tideName:"Cypremort Point"},
@@ -687,7 +686,7 @@ const baseMaps={
 };
 const ccaReefLayer=L.layerGroup();
 ccaReefs.forEach((r,i)=>{
- const m=L.circleMarker([r.lat,r.lon],{radius:6,weight:2,fillOpacity:.9});
+ const m=L.circleMarker([r.lat,r.lon],{radius:6,weight:2,color:"#d9822b",fillColor:"#f6a94a",fillOpacity:.92});
  const coords=`${r.lat.toFixed(6)}, ${r.lon.toFixed(6)}`;
  m.bindPopup(
   `<strong>${r.name}</strong><br>${r.group}<br>${coords}<br><span style="font-size:11px">${r.source}</span>`+

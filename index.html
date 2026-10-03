@@ -89,7 +89,25 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
 </div>
 <div id="map"></div>
-<div class="wrap"><div id="status" class="small muted" style="padding:10px;border:1px solid #38566d;border-radius:10px;margin-bottom:10px">
+<div class="wrap">
+<div id="prienDepthGuide" class="card" style="display:none;margin-bottom:10px">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+    <div>
+      <h3 style="margin:0 0 4px">Prien Lake Depth & Tidal Flow Guide</h3>
+      <div class="small muted">NOAA chart base with fishing interpretation. Not for navigation.</div>
+    </div>
+    <button id="prienDepthGuideBtn" class="primary" type="button" onclick="togglePrienDepthGuide()">Show guide</button>
+  </div>
+  <div id="prienDepthGuideBody" style="display:none;margin-top:10px">
+    <img src="/prien-depth-flow.png"
+         alt="Prien Lake NOAA-based depth and tidal flow fishing reference"
+         style="display:block;width:100%;height:auto;border-radius:12px;border:1px solid #38566d">
+    <div class="small muted" style="margin-top:8px">
+      Fishing interpretation only — not for navigation. Use the NOAA Nautical Chart layer for charted depths, soundings, hazards and navigation reference.
+    </div>
+  </div>
+</div>
+<div id="status" class="small muted" style="padding:10px;border:1px solid #38566d;border-radius:10px;margin-bottom:10px">
 If this file is opened in iPad Quick Look, live JavaScript may not run. Open the hosted version in Safari for live NOAA/NWS data and the fishing percentage.
 </div><div class="grid">
 <section class="card full">
@@ -828,7 +846,25 @@ function populateCompareSelectors(matches){
 }
 function fillTopAreaSpots(){populateCompareSelectors(currentAreaMatches);}
 function chosenCompareSpots(){const seen=new Set(),picked=[];compareIds.forEach(id=>{const v=document.getElementById(id).value;if(v!==""&&!seen.has(v)){seen.add(v);picked.push(spots[Number(v)]);}});return picked;}
+function togglePrienDepthGuide(){
+ const body=document.getElementById("prienDepthGuideBody");
+ const btn=document.getElementById("prienDepthGuideBtn");
+ if(!body||!btn)return;
+ const open=body.style.display!=="none";
+ body.style.display=open?"none":"block";
+ btn.textContent=open?"Show guide":"Hide guide";
+}
+function setPrienDepthGuideVisible(area){
+ const guide=document.getElementById("prienDepthGuide");
+ const body=document.getElementById("prienDepthGuideBody");
+ const btn=document.getElementById("prienDepthGuideBtn");
+ if(!guide)return;
+ const show=area==="Prien Lake";
+ guide.style.display=show?"block":"none";
+ if(!show&&body){body.style.display="none";if(btn)btn.textContent="Show guide";}
+}
 function showArea(area){
+ setPrienDepthGuideVisible(area);
  if(calendarArea)calendarArea.value=area;
  fg.clearLayers();whereNowLayer.clearLayers();selected=null;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
  updateSpotMarkerIcons();
@@ -2321,6 +2357,7 @@ function updateConnectivityBanner(){
 }
 window.addEventListener("online",updateConnectivityBanner);
 window.addEventListener("offline",updateConnectivityBanner);
+setPrienDepthGuideVisible("");
 updateConnectivityBanner();
 if("serviceWorker" in navigator){
  window.addEventListener("load",()=>navigator.serviceWorker.register("/service-worker.js").catch(()=>{}));

@@ -46,6 +46,15 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
   #weather,#recoveryWindow,#recoveryTide,#observedWind,#recentMaxGust,#recentRain,#recentWindShift,#disruptionRisk{white-space:normal}
 }
+
+.wmf-structure-label{background:transparent;border:none}
+.wmf-structure-pill{
+ display:inline-block;max-width:190px;padding:5px 8px;border-radius:9px;
+ background:rgba(8,24,36,.92);border:1px solid #f6a94a;color:#fff;
+ font-size:11px;line-height:1.2;font-weight:700;white-space:normal;
+ box-shadow:0 2px 7px rgba(0,0,0,.35)
+}
+.wmf-structure-pill span{display:block;color:#f6c46f;font-weight:600;margin-top:2px}
 </style>
 </head>
 <body>
@@ -86,7 +95,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 </div>
 
 <div style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
+<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. Turn on <strong>Bottom Structure (close zoom)</strong> for curated fishing-structure labels at zoom 12+. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
 </div>
 <div id="map"></div>
 <div class="wrap">
@@ -624,6 +633,55 @@ function updateStructure(s){
  document.getElementById("structureHow").textContent="How to fish it: "+how;
  document.getElementById("structureNote").textContent="Structure guidance is spot-specific where documented and category-based elsewhere.";
 }
+
+function structureShortType(d){
+ const t=(d&&d.type?String(d.type):"Structure").replace(/\s*\/\s*/g," / ");
+ return t.length>40?t.slice(0,37)+"…":t;
+}
+function updateBottomStructureLayer(){
+ bottomStructureLayer.clearLayers();
+ if(!map.hasLayer(bottomStructureLayer))return;
+ if(map.getZoom()<12)return;
+
+ const areaEl=document.getElementById("areaPicker");
+ const area=areaEl?areaEl.value:"";
+ const bounds=map.getBounds().pad(.08);
+
+ spots.forEach((s,i)=>{
+  const d=structureDetails[s.name];
+  if(!d)return;
+  if(area && !spotBelongsToArea(s,area))return;
+  const ll=L.latLng(s.lat,s.lon);
+  if(!bounds.contains(ll))return;
+
+  const marker=L.marker(ll,{
+   interactive:true,
+   keyboard:false,
+   zIndexOffset:300,
+   icon:L.divIcon({
+    className:"wmf-structure-label",
+    html:`<div class="wmf-structure-pill">${s.name}<span>${structureShortType(d)}</span></div>`,
+    iconSize:null,
+    iconAnchor:[0,0]
+   })
+  });
+
+  const depth=d.depth?`<div style="margin-top:6px"><strong>Depth / bottom:</strong> ${d.depth}</div>`:"";
+  const how=d.how?`<div style="margin-top:6px"><strong>How to fish it:</strong> ${d.how}</div>`:"";
+  marker.bindPopup(
+   `<strong>${s.name}</strong>`+
+   `<div style="margin-top:5px"><strong>Structure:</strong> ${d.type||"Reference structure"}</div>`+
+   depth+how+
+   `<div style="margin-top:7px;font-size:11px">Fishing-structure interpretation only. Use the NOAA Nautical Chart for charted soundings, hazards and navigation reference.</div>`
+  );
+  bottomStructureLayer.addLayer(marker);
+ });
+}
+map.on("zoomend moveend",updateBottomStructureLayer);
+map.on("overlayadd overlayremove",e=>{
+ if(e.layer===bottomStructureLayer)updateBottomStructureLayer();
+});
+
 function resetStructure(){
  document.getElementById("structureType").textContent="—";
  document.getElementById("structureDepth").textContent="—";
@@ -736,6 +794,7 @@ const baseMaps={
  "Satellite":satelliteLayer
 };
 const ccaReefLayer=L.layerGroup();
+const bottomStructureLayer=L.layerGroup();
 ccaReefs.forEach((r,i)=>{
  const m=L.circleMarker([r.lat,r.lon],{radius:6,weight:2,color:"#d9822b",fillColor:"#f6a94a",fillOpacity:.92});
  const coords=`${r.lat.toFixed(6)}, ${r.lon.toFixed(6)}`;
@@ -747,7 +806,7 @@ ccaReefs.forEach((r,i)=>{
  ccaReefLayer.addLayer(m);
 });
 ccaReefLayer.addTo(map);
-L.control.layers(baseMaps,{"CCA Artificial Reefs":ccaReefLayer},{position:"topright",collapsed:false}).addTo(map);
+L.control.layers(baseMaps,{"CCA Artificial Reefs":ccaReefLayer,"Bottom Structure (close zoom)":bottomStructureLayer},{position:"topright",collapsed:false}).addTo(map);
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
 let myLocationMarker=null,myLocationAccuracy=null;
@@ -886,6 +945,7 @@ function setPrienDepthGuideVisible(area){
 }
 function showArea(area){
  setPrienDepthGuideVisible(area);
+ setTimeout(updateBottomStructureLayer,0);
  if(calendarArea)calendarArea.value=area;
  fg.clearLayers();whereNowLayer.clearLayers();selected=null;wx=null;tides=[];pressureSeries=[];waterState={sal:null,tempF:null,fit:null};clarityState={score:null,label:"Unknown",source:"unavailable",details:"",direct:false};hourlyPeriods=[];recentConditions={risk:"Unknown",penalty:0,maxGust:null,maxWind:null,rainIn:null,windShift:null,observedWind:null,stationName:null,stationId:null,age:null,thunder:false};dataQuality={weather:"none",observedWind:"none",tides:"none",salinity:"none",salinityProxy:true,salinityAge:null};
  updateSpotMarkerIcons();

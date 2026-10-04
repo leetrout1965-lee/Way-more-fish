@@ -95,7 +95,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 </div>
 
 <div style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. Turn on <strong>Bottom Structure (close zoom)</strong> for curated fishing-structure labels at zoom 12+. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
+<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. At zoom 12+, tap a NOAA chart symbol to identify the charted feature. Turn on <strong>Bottom Structure (close zoom)</strong> for curated fishing-structure labels. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
 </div>
 <div id="map"></div>
 <div class="wrap">
@@ -841,6 +841,127 @@ map.on("locationfound",e=>{
 });
 map.on("locationerror",e=>{
  alert("Could not get your location. On iPad, allow location access for this site in Safari settings.");
+});
+
+// NOAA ENC feature identification.
+// When the NOAA chart is active and zoomed in, tapping a raster chart symbol
+// queries NOAA's Maritime Chart Service for the ENC feature under the tap.
+const NOAA_IDENTIFY_URL="https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/exts/MaritimeChartService/MapServer/identify";
+
+function cleanNoaaValue(v){
+ if(v===null||v===undefined)return "";
+ const s=String(v).trim();
+ if(!s||s==="Null"||s==="null"||s==="N/A"||s==="0")return "";
+ return s;
+}
+function firstNoaaAttr(attrs,keys){
+ for(const k of keys){
+  if(Object.prototype.hasOwnProperty.call(attrs,k)){
+   const v=cleanNoaaValue(attrs[k]);
+   if(v)return v;
+  }
+ }
+ return "";
+}
+function noaaFeatureSummary(r){
+ const a=r&&r.attributes?r.attributes:{};
+ const layer=cleanNoaaValue(r&&r.layerName)||"NOAA ENC feature";
+ const value=cleanNoaaValue(r&&r.value);
+ const name=firstNoaaAttr(a,["OBJNAM","NOBJNM","NAME","Name","name","LNAM"]);
+ const depth=firstNoaaAttr(a,["VALSOU","VALDCO","DRVAL1","DRVAL2","DEPTH","Depth","depth"]);
+ const seabed=firstNoaaAttr(a,["NATSUR","NATQUA","SEABED","Seabed"]);
+ const waterLevel=firstNoaaAttr(a,["WATLEV","Water Level","waterLevel"]);
+ const category=firstNoaaAttr(a,["CATOBS","CATWRK","CATROC","CATWED","CATREA","Category","category"]);
+ const quality=firstNoaaAttr(a,["QUASOU","TECSOU","STATUS","Quality","quality"]);
+
+ let title=name||value||layer;
+ if(/^\d+$/.test(title))title=layer;
+
+ const rows=[];
+ if(layer && layer!==title)rows.push(`<div><strong>NOAA layer:</strong> ${layer}</div>`);
+ if(depth)rows.push(`<div><strong>Charted depth/value:</strong> ${depth}</div>`);
+ if(seabed)rows.push(`<div><strong>Seabed:</strong> ${seabed}</div>`);
+ if(category)rows.push(`<div><strong>Category:</strong> ${category}</div>`);
+ if(waterLevel)rows.push(`<div><strong>Water level:</strong> ${waterLevel}</div>`);
+ if(quality)rows.push(`<div><strong>Survey/status:</strong> ${quality}</div>`);
+
+ return {
+  title,
+  html:`<strong>${title}</strong>${rows.join("")}
+    <div style="margin-top:7px;font-size:11px;color:#526575">
+      NOAA ENC chart feature. Attribute codes may use S-57/ENC terminology. Not for navigation.
+    </div>`
+ };
+}
+async function identifyNoaaChartFeature(latlng){
+ if(!map.hasLayer(noaaChartLayer)||map.getZoom()<12)return;
+
+ const size=map.getSize();
+ const bounds=map.getBounds();
+ const p=L.CRS.EPSG3857.project(latlng);
+ const sw=L.CRS.EPSG3857.project(bounds.getSouthWest());
+ const ne=L.CRS.EPSG3857.project(bounds.getNorthEast());
+
+ const params=new URLSearchParams({
+  f:"json",
+  geometry:JSON.stringify({
+   x:p.x,y:p.y,
+   spatialReference:{wkid:102100}
+  }),
+  geometryType:"esriGeometryPoint",
+  sr:"102100",
+  tolerance:"14",
+  mapExtent:`${sw.x},${sw.y},${ne.x},${ne.y}`,
+  imageDisplay:`${Math.max(1,size.x)},${Math.max(1,size.y)},96`,
+  layers:"all:1,2,3",
+  returnGeometry:"false"
+ });
+
+ const loading=L.popup({maxWidth:340})
+  .setLatLng(latlng)
+  .setContent("<strong>Checking NOAA chart feature…</strong>")
+  .openOn(map);
+
+ try{
+  const res=await fetch(`${NOAA_IDENTIFY_URL}?${params.toString()}`,{cache:"no-store"});
+  if(!res.ok)throw new Error(`NOAA identify HTTP ${res.status}`);
+  const data=await res.json();
+  const results=Array.isArray(data&&data.results)?data.results:[];
+  if(!results.length){
+   loading.setContent(
+    "<strong>No NOAA ENC feature identified here.</strong>"+
+    "<div style='margin-top:6px;font-size:12px'>Tap closer to the center of the symbol. Some chart graphics are labels or generalized symbology rather than individually queryable features.</div>"
+   );
+   return;
+  }
+
+  // Prefer seabed/obstruction/depth results when several chart objects overlap.
+  const ranked=results.slice().sort((a,b)=>{
+   const score=x=>{
+    const s=`${x.layerName||""} ${x.value||""}`.toLowerCase();
+    if(/obstruction|wreck|rock|seabed|reef|depth|sounding|contour/.test(s))return 0;
+    if(/natural|man-made|port/.test(s))return 1;
+    return 2;
+   };
+   return score(a)-score(b);
+  });
+  const shown=ranked.slice(0,3).map(noaaFeatureSummary);
+  loading.setContent(
+   shown.map((x,i)=>`${i?'<hr style="border:0;border-top:1px solid #ccd6dd;margin:8px 0">':''}${x.html}`).join("")
+  );
+ }catch(err){
+  loading.setContent(
+   "<strong>NOAA feature lookup unavailable.</strong>"+
+   "<div style='margin-top:6px;font-size:12px'>The nautical chart itself is still usable as a reference layer. Try the symbol again in a moment.</div>"
+  );
+ }
+}
+
+map.on("click",e=>{
+ // Do not replace normal behavior when tapping app markers or vector overlays.
+ const target=e.originalEvent&&e.originalEvent.target;
+ if(target&&target.closest&&target.closest(".leaflet-marker-icon,.leaflet-interactive,.leaflet-control"))return;
+ identifyNoaaChartFeature(e.latlng);
 });
 
 

@@ -93,18 +93,39 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div id="prienDepthGuide" class="card" style="display:none;margin-bottom:10px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
     <div>
-      <h3 style="margin:0 0 4px">Prien Lake Depth & Tidal Flow Guide</h3>
-      <div class="small muted">NOAA chart base with fishing interpretation. Not for navigation.</div>
+      <h3 style="margin:0 0 4px">Prien Structure & Flow</h3>
+      <div class="small muted">Quick fishing reference tied to the live NOAA map.</div>
     </div>
-    <button id="prienDepthGuideBtn" class="primary" type="button" onclick="togglePrienDepthGuide()">Show guide</button>
+    <button id="prienDepthGuideBtn" class="primary" type="button" onclick="togglePrienDepthGuide()">Show reference</button>
   </div>
-  <div id="prienDepthGuideBody" style="display:none;margin-top:10px">
-    <img src="/prien-depth-flow.png"
-         alt="Prien Lake NOAA-based depth and tidal flow fishing reference"
-         style="display:block;width:100%;height:auto;border-radius:12px;border:1px solid #38566d">
-    <div class="small muted" style="margin-top:8px">
-      Fishing interpretation only — not for navigation. Use the NOAA Nautical Chart layer for charted depths, soundings, hazards and navigation reference.
+  <div id="prienDepthGuideBody" style="display:none;margin-top:12px">
+    <div class="grid" style="gap:10px">
+      <div class="card">
+        <strong>I-210 North Channel Ledge</strong>
+        <div class="small muted" style="margin-top:4px">Published fishing reference: about 18–22 ft along the western ledge north of I-210, next to deeper ship-channel water.</div>
+      </div>
+      <div class="card">
+        <strong>Calcasieu Ship Channel</strong>
+        <div class="small muted" style="margin-top:4px">Main channel is substantially deeper; USGS surveys in the Lake Charles reach found roughly 33–46.5 ft.</div>
+      </div>
+      <div class="card">
+        <strong>South of I-210</strong>
+        <div class="small muted" style="margin-top:4px">Generally shallower flats, points and soft mud/silt bottom. Use NOAA soundings for exact local depth.</div>
+      </div>
+      <div class="card">
+        <strong>Flood tide</strong>
+        <div class="small muted" style="margin-top:4px">Generally pushes water north / up the Calcasieu Ship Channel.</div>
+      </div>
+      <div class="card">
+        <strong>Ebb tide</strong>
+        <div class="small muted" style="margin-top:4px">Generally pushes water south / down the channel toward the Gulf.</div>
+      </div>
+      <div class="card">
+        <strong>Best current seams</strong>
+        <div class="small muted" style="margin-top:4px">Focus on island tips, points, bridge constrictions and channel edges where moving water forms seams and eddies.</div>
+      </div>
     </div>
+    <div class="small muted" style="margin-top:10px">Fishing interpretation only — not for navigation. Wind and freshwater flow can modify the tidal pattern. Use the NOAA Nautical Chart layer for charted depths, hazards and navigation reference.</div>
   </div>
 </div>
 <div id="status" class="small muted" style="padding:10px;border:1px solid #38566d;border-radius:10px;margin-bottom:10px">
@@ -852,7 +873,7 @@ function togglePrienDepthGuide(){
  if(!body||!btn)return;
  const open=body.style.display!=="none";
  body.style.display=open?"none":"block";
- btn.textContent=open?"Show guide":"Hide guide";
+ btn.textContent=open?"Show reference":"Hide reference";
 }
 function setPrienDepthGuideVisible(area){
  const guide=document.getElementById("prienDepthGuide");
@@ -861,7 +882,7 @@ function setPrienDepthGuideVisible(area){
  if(!guide)return;
  const show=area==="Prien Lake";
  guide.style.display=show?"block":"none";
- if(!show&&body){body.style.display="none";if(btn)btn.textContent="Show guide";}
+ if(!show&&body){body.style.display="none";if(btn)btn.textContent="Show reference";}
 }
 function showArea(area){
  setPrienDepthGuideVisible(area);

@@ -19,8 +19,11 @@ button,select,input,textarea{font:inherit;border-radius:9px;border:1px solid #38
 button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.small{font-size:12px}.big{font-size:36px;font-weight:800}
 .good{color:#7bdc7b}.mid{color:#ffd166}.bad{color:#ff8585}table{width:100%;border-collapse:collapse}td{padding:5px;border-bottom:1px solid #284153}
 .rank-pin{background:#eef6fb;color:#0b1520;border:2px solid #0b1520;border-radius:50%;width:28px;height:28px;line-height:24px;text-align:center;font-weight:800;box-shadow:0 1px 5px #0008}.rank-list button{padding:6px 8px;margin-top:4px}.spot-map-link{padding:5px 8px;margin-top:4px;background:#0b668d;border-color:#3289aa;font-weight:700}.spot-map-link:focus{outline:2px solid #8fd3ff;outline-offset:2px}
-.leaflet-control-layers-overlays input[type="checkbox"]{accent-color:#f6a94a}
-.leaflet-control-layers-overlays label span{color:#f6a94a;font-weight:700}
+.leaflet-control-layers-overlays label{font-weight:700}
+.leaflet-control-layers-overlays label:first-child input[type="checkbox"]{accent-color:#f6a94a}
+.leaflet-control-layers-overlays label:first-child span{color:#d9822b}
+.leaflet-control-layers-overlays label:nth-child(2) input[type="checkbox"]{accent-color:#0b668d}
+.leaflet-control-layers-overlays label:nth-child(2) span{color:#0b668d}
 
 /* Touch-friendly fishing spot markers: small when viewing the coast, thumb-sized when zoomed into fishing water. */
 .wmf-spot-icon{background:transparent;border:0}
@@ -35,6 +38,9 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-spot-btn.selected::after{background:#0b668d}
 
 @media(max-width:650px){
+  .leaflet-control-layers-expanded{max-width:78vw;font-size:13px}
+  .leaflet-control-layers-toggle{width:38px;height:38px}
+
   html,body{max-width:100%;overflow-x:hidden}
   .grid{grid-template-columns:1fr}
   .full{grid-column:auto}
@@ -50,8 +56,8 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-structure-label{background:transparent;border:none}
 .wmf-structure-pill{
  display:inline-block;max-width:190px;padding:5px 8px;border-radius:9px;
- background:rgba(8,24,36,.92);border:1px solid #f6a94a;color:#fff;
- font-size:11px;line-height:1.2;font-weight:700;white-space:normal;
+ background:rgba(8,24,36,.86);border:1px solid #0b668d;color:#fff;
+ font-size:10px;line-height:1.2;font-weight:700;white-space:normal;
  box-shadow:0 2px 7px rgba(0,0,0,.35)
 }
 .wmf-structure-pill span{display:block;color:#f6c46f;font-weight:600;margin-top:2px}
@@ -95,7 +101,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 </div>
 
 <div style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map layers:</strong> Standard • NOAA Nautical Chart • Satellite. At zoom 12+, tap a NOAA chart symbol to identify the charted feature. Turn on <strong>Bottom Structure (close zoom)</strong> for curated fishing-structure labels. The app opens on a clean map with CCA Artificial Reefs visible; choose a fishing area when you want local fishing spots. Tap ◎ for your current GPS location. NOAA chart display is a planning/reference layer and is not a substitute for an approved navigation system.</div>
+<div class="small muted"><strong>Map:</strong> Standard • NOAA Chart • Satellite. Use <strong>Fishing Structure</strong> at close zoom for spot-specific bottom/structure guidance. On the NOAA chart at zoom 12+, tap a chart symbol for details. Tap ◎ for GPS. NOAA chart is for planning/reference, not navigation.</div>
 </div>
 <div id="map"></div>
 <div class="wrap">
@@ -802,7 +808,12 @@ ccaReefs.forEach((r,i)=>{
  ccaReefLayer.addLayer(m);
 });
 ccaReefLayer.addTo(map);
-L.control.layers(baseMaps,{"CCA Artificial Reefs":ccaReefLayer,"Bottom Structure (close zoom)":bottomStructureLayer},{position:"topright",collapsed:false}).addTo(map);
+const compactLayerControl=window.matchMedia&&window.matchMedia("(max-width:650px)").matches;
+L.control.layers(
+ baseMaps,
+ {"CCA Artificial Reefs":ccaReefLayer,"Fishing Structure":bottomStructureLayer},
+ {position:"topright",collapsed:compactLayerControl}
+).addTo(map);
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
 let myLocationMarker=null,myLocationAccuracy=null;
@@ -978,10 +989,11 @@ const fg=L.featureGroup().addTo(map);
 const whereNowLayer=L.layerGroup().addTo(map);
 const spotMarkers=new Map();
 function spotMarkerSize(zoom,isSelected=false){
- // Keep the coast-wide view clean, then become easy to hit with a thumb in fishing-area views.
- let size=zoom<=8?16:zoom===9?22:zoom===10?34:46;
- if(zoom>=13)size=50;
- if(isSelected)size=Math.min(60,size+10);
+ // Keep pins readable without covering the chart on phones.
+ const mobile=window.matchMedia&&window.matchMedia("(max-width:650px)").matches;
+ let size=zoom<=8?14:zoom===9?18:zoom===10?24:mobile?30:38;
+ if(zoom>=13)size=mobile?32:42;
+ if(isSelected)size=Math.min(mobile?40:50,size+(mobile?6:8));
  return size;
 }
 function makeSpotIcon(s,isSelected=false){

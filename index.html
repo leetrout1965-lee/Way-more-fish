@@ -677,10 +677,6 @@ function updateBottomStructureLayer(){
   bottomStructureLayer.addLayer(marker);
  });
 }
-map.on("zoomend moveend",updateBottomStructureLayer);
-map.on("overlayadd overlayremove",e=>{
- if(e.layer===bottomStructureLayer)updateBottomStructureLayer();
-});
 
 function resetStructure(){
  document.getElementById("structureType").textContent="—";
@@ -1026,6 +1022,13 @@ function parentAreaForArea(area){
  return area;
 }
 function spotBelongsToArea(s,area){return (areaChildren[area]||[area]).includes(s.area);}
+
+// Bottom Structure listeners must be attached only after the Leaflet map and area helpers exist.
+map.on("zoomend moveend",updateBottomStructureLayer);
+map.on("overlayadd overlayremove",e=>{
+ if(e.layer===bottomStructureLayer)updateBottomStructureLayer();
+});
+
 function pickerOptionHtml(matches,area){
  const children=areaChildren[area];
  if(!children)return matches.map(x=>`<option value="${x.i}">${x.s.name}</option>`).join("");

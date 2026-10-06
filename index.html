@@ -61,10 +61,45 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  box-shadow:0 2px 7px rgba(0,0,0,.35)
 }
 .wmf-structure-pill span{display:block;color:#f6c46f;font-weight:600;margin-top:2px}
+
+.live-help-backdrop{
+ position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+ background:rgba(3,12,19,.78);z-index:5000;padding:18px;
+}
+.live-help-backdrop.open{display:flex}
+.live-help-modal{
+ width:min(560px,100%);max-height:86vh;overflow:auto;
+ background:#132332;border:1px solid #38566d;border-radius:18px;
+ box-shadow:0 18px 50px rgba(0,0,0,.55);padding:18px;
+}
+.live-help-modal h2{margin:0 0 8px;font-size:24px}
+.live-help-modal p{line-height:1.45}
+.live-help-modal ul{padding-left:20px;line-height:1.45}
+.live-help-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+.live-help-actions button{flex:1 1 180px}
+
 </style>
 </head>
 <body>
 <header><h1>Way More Fish</h1><div class="sub">South Louisiana coast • live fishing conditions, not navigation</div></header>
+<div id="liveConditionsHelp" class="live-help-backdrop" role="dialog" aria-modal="true" aria-labelledby="liveHelpTitle">
+  <div class="live-help-modal">
+    <h2 id="liveHelpTitle">How Live Conditions works</h2>
+    <p><strong>Way More Fish compares current fishing conditions — it does not predict whether you will catch fish.</strong></p>
+    <ul>
+      <li>Choose a fishing area and spot to load wind, weather, tide movement, recent observations, pressure, water clarity and other available inputs.</li>
+      <li>The fishing score is a <strong>relative conditions score</strong> for that place and time, not a catch probability.</li>
+      <li>When a primary live source is unavailable, the app may use a recent cache or an independent fallback. The app labels source freshness and data confidence.</li>
+      <li>Local water conditions can still differ from stations and forecasts, so what you see on the water matters.</li>
+    </ul>
+    <p class="small muted">Planning and fishing reference only — not for navigation.</p>
+    <div class="live-help-actions">
+      <button class="primary" type="button" onclick="closeLiveConditionsHelp()">Continue</button>
+      <button type="button" onclick="hideLiveConditionsHelpForever()">Don't show this again</button>
+    </div>
+    <div class="small muted" style="margin-top:10px">You can reopen this explanation anytime from the Live conditions section.</div>
+  </div>
+</div>
 <div id="offlineBanner" class="small" style="display:none;padding:8px 12px;background:#5d4311;color:#fff3c4;border-bottom:1px solid #8d6a1c">
 Offline / weak signal — showing the most recently cached app and any previously cached data available on this device.
 </div>
@@ -149,8 +184,8 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 
 <section class="card full">
 <h3>Live conditions</h3>
-<p><strong>Choose a fishing area, then choose a spot.</strong> The app will load NOAA/NWS conditions and calculate a fishing percentage.</p>
-<p class="small muted">For the live version, open the hosted site in Safari. iPad Quick Look may display the file without running the live data calls.</p>
+<div class="small muted">Choose an area and spot to load current conditions and a relative fishing-conditions score.</div>
+<p style="margin:10px 0 0"><button type="button" onclick="openLiveConditionsHelp()">How Live Conditions works</button></p>
 </section>
 <section class="card full"><h3>Where Should I Fish Right Now?</h3>
 <div class="small muted">Scans the Louisiana areas in Way More Fish, then refines the strongest areas spot-by-spot. It blends current fishing conditions, water clarity, wind, tide movement, recent disruption and data confidence. The top spots are pinned on the map.</div>
@@ -767,6 +802,26 @@ let selected=null,wx=null,tides=[],pressureSeries=[],waterState={sal:null,tempF:
 
 let freshnessState={weather:"unavailable",tides:"unavailable",observed:"unavailable",clarity:"unavailable"};
 const ccaReefs=[{"name":"Cypremort Point II Reef","lat":29.7388,"lon":-91.8794,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Sweet Lake Reef","lat":29.9419,"lon":-93.29025,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Turner's Bay Island Reef","lat":30.055433,"lon":-93.307833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Redfish Pointe Reef","lat":29.677917,"lon":-92.118467,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Bird Island Reef","lat":29.059333,"lon":-90.723833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Point Mast Reef","lat":29.1074,"lon":-90.635717,"group":"Inshore","source":"LDWF Oct 2023 \u2014 NOAA disaster grant + CCA"},{"name":"Independence Island Reef","lat":29.3075,"lon":-89.933367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Laketown Reef","lat":30.043883,"lon":-90.239367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 East","lat":29.320417,"lon":-92.133333,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 West","lat":29.323133,"lon":-92.143767,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Timbalier 51 Reef","lat":28.883817,"lon":-90.484283,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 D","lat":29.095167,"lon":-92.500433,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 G","lat":29.120567,"lon":-92.503117,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 E","lat":29.08715,"lon":-92.505467,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 H","lat":29.086833,"lon":-92.517017,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Z.T. Jack Cart Reef \u2014 Vermilion 69","lat":29.29415,"lon":-92.264533,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"West Cameron 45 Reef","lat":29.674833,"lon":-93.607633,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"Green Monster Reef \u2014 West Delta 23","lat":29.18,"lon":-89.5527,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Green Monster Reef \u2014 West Delta 24","lat":29.1773,"lon":-89.5348,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 A","lat":29.108417,"lon":-91.05055,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 B","lat":29.104783,"lon":-91.057367,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Bay Marchand 3 CCA Reef","lat":29.053067,"lon":-90.1692,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Marsh Island 235 Reef","lat":29.312904,"lon":-92.054691,"group":"Nearshore","source":"CCA published center point, 2023"},{"name":"Raising Cane's Grand Isle Reef","lat":29.330917,"lon":-89.969817,"group":"Inshore/Nearshore","source":"LDWF published reef center, 2024"}];
+
+const LIVE_HELP_STORAGE_KEY="wmf-hide-live-conditions-help-v1";
+function openLiveConditionsHelp(){
+ const el=document.getElementById("liveConditionsHelp");
+ if(el)el.classList.add("open");
+}
+function closeLiveConditionsHelp(){
+ const el=document.getElementById("liveConditionsHelp");
+ if(el)el.classList.remove("open");
+}
+function hideLiveConditionsHelpForever(){
+ try{localStorage.setItem(LIVE_HELP_STORAGE_KEY,"1");}catch(e){}
+ closeLiveConditionsHelp();
+}
+function maybeShowLiveConditionsHelp(){
+ let hidden=false;
+ try{hidden=localStorage.getItem(LIVE_HELP_STORAGE_KEY)==="1";}catch(e){}
+ if(!hidden)openLiveConditionsHelp();
+}
+
 const map=L.map("map").setView([29.55,-91.88],9);
 
 // Base map choices. NOAA Chart Display uses NOAA ENC data with traditional chart symbology.
@@ -2597,9 +2652,15 @@ window.addEventListener("online",updateConnectivityBanner);
 window.addEventListener("offline",updateConnectivityBanner);
 setPrienDepthGuideVisible("");
 updateConnectivityBanner();
+setTimeout(maybeShowLiveConditionsHelp,250);
 if("serviceWorker" in navigator){
  window.addEventListener("load",()=>navigator.serviceWorker.register("/service-worker.js").catch(()=>{}));
 }
+
+document.getElementById("liveConditionsHelp")?.addEventListener("click",e=>{
+ if(e.target===e.currentTarget)closeLiveConditionsHelp();
+});
+
 </script>
 
 </body></html>

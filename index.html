@@ -84,7 +84,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-tools-control{display:none}
 .wmf-quick-status{display:none}
 
-@media (max-width:1400px), (hover:none) and (pointer:coarse){
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
   body{padding-bottom:0}
   #map{height:62vh;min-height:420px}
   .wrap{padding-top:8px}
@@ -208,6 +208,13 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   #map{height:100dvh!important;min-height:100dvh!important}
 }
 
+
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+  #wmfToolSheetContent #spotGpsBlock{display:none!important}
+  #wmfToolSheetContent #scoreBreakdown{font-size:12px}
+  #wmfToolSheetContent details{margin-top:8px}
+}
+
 </style>
 </head>
 <body>
@@ -279,10 +286,10 @@ Offline / weak signal — showing the most recently cached app and any previousl
     <div class="wmf-tools-group">
       <h4>Fish now</h4>
       <div class="wmf-tools-buttons">
-        <button type="button" onclick="openFishingTool('Where Should I Fish Right Now?')">Where Should I Fish?</button>
+        <button type="button" onclick="openFishingTool('Where Should I Fish Right Now?')">Best Areas Now</button>
         <button type="button" onclick="openFishingTool('Best Fishing Spot Near Me')">Best Spot Near Me</button>
-        <button type="button" onclick="openFishingTool('Current Conditions')">Current Conditions</button>
-        <button type="button" onclick="openFishingTool('What to throw now')">What to Throw</button>
+        <button type="button" onclick="openFishingTool('Current Conditions')">Spot Conditions</button>
+        <button type="button" onclick="openFishingTool('What to throw now')">Lure / Bait Suggestion</button>
       </div>
     </div>
 
@@ -291,7 +298,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
       <div class="wmf-tools-buttons">
         <button type="button" onclick="openFishingTool('Best Upcoming Window')">Best Upcoming Window</button>
         <button type="button" onclick="openFishingTool('Tomorrow\\'s Top 3 Fishing Spots')">Tomorrow's Top 3</button>
-        <button type="button" onclick="openFishingTool('Recovery Outlook')">Recovery Outlook</button>
+        <button type="button" onclick="openFishingTool('Recovery Outlook')">Water Recovery</button>
         <button type="button" onclick="openFishingTool('Fishing Opportunity Calendar')">Fishing Calendar</button>
       </div>
     </div>
@@ -302,8 +309,8 @@ Offline / weak signal — showing the most recently cached app and any previousl
         <button type="button" onclick="openFishingTool('Cleanest Fishable Water')">Cleanest Water</button>
         <button type="button" onclick="openFishingTool('Tide')">Tide</button>
         <button type="button" onclick="openFishingTool('Water conditions')">Water Conditions</button>
-        <button type="button" onclick="openFishingTool('Depth & structure')">Depth & Structure</button>
-        <button type="button" onclick="openFishingTool('Recent Conditions Memory')">Recent Conditions</button>
+        <button type="button" onclick="openFishingTool('Depth & structure')">Bottom / Structure</button>
+        <button type="button" onclick="openFishingTool('Recent Conditions Memory')">Recent Wind / Storms</button>
         <button type="button" onclick="openFishingTool('Weather')">Weather & Pressure</button>
       </div>
     </div>
@@ -311,10 +318,10 @@ Offline / weak signal — showing the most recently cached app and any previousl
     <div class="wmf-tools-group">
       <h4>Reports & info</h4>
       <div class="wmf-tools-buttons">
-        <button type="button" onclick="openFishingTool('One-tap fishing report')">Fishing Report</button>
+        <button type="button" onclick="openFishingTool('One-tap fishing report')">Log a Quick Report</button>
         <button type="button" onclick="openFishingTool('Compare spots')">Compare Spots</button>
         <button type="button" onclick="openFishingTool('Trip journal')">Trip Journal</button>
-        <button type="button" onclick="openFishingTool('Data quality')">Data Quality</button>
+        <button type="button" onclick="openFishingTool('Data quality')">Data Sources / Quality</button>
         <button type="button" onclick="openFishingTool('Louisiana regulations')">Regulations</button>
         <button type="button" onclick="openLiveConditionsHelp();closeFishingToolsMenu()">How Live Conditions Works</button>
         <button type="button" onclick="openFishingTool('CCA Louisiana & Artificial Reefs')">CCA Louisiana</button>
@@ -1051,6 +1058,7 @@ function openSpotSelector(){
  host.appendChild(panel);
  sheet.classList.add("open");
  sheet.setAttribute("aria-hidden","false");
+ refreshMapSize();
 }
 function closeSpotSelector(){
  const panel=document.getElementById("wmfPickerPanel");
@@ -1063,6 +1071,7 @@ function closeSpotSelector(){
   }
  }
  if(sheet){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
+ refreshMapSize();
 }
 
 function openFishingToolsMenu(){
@@ -1112,6 +1121,7 @@ function openFishingTool(title){
 
  sheet.classList.add("open");
  sheet.setAttribute("aria-hidden","false");
+ refreshMapSize();
 }
 function closeFishingTool(){
  const sheet=document.getElementById("wmfToolSheet");
@@ -1134,10 +1144,20 @@ function compactStatusText(){
  const wind=document.getElementById("wind")?.textContent?.trim()||"Wind —";
  const tide=document.getElementById("tideMove")?.textContent?.trim()||"Tide —";
  const pressure=document.getElementById("pressure")?.textContent?.trim()||"";
- if(!document.getElementById("locationPicker")?.value)return "Choose a fishing spot";
+ if(!document.getElementById("locationPicker")?.value)return "🎣 Choose fishing spot";
  const p=(pressure&&pressure!=="—"&&!pressure.toLowerCase().includes("unavailable"))?` • ${pressure}`:"";
  return `${score} • ${wind} • ${tide}${p}`;
 }
+
+function refreshMapSize(){
+ if(typeof map!=="undefined"&&map&&map.invalidateSize){
+  setTimeout(()=>map.invalidateSize({pan:false}),80);
+  setTimeout(()=>map.invalidateSize({pan:false}),450);
+ }
+}
+window.addEventListener("resize",refreshMapSize);
+window.addEventListener("orientationchange",refreshMapSize);
+
 function updateMapQuickStatus(){
  const btn=document.getElementById("wmfQuickStatusBtn");
  if(btn)btn.textContent=compactStatusText();
@@ -1208,7 +1228,12 @@ const QuickStatusControl=L.Control.extend({
   btn.textContent="Choose a fishing spot";
   btn.title="Open current conditions";
   L.DomEvent.disableClickPropagation(box);
-  L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openFishingTool("Current Conditions");});
+  L.DomEvent.on(btn,"click",e=>{
+   L.DomEvent.preventDefault(e);
+   const picker=document.getElementById("locationPicker");
+   if(!picker||!picker.value)openSpotSelector();
+   else openFishingTool("Current Conditions");
+  });
   return box;
  }
 });
@@ -3029,6 +3054,7 @@ updateConnectivityBanner();
 setTimeout(maybeShowLiveConditionsHelp,250);
 
 setTimeout(updateMapQuickStatus,300);
+setTimeout(refreshMapSize,350);
 ["score","wind","tideMove","pressure","locationPicker"].forEach(id=>{
  const el=document.getElementById(id);
  if(el){

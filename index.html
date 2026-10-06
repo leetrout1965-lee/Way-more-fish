@@ -215,6 +215,11 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   #wmfToolSheetContent details{margin-top:8px}
 }
 
+
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+  .wmf-tools-control{margin-bottom:72px!important}
+}
+
 </style>
 </head>
 <body>
@@ -1262,7 +1267,7 @@ const compactLayerControl=window.matchMedia&&window.matchMedia("(max-width:1400p
 L.control.layers(
  baseMaps,
  {"CCA Artificial Reefs":ccaReefLayer,"Fishing Structure":bottomStructureLayer},
- {position:"topright",collapsed:compactLayerControl}
+ {position:"topright",collapsed:false}
 ).addTo(map);
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
@@ -1287,6 +1292,12 @@ const LocationControl=L.Control.extend({
   L.DomEvent.disableClickPropagation(box);
   L.DomEvent.on(btn,"click",function(e){
    L.DomEvent.preventDefault(e);
+   try{
+    const saved=JSON.parse(localStorage.getItem("wmf-last-location")||"null");
+    if(saved&&Number.isFinite(saved.lat)&&Number.isFinite(saved.lng)&&Date.now()-Number(saved.at||0)<12*3600000){
+     map.setView([saved.lat,saved.lng],15);
+    }
+   }catch(err){}
    map.locate({setView:true,maxZoom:15,enableHighAccuracy:true});
   });
   return box;
@@ -1298,8 +1309,9 @@ map.on("locationfound",e=>{
  if(myLocationMarker)map.removeLayer(myLocationMarker);
  if(myLocationAccuracy)map.removeLayer(myLocationAccuracy);
  myLocationMarker=L.circleMarker(e.latlng,{radius:8,weight:3,fillOpacity:.9})
-  .addTo(map).bindPopup(`<strong>My location</strong><br>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}<br><span style="font-size:11px">Accuracy ±${Math.round(e.accuracy)} m</span>`).openPopup();
+  .addTo(map).bindPopup(`<strong>My location</strong><br>${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}<br><span style="font-size:11px">Accuracy ±${Math.round(e.accuracy)} m</span>`);
  myLocationAccuracy=L.circle(e.latlng,{radius:e.accuracy,weight:1,fillOpacity:.08}).addTo(map);
+ try{localStorage.setItem("wmf-last-location",JSON.stringify({lat:e.latlng.lat,lng:e.latlng.lng,at:Date.now()}));}catch(err){}
 });
 map.on("locationerror",e=>{
  alert("Could not get your location. On iPad, allow location access for this site in Safari settings.");

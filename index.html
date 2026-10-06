@@ -146,16 +146,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div id="status" class="small muted" style="padding:10px;border:1px solid #38566d;border-radius:10px;margin-bottom:10px">
 If this file is opened in iPad Quick Look, live JavaScript may not run. Open the hosted version in Safari for live NOAA/NWS data and the fishing percentage.
 </div><div class="grid">
-<section class="card full">
-<h3>CCA Artificial Reefs</h3>
-<div class="small muted">The map includes a dedicated CCA Artificial Reefs overlay with 24 reef coordinates verified from published LDWF/CCA sources. Tap a reef marker for its name, GPS, source, Copy GPS, and Open in Maps.</div>
-<div class="small muted" style="margin-top:6px">Important: this layer only includes reefs for which a public coordinate could be verified. CCA has additional newer reefs whose coordinates were still described by CCA as pending survey/publication in the sources checked; those are not guessed or plotted.</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
-  <a href="https://ccalouisiana.com/about-us/why-join-cca/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#0b668d;color:white;text-decoration:none;font-weight:700">Join CCA Louisiana</a>
-  <a href="https://ccalouisiana.com/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid #3289aa;color:#8fd3ff;text-decoration:none;font-weight:700">CCA STAR Tournament</a>
-</div>
-<div class="small muted" style="margin-top:7px">CCA membership and STAR tournament information open on CCA Louisiana’s official website. STAR registration is seasonal.</div>
-</section>
+
 <section class="card full">
 <h3>Live conditions</h3>
 <p><strong>Choose a fishing area, then choose a spot.</strong> The app will load NOAA/NWS conditions and calculate a fishing percentage.</p>
@@ -195,7 +186,7 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div id="windowWhy" style="margin-top:8px;font-weight:700">Choose a spot to compare the next 12 hours.</div>
 <div id="windowDetails" class="small muted" style="margin-top:5px">Uses hourly NWS wind/forecast plus NOAA tide movement, time of day and pressure trend. It is a conditions-based estimate, not a guarantee of fish activity.</div>
 </section>
-<section class="card"><h3>Weather</h3><div class="row"><span>Forecast wind</span><strong id="wind">—</strong></div><div class="row"><span>Forecast</span><strong id="weather">—</strong></div><div class="row"><span>Pressure</span><strong id="pressure">—</strong></div><div class="row"><span>Trend</span><strong id="pressureTrend">—</strong></div></section>
+<section class="card"><h3>Weather</h3><div class="row"><span>Forecast wind</span><strong id="wind">—</strong></div><div class="row"><span>Forecast</span><strong id="weather">—</strong></div><div class="row"><span>Pressure</span><strong id="pressure">—</strong></div><div class="row"><span>Trend</span><strong id="pressureTrend">—</strong></div><div id="pressureSource" class="small muted" style="margin-top:6px">Pressure source: waiting</div></section>
 <section class="card"><h3>Recent Conditions Memory</h3>
 <div class="row"><span>Last observed</span><strong id="recentObservedTime">—</strong></div>
 <div class="row"><span>Observed wind</span><strong id="observedWind">—</strong></div>
@@ -352,6 +343,16 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div id="logStatus" class="small muted"></div>
 <div id="journalPattern" style="margin-top:8px;font-weight:700">Journal: no saved trips yet.</div>
 <div class="small muted" style="margin-top:5px">Each saved trip stores a snapshot of spot, score, wind, tide, pressure trend, salinity, water temperature, best window and lure recommendation.</div>
+</section>
+<section class="card full">
+<h3>CCA Louisiana & Artificial Reefs</h3>
+<div class="small muted">The map includes a dedicated CCA Artificial Reefs overlay with 24 reef coordinates verified from published LDWF/CCA sources. Tap a reef marker for its name, GPS, source, Copy GPS, and Open in Maps.</div>
+<div class="small muted" style="margin-top:6px">Important: this layer only includes reefs for which a public coordinate could be verified. CCA has additional newer reefs whose coordinates were still described by CCA as pending survey/publication in the sources checked; those are not guessed or plotted.</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+  <a href="https://ccalouisiana.com/about-us/why-join-cca/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#0b668d;color:white;text-decoration:none;font-weight:700">Join CCA Louisiana</a>
+  <a href="https://ccalouisiana.com/" target="_blank" rel="noopener" style="display:inline-block;padding:10px 14px;border-radius:10px;border:1px solid #3289aa;color:#8fd3ff;text-decoration:none;font-weight:700">CCA STAR Tournament</a>
+</div>
+<div class="small muted" style="margin-top:7px">CCA membership and STAR tournament information open on CCA Louisiana’s official website. STAR registration is seasonal.</div>
 </section>
 </div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1581,7 +1582,7 @@ async function fetchMetarPressureFallback(stationId){
  }finally{clearTimeout(timer)}
 }
 async function fetchPressureFallback(s){
- const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=surface_pressure&timezone=America%2FChicago&forecast_days=2`;
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=pressure_msl,surface_pressure&timezone=America%2FChicago&forecast_days=2`;
  const cacheKey=`pressure-only:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;
  let j=null,source="live";
  const fresh=cacheRead(cacheKey,TTL.weather);
@@ -1600,7 +1601,8 @@ async function fetchPressureFallback(s){
    else throw Error(e.name==="AbortError"?"pressure request timed out":e.message);
   }finally{clearTimeout(timer)}
  }
- const times=(j.hourly&&j.hourly.time)||[],vals=(j.hourly&&j.hourly.surface_pressure)||[];
+ const times=(j.hourly&&j.hourly.time)||[];
+ const vals=(j.hourly&&j.hourly.pressure_msl&&j.hourly.pressure_msl.length?j.hourly.pressure_msl:(j.hourly&&j.hourly.surface_pressure))||[];
  if(!times.length||!vals.length)throw Error("pressure fallback returned no hourly values");
  const now=Date.now();
  let idx=times.findIndex(t=>new Date(t).getTime()>=now-30*60000);
@@ -1621,28 +1623,29 @@ async function loadWeatherFallback(s,nwsReason){
   if(sp){
    pressureSeries=sp.series;
    document.getElementById("pressure").textContent=sp.pressureInHg.toFixed(2)+" inHg";
-   document.getElementById("pressureTrend").textContent=sp.trend;
+   document.getElementById("pressureTrend").textContent=sp.trend;document.getElementById("pressureSource").textContent="Pressure source: nearby NWS observation station";
   }else if((f.pressureSeries||[]).length){
    pressureSeries=f.pressureSeries;
    const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
    document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
-   document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+   document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";document.getElementById("pressureSource").textContent="Pressure source: Open-Meteo";document.getElementById("pressureSource").textContent="Pressure source: NWS forecast grid";
   }else{
    try{
     const pf=await fetchPressureFallback(s);
     pressureSeries=pf.series;
     document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
-    document.getElementById("pressureTrend").textContent=pf.trend;
+    document.getElementById("pressureTrend").textContent=pf.trend;document.getElementById("pressureSource").textContent="Pressure source: Open-Meteo";
    }catch(pe){
     try{
      const mp=await fetchMetarPressureFallback(recentConditions&&recentConditions.stationId);
      pressureSeries=mp.series||[];
      document.getElementById("pressure").textContent=Number(mp.pressureInHg).toFixed(2)+" inHg";
-     document.getElementById("pressureTrend").textContent=mp.trend||"Stable";
+     document.getElementById("pressureTrend").textContent=mp.trend||"Stable";document.getElementById("pressureSource").textContent="Pressure source: Aviation Weather METAR";
     }catch(me){
      pressureSeries=[];
      document.getElementById("pressure").textContent="Unavailable";
      document.getElementById("pressureTrend").textContent="Unavailable";
+     document.getElementById("pressureSource").textContent="Pressure source: unavailable";
     }
    }
   }
@@ -1654,6 +1657,7 @@ async function loadWeatherFallback(s,nwsReason){
   document.getElementById("weather").textContent="Forecast temporarily unavailable";
   document.getElementById("pressure").textContent="No pressure feed";
   document.getElementById("pressureTrend").textContent="No trend data";
+  document.getElementById("pressureSource").textContent="Pressure source: unavailable";
   throw Error(`Weather unavailable (NWS: ${nwsReason}; fallback: ${e.message})`);
  }
 }
@@ -1677,29 +1681,46 @@ async function loadWeather(s){
   let g=null,gridWarning=null;
   try{
    g=await fetchJSON(p.properties.forecastGridData,{cacheKey:`nws-grid:${s.name}`,ttl:TTL.weather,timeoutMs:15000});
-   const pr=(g.data.properties.pressure&&g.data.properties.pressure.values)||[];pressureSeries=pr.slice(0,6).map(v=>v.value/100);
-   if(pressureSeries.length){const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";}
-   else{document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";}
+   const pressureProp=g.data.properties.pressure||{};
+   const pr=pressureProp.values||[];
+   const unit=String(pressureProp.uom||pressureProp.unitCode||"").toLowerCase();
+   function pressureToHpa(v){
+    const n=Number(v);
+    if(!Number.isFinite(n))return null;
+    if(unit.includes("pa")&&!unit.includes("hpa"))return n/100;
+    if(unit.includes("hpa")||unit.includes("hectopascal"))return n;
+    if(n>80000&&n<110000)return n/100;
+    if(n>800&&n<1100)return n;
+    return null;
+   }
+   pressureSeries=pr.slice(0,6).map(v=>pressureToHpa(v.value)).filter(Number.isFinite);
+   if(pressureSeries.length){
+    const a=pressureSeries[0],b=pressureSeries[Math.min(3,pressureSeries.length-1)],diff=(b-a)*0.0295299831;
+    document.getElementById("pressure").textContent=(a*0.0295299831).toFixed(2)+" inHg";
+    document.getElementById("pressureTrend").textContent=diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+   }else{
+    throw Error("NWS grid returned no usable pressure values");
+   }
   }catch(e){
    const sp=stationPressureSummary(recentConditions);
    if(sp){
     pressureSeries=sp.series;
     document.getElementById("pressure").textContent=sp.pressureInHg.toFixed(2)+" inHg";
-    document.getElementById("pressureTrend").textContent=sp.trend;
+    document.getElementById("pressureTrend").textContent=sp.trend;document.getElementById("pressureSource").textContent="Pressure source: nearby NWS observation station";
     gridWarning=`NWS grid pressure unavailable (${e.message}); using nearby observation-station pressure`;
    }else{
     try{
      const pf=await fetchPressureFallback(s);
      pressureSeries=pf.series;
      document.getElementById("pressure").textContent=pf.pressureInHg.toFixed(2)+" inHg";
-     document.getElementById("pressureTrend").textContent=pf.trend;
+     document.getElementById("pressureTrend").textContent=pf.trend;document.getElementById("pressureSource").textContent="Pressure source: Open-Meteo";
      gridWarning=`NWS grid/station pressure unavailable; using dedicated Open-Meteo pressure fallback`;
     }catch(pe){
      try{
       const mp=await fetchMetarPressureFallback(recentConditions&&recentConditions.stationId);
       pressureSeries=mp.series||[];
       document.getElementById("pressure").textContent=Number(mp.pressureInHg).toFixed(2)+" inHg";
-      document.getElementById("pressureTrend").textContent=mp.trend||"Stable";
+      document.getElementById("pressureTrend").textContent=mp.trend||"Stable";document.getElementById("pressureSource").textContent="Pressure source: Aviation Weather METAR";
       gridWarning=`NWS/Open-Meteo pressure unavailable; using Aviation Weather METAR altimeter`;
      }catch(me){
       pressureSeries=[];document.getElementById("pressure").textContent="Unavailable";document.getElementById("pressureTrend").textContent="Unavailable";gridWarning=`Pressure unavailable (NWS: ${e.message}; Open-Meteo: ${pe.message}; METAR: ${me.message})`;

@@ -84,9 +84,9 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-tools-control{display:none}
 .wmf-quick-status{display:none}
 
-@media(max-width:1024px){
+@media (max-width:1400px), (hover:none) and (pointer:coarse){
   body{padding-bottom:0}
-  #map{height:56vh;min-height:360px}
+  #map{height:62vh;min-height:420px}
   .wrap{padding-top:8px}
   .wrap>.grid{display:block}
   .wrap>.grid>section{display:none}
@@ -1122,7 +1122,7 @@ ccaReefs.forEach((r,i)=>{
  ccaReefLayer.addLayer(m);
 });
 ccaReefLayer.addTo(map);
-const compactLayerControl=window.matchMedia&&window.matchMedia("(max-width:650px)").matches;
+const compactLayerControl=window.matchMedia&&window.matchMedia("(max-width:1400px), (hover:none) and (pointer:coarse)").matches;
 L.control.layers(
  baseMaps,
  {"CCA Artificial Reefs":ccaReefLayer,"Fishing Structure":bottomStructureLayer},
@@ -1304,7 +1304,7 @@ const whereNowLayer=L.layerGroup().addTo(map);
 const spotMarkers=new Map();
 function spotMarkerSize(zoom,isSelected=false){
  // Keep pins readable without covering the chart on phones.
- const mobile=window.matchMedia&&window.matchMedia("(max-width:650px)").matches;
+ const mobile=window.matchMedia&&window.matchMedia("(max-width:1400px), (hover:none) and (pointer:coarse)").matches;
  let size=zoom<=8?14:zoom===9?18:zoom===10?24:mobile?30:38;
  if(zoom>=13)size=mobile?32:42;
  if(isSelected)size=Math.min(mobile?40:50,size+(mobile?6:8));

@@ -78,6 +78,85 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .live-help-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
 .live-help-actions button{flex:1 1 180px}
 
+
+/* Map-first mobile/tablet layout */
+.wmf-tools-overlay,.wmf-tool-sheet{display:none}
+.wmf-tools-control{display:none}
+.wmf-quick-status{display:none}
+
+@media(max-width:1024px){
+  body{padding-bottom:0}
+  #map{height:56vh;min-height:360px}
+  .wrap{padding-top:8px}
+  .wrap>.grid{display:block}
+  .wrap>.grid>section{display:none}
+  .wrap>.grid>section.wmf-tool-in-sheet{display:block}
+
+  .wmf-tools-control{display:block}
+  .wmf-tools-control button{
+    border:0;border-radius:12px;background:#0b668d;color:#fff;
+    font-weight:800;font-size:15px;padding:10px 13px;box-shadow:0 3px 10px #0008
+  }
+
+  .wmf-quick-status{display:block}
+  .wmf-quick-status button{
+    max-width:78vw;border:1px solid #38566d;border-radius:12px;
+    background:rgba(8,24,36,.94);color:#eef6fb;font-size:12px;
+    font-weight:750;padding:8px 10px;white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;box-shadow:0 3px 10px #0008
+  }
+
+  .wmf-tools-overlay{
+    position:fixed;inset:0;z-index:5200;background:rgba(3,12,19,.78);
+    padding:18px;align-items:flex-end;justify-content:center
+  }
+  .wmf-tools-overlay.open{display:flex}
+  .wmf-tools-menu{
+    width:min(620px,100%);max-height:82vh;overflow:auto;
+    background:#0f1f2d;border:1px solid #38566d;border-radius:18px 18px 12px 12px;
+    padding:14px;box-shadow:0 18px 50px rgba(0,0,0,.55)
+  }
+  .wmf-tools-menu-head{
+    position:sticky;top:-14px;background:#0f1f2d;z-index:2;
+    display:flex;justify-content:space-between;align-items:center;
+    gap:10px;padding:4px 0 10px
+  }
+  .wmf-tools-menu-head h2{margin:0;font-size:22px}
+  .wmf-tools-group{margin:12px 0 16px}
+  .wmf-tools-group h4{margin:0 0 7px;color:#9fb0bf;font-size:13px;text-transform:uppercase;letter-spacing:.04em}
+  .wmf-tools-buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .wmf-tools-buttons button{
+    text-align:left;min-height:48px;background:#132332;border:1px solid #38566d;
+    padding:10px 11px;font-weight:700
+  }
+
+  .wmf-tool-sheet{
+    position:fixed;inset:0;z-index:5300;background:rgba(3,12,19,.72);
+    padding:12px;align-items:flex-end;justify-content:center
+  }
+  .wmf-tool-sheet.open{display:flex}
+  .wmf-tool-sheet-panel{
+    width:min(700px,100%);max-height:76vh;overflow:auto;
+    background:#0b1520;border:1px solid #38566d;border-radius:18px 18px 10px 10px;
+    box-shadow:0 18px 50px rgba(0,0,0,.58)
+  }
+  .wmf-tool-sheet-head{
+    position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;
+    align-items:center;gap:10px;background:#0f1f2d;border-bottom:1px solid #284153;
+    padding:10px 12px
+  }
+  .wmf-tool-sheet-head strong{font-size:17px}
+  #wmfToolSheetContent{padding:10px}
+  #wmfToolSheetContent>section.card{margin:0;border-radius:12px}
+  #wmfToolSheetContent>section.card.full{grid-column:auto}
+}
+
+@media(max-width:520px){
+  #map{height:52vh;min-height:340px}
+  .wmf-tools-buttons{grid-template-columns:1fr}
+  .wmf-quick-status button{max-width:72vw}
+}
+
 </style>
 </head>
 <body>
@@ -139,6 +218,70 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div class="small muted"><strong>Map:</strong> Standard • NOAA Chart • Satellite. Use <strong>Fishing Structure</strong> at close zoom for spot-specific bottom/structure guidance. On the NOAA chart at zoom 12+, tap a chart symbol for details. Tap ◎ for GPS. NOAA chart is for planning/reference, not navigation.</div>
 </div>
 <div id="map"></div>
+<div id="wmfToolsMenu" class="wmf-tools-overlay" aria-hidden="true">
+  <div class="wmf-tools-menu">
+    <div class="wmf-tools-menu-head">
+      <h2>Fishing Tools</h2>
+      <button type="button" onclick="closeFishingToolsMenu()" aria-label="Close Fishing Tools">✕</button>
+    </div>
+
+    <div class="wmf-tools-group">
+      <h4>Fish now</h4>
+      <div class="wmf-tools-buttons">
+        <button type="button" onclick="openFishingTool('Where Should I Fish Right Now?')">Where Should I Fish?</button>
+        <button type="button" onclick="openFishingTool('Best Fishing Spot Near Me')">Best Spot Near Me</button>
+        <button type="button" onclick="openFishingTool('Current Conditions')">Current Conditions</button>
+        <button type="button" onclick="openFishingTool('What to throw now')">What to Throw</button>
+      </div>
+    </div>
+
+    <div class="wmf-tools-group">
+      <h4>Plan ahead</h4>
+      <div class="wmf-tools-buttons">
+        <button type="button" onclick="openFishingTool('Best Upcoming Window')">Best Upcoming Window</button>
+        <button type="button" onclick="openFishingTool('Tomorrow\\'s Top 3 Fishing Spots')">Tomorrow's Top 3</button>
+        <button type="button" onclick="openFishingTool('Recovery Outlook')">Recovery Outlook</button>
+        <button type="button" onclick="openFishingTool('Fishing Opportunity Calendar')">Fishing Calendar</button>
+      </div>
+    </div>
+
+    <div class="wmf-tools-group">
+      <h4>Water & structure</h4>
+      <div class="wmf-tools-buttons">
+        <button type="button" onclick="openFishingTool('Cleanest Fishable Water')">Cleanest Water</button>
+        <button type="button" onclick="openFishingTool('Tide')">Tide</button>
+        <button type="button" onclick="openFishingTool('Water conditions')">Water Conditions</button>
+        <button type="button" onclick="openFishingTool('Depth & structure')">Depth & Structure</button>
+        <button type="button" onclick="openFishingTool('Recent Conditions Memory')">Recent Conditions</button>
+        <button type="button" onclick="openFishingTool('Weather')">Weather & Pressure</button>
+      </div>
+    </div>
+
+    <div class="wmf-tools-group">
+      <h4>Reports & info</h4>
+      <div class="wmf-tools-buttons">
+        <button type="button" onclick="openFishingTool('One-tap fishing report')">Fishing Report</button>
+        <button type="button" onclick="openFishingTool('Compare spots')">Compare Spots</button>
+        <button type="button" onclick="openFishingTool('Trip journal')">Trip Journal</button>
+        <button type="button" onclick="openFishingTool('Data quality')">Data Quality</button>
+        <button type="button" onclick="openFishingTool('Louisiana regulations')">Regulations</button>
+        <button type="button" onclick="openLiveConditionsHelp();closeFishingToolsMenu()">How Live Conditions Works</button>
+        <button type="button" onclick="openFishingTool('CCA Louisiana & Artificial Reefs')">CCA Louisiana</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="wmfToolSheet" class="wmf-tool-sheet" aria-hidden="true">
+  <div class="wmf-tool-sheet-panel">
+    <div class="wmf-tool-sheet-head">
+      <strong id="wmfToolSheetTitle">Fishing Tool</strong>
+      <button type="button" onclick="closeFishingTool()" aria-label="Close tool">✕</button>
+    </div>
+    <div id="wmfToolSheetContent"></div>
+  </div>
+</div>
+
 <div class="wrap">
 <div id="prienDepthGuide" class="card" style="display:none;margin-bottom:10px">
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
@@ -822,6 +965,89 @@ function maybeShowLiveConditionsHelp(){
  if(!hidden)openLiveConditionsHelp();
 }
 
+
+let wmfActiveToolSection=null;
+let wmfToolOriginalParent=null;
+let wmfToolOriginalNext=null;
+
+function openFishingToolsMenu(){
+ const menu=document.getElementById("wmfToolsMenu");
+ if(menu){menu.classList.add("open");menu.setAttribute("aria-hidden","false");}
+}
+function closeFishingToolsMenu(){
+ const menu=document.getElementById("wmfToolsMenu");
+ if(menu){menu.classList.remove("open");menu.setAttribute("aria-hidden","true");}
+}
+function findToolSection(title){
+ const sections=[...document.querySelectorAll(".wrap .grid > section")];
+ if(title==="Current Conditions"){
+  const score=document.getElementById("score");
+  return score?score.closest("section"):null;
+ }
+ return sections.find(sec=>{
+  const h=sec.querySelector("h3");
+  return h&&h.textContent.trim()===title;
+ })||null;
+}
+function openFishingTool(title){
+ closeFishingToolsMenu();
+ closeFishingTool();
+
+ const section=findToolSection(title);
+ if(!section)return;
+
+ wmfActiveToolSection=section;
+ wmfToolOriginalParent=section.parentNode;
+ wmfToolOriginalNext=section.nextSibling;
+
+ const host=document.getElementById("wmfToolSheetContent");
+ const sheet=document.getElementById("wmfToolSheet");
+ const titleEl=document.getElementById("wmfToolSheetTitle");
+ if(!host||!sheet)return;
+
+ section.classList.add("wmf-tool-in-sheet");
+ host.appendChild(section);
+
+ let shownTitle=title;
+ if(title==="Current Conditions"){
+  const spot=document.getElementById("spotTitle");
+  shownTitle=spot&&spot.textContent&&spot.textContent!=="Choose a spot"?"Current Conditions — "+spot.textContent:"Current Conditions";
+ }
+ if(titleEl)titleEl.textContent=shownTitle;
+
+ sheet.classList.add("open");
+ sheet.setAttribute("aria-hidden","false");
+}
+function closeFishingTool(){
+ const sheet=document.getElementById("wmfToolSheet");
+ if(wmfActiveToolSection&&wmfToolOriginalParent){
+  wmfActiveToolSection.classList.remove("wmf-tool-in-sheet");
+  if(wmfToolOriginalNext&&wmfToolOriginalNext.parentNode===wmfToolOriginalParent){
+   wmfToolOriginalParent.insertBefore(wmfActiveToolSection,wmfToolOriginalNext);
+  }else{
+   wmfToolOriginalParent.appendChild(wmfActiveToolSection);
+  }
+ }
+ wmfActiveToolSection=null;wmfToolOriginalParent=null;wmfToolOriginalNext=null;
+ const host=document.getElementById("wmfToolSheetContent");
+ if(host)host.innerHTML="";
+ if(sheet){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
+}
+
+function compactStatusText(){
+ const score=document.getElementById("score")?.textContent?.trim()||"—%";
+ const wind=document.getElementById("wind")?.textContent?.trim()||"Wind —";
+ const tide=document.getElementById("tideMove")?.textContent?.trim()||"Tide —";
+ const pressure=document.getElementById("pressure")?.textContent?.trim()||"";
+ if(!document.getElementById("locationPicker")?.value)return "Choose a fishing spot";
+ const p=(pressure&&pressure!=="—"&&!pressure.toLowerCase().includes("unavailable"))?` • ${pressure}`:"";
+ return `${score} • ${wind} • ${tide}${p}`;
+}
+function updateMapQuickStatus(){
+ const btn=document.getElementById("wmfQuickStatusBtn");
+ if(btn)btn.textContent=compactStatusText();
+}
+
 const map=L.map("map").setView([29.55,-91.88],9);
 
 // Base map choices. NOAA Chart Display uses NOAA ENC data with traditional chart symbology.
@@ -845,6 +1071,38 @@ const noaaChartLayer=L.tileLayer.wms(
 );
 
 standardLayer.addTo(map);
+
+const FishingToolsControl=L.Control.extend({
+ options:{position:"bottomright"},
+ onAdd:function(){
+  const box=L.DomUtil.create("div","wmf-tools-control leaflet-control");
+  const btn=L.DomUtil.create("button","",box);
+  btn.type="button";
+  btn.innerHTML="☰ Tools";
+  btn.setAttribute("aria-label","Open fishing tools");
+  L.DomEvent.disableClickPropagation(box);
+  L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openFishingToolsMenu();});
+  return box;
+ }
+});
+map.addControl(new FishingToolsControl());
+
+const QuickStatusControl=L.Control.extend({
+ options:{position:"bottomleft"},
+ onAdd:function(){
+  const box=L.DomUtil.create("div","wmf-quick-status leaflet-control");
+  const btn=L.DomUtil.create("button","",box);
+  btn.id="wmfQuickStatusBtn";
+  btn.type="button";
+  btn.textContent="Choose a fishing spot";
+  btn.title="Open current conditions";
+  L.DomEvent.disableClickPropagation(box);
+  L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openFishingTool("Current Conditions");});
+  return box;
+ }
+});
+map.addControl(new QuickStatusControl());
+
 
 const baseMaps={
  "Standard":standardLayer,
@@ -2653,12 +2911,30 @@ window.addEventListener("offline",updateConnectivityBanner);
 setPrienDepthGuideVisible("");
 updateConnectivityBanner();
 setTimeout(maybeShowLiveConditionsHelp,250);
+
+setTimeout(updateMapQuickStatus,300);
+["score","wind","tideMove","pressure","locationPicker"].forEach(id=>{
+ const el=document.getElementById(id);
+ if(el){
+  new MutationObserver(updateMapQuickStatus).observe(el,{childList:true,subtree:true,characterData:true});
+  el.addEventListener?.("change",updateMapQuickStatus);
+ }
+});
+
 if("serviceWorker" in navigator){
  window.addEventListener("load",()=>navigator.serviceWorker.register("/service-worker.js").catch(()=>{}));
 }
 
 document.getElementById("liveConditionsHelp")?.addEventListener("click",e=>{
  if(e.target===e.currentTarget)closeLiveConditionsHelp();
+});
+
+
+document.getElementById("wmfToolsMenu")?.addEventListener("click",e=>{
+ if(e.target===e.currentTarget)closeFishingToolsMenu();
+});
+document.getElementById("wmfToolSheet")?.addEventListener("click",e=>{
+ if(e.target===e.currentTarget)closeFishingTool();
 });
 
 </script>

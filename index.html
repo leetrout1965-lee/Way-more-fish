@@ -2624,33 +2624,107 @@ function renderWhereNowPins(top){
 async function findWhereNow(){
  const btn=document.getElementById("whereNowBtn"),status=document.getElementById("whereNowStatus"),box=document.getElementById("whereNowResults");
  btn.disabled=true;box.innerHTML="";whereNowLayer.clearLayers();
- const areas=[...new Set(spots.map(s=>s.area))],stage1=[],pause=ms=>new Promise(r=>setTimeout(r,ms));let failed=0;
- status.textContent=`Scanning ${areas.length} Louisiana coastal areas for current conditions…`;
- for(let i=0;i<areas.length;i++){
-  const rep=representativeAreaSpots(areas[i],1)[0];if(!rep)continue;
-  try{const d=await buildCompareSpotData(rep);try{d.clarity=await fetchClarityForSpot(rep,d);}catch{}const now=currentFishingOpportunity(d);stage1.push({...d,now});}catch{failed++;}
-  status.textContent=`Coast scan ${i+1}/${areas.length}… ${stage1.length} areas loaded${failed?`, ${failed} skipped`:""}`;await pause(220);
- }
- if(!stage1.length){status.textContent="No areas returned enough current data. Try again in a few minutes.";btn.disabled=false;return;}
- stage1.sort((a,b)=>b.now.score-a.now.score);
- // Refine enough different areas to build a geographically diverse final Top 3.
- const finalistAreas=[...new Set(stage1.slice(0,7).map(x=>x.spot.area))],rows=[];
- status.textContent=`Refining the strongest ${finalistAreas.length} areas spot-by-spot…`;
- for(const area of finalistAreas){
-  const reps=representativeAreaSpots(area,5);
-  for(let i=0;i<reps.length;i++){
-   const sp=reps[i];try{const d=await buildCompareSpotData(sp);try{d.clarity=await fetchClarityForSpot(sp,d);}catch{}rows.push({...d,now:currentFishingOpportunity(d)});}catch{}
-   status.textContent=`Refining ${area} (${i+1}/${reps.length})…`;await pause(180);
+
+ const areas=[...new Set(spots.map(s=>s.area))];
+ const stage1=[];let failed=0;
+
+ // Small parallel batches are much faster than one-at-a-time without hammering NOAA/NWS.
+ async function runBatch(items,worker,batchSize=4){
+  const out=[];
+  for(let i=0;i<items.length;i+=batchSize){
+   const batch=items.slice(i,i+batchSize);
+   const rows=await Promise.all(batch.map(async item=>{
+    try{return await worker(item);}catch(e){return {__error:e};}
+   }));
+   out.push(...rows);
+   status.textContent=`Fast scan ${Math.min(i+batch.length,items.length)}/${items.length}…`;
   }
+  return out;
  }
- const keyed=new Map();for(const r of [...stage1,...rows]){const k=`${r.spot.area}|${r.spot.name}`,old=keyed.get(k);if(!old||r.now.score>old.now.score)keyed.set(k,r);}
- const ranked=[...keyed.values()].sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name));
- // Diversity rule: only the strongest spot from each area can enter the coast-wide Top 3.
- const bestByArea=new Map();for(const r of ranked){if(!bestByArea.has(r.spot.area))bestByArea.set(r.spot.area,r);}
- const top=[...bestByArea.values()].sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name)).slice(0,3);
+
+ status.textContent=`Fast scanning ${areas.length} Louisiana coastal areas…`;
+
+ // PASS 1: representative spot only, and skip clarity until we know the finalists.
+ const coarse=await runBatch(areas,async area=>{
+  const rep=representativeAreaSpots(area,1)[0];
+  if(!rep)return null;
+  const d=await buildCompareSpotData(rep);
+  const now=currentFishingOpportunity(d);
+  return {...d,now};
+ },4);
+
+ for(const r of coarse){
+  if(!r||r.__error){failed++;continue;}
+  stage1.push(r);
+ }
+
+ if(!stage1.length){
+  status.textContent="No areas returned enough current data. Try again in a few minutes.";
+  btn.disabled=false;return;
+ }
+
+ stage1.sort((a,b)=>b.now.score-a.now.score);
+
+ // PASS 2: refine only the strongest four areas, three spots each.
+ const finalistAreas=[...new Set(stage1.slice(0,4).map(x=>x.spot.area))];
+ const refineJobs=[];
+ for(const area of finalistAreas){
+  for(const sp of representativeAreaSpots(area,3))refineJobs.push(sp);
+ }
+
+ status.textContent=`Refining ${finalistAreas.length} strongest areas…`;
+
+ const refined=await runBatch(refineJobs,async sp=>{
+  const d=await buildCompareSpotData(sp);
+  try{d.clarity=await fetchClarityForSpot(sp,d);}catch{}
+  return {...d,now:currentFishingOpportunity(d)};
+ },4);
+
+ const rows=refined.filter(r=>r&&!r.__error);
+
+ // Add clarity only for the best coarse representatives if they survive into ranking.
+ const keyed=new Map();
+ for(const r of [...stage1,...rows]){
+  const k=`${r.spot.area}|${r.spot.name}`;
+  const old=keyed.get(k);
+  if(!old||r.now.score>old.now.score)keyed.set(k,r);
+ }
+
+ const ranked=[...keyed.values()].sort((a,b)=>
+  b.now.score-a.now.score||
+  b.now.cleanScore-a.now.cleanScore||
+  a.spot.name.localeCompare(b.spot.name)
+ );
+
+ const bestByArea=new Map();
+ for(const r of ranked){
+  if(!bestByArea.has(r.spot.area))bestByArea.set(r.spot.area,r);
+ }
+
+ const top=[...bestByArea.values()]
+  .sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name))
+  .slice(0,3);
+
+ // Fill clarity only for the final Top 3 if missing.
+ await Promise.all(top.map(async r=>{
+  if(r.clarity&&Number.isFinite(r.clarity.score))return;
+  try{
+   r.clarity=await fetchClarityForSpot(r.spot,r);
+   r.now=currentFishingOpportunity(r);
+  }catch{}
+ }));
+
+ // Re-sort once after final clarity is available.
+ top.sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name));
+
  renderWhereNowPins(top);
- status.textContent=`Current coast scan complete. ${stage1.length}/${areas.length} areas loaded${failed?`; ${failed} skipped because a feed did not respond`:""}. Top 3 use one spot per area and are pinned on the map with tap-to-open Game Plans.`;
- box.innerHTML='<table><thead><tr><td><strong>Rank</strong></td><td><strong>Spot / area</strong></td><td><strong>Now</strong></td><td><strong>Water</strong></td><td><strong>Why</strong></td></tr></thead><tbody>'+top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}${Number.isFinite(r.now.microAdjustment)&&r.now.microAdjustment!==0?` • Micro ${r.now.microAdjustment>0?"+":""}${r.now.microAdjustment}`:""}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Clean-water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,5).join(" • ")||"current conditions fit"}</td></tr>`).join("")+'</tbody></table><div class="small muted" style="margin-top:8px">Top 3 intentionally uses one spot per area so one bay cannot dominate the coast-wide list. Micro scoring adds spot-specific structure, moving-water fit, wind exposure and local clarity. This is a conditions recommendation, not a catch guarantee.</div>';
+
+ status.textContent=`Fast Fish Now complete. ${stage1.length}/${areas.length} areas checked${failed?`; ${failed} skipped`:""}. Top 3 are pinned with Game Plans.`;
+
+ box.innerHTML='<table><thead><tr><td><strong>Rank</strong></td><td><strong>Spot / area</strong></td><td><strong>Now</strong></td><td><strong>Water</strong></td><td><strong>Why</strong></td></tr></thead><tbody>'+
+ top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}${Number.isFinite(r.now.microAdjustment)&&r.now.microAdjustment!==0?` • Micro ${r.now.microAdjustment>0?"+":""}${r.now.microAdjustment}`:""}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Clean-water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,5).join(" • ")||"current conditions fit"}</td></tr>`).join("")+
+ '</tbody></table><div class="small muted" style="margin-top:8px">Fast Fish Now uses a two-pass scan: one representative spot per area, then a deeper check of only the strongest areas. The final Top 3 still include water, structure and confidence checks.</div>';
+
  btn.disabled=false;
 }
 

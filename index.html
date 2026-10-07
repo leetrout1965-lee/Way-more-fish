@@ -72,6 +72,16 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  box-shadow:0 2px 7px rgba(0,0,0,.35)
 }
 .wmf-structure-pill span{display:block;color:#f6c46f;font-weight:600;margin-top:2px}
+.wmf-structure-symbol{
+ width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+ background:transparent;border:0;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45));
+ transform:translate(12px,-12px);pointer-events:auto;
+}
+.wmf-structure-symbol svg{width:34px;height:34px;overflow:visible}
+.wmf-structure-symbol .wmf-stroke{stroke:#0b668d;stroke-width:4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.wmf-structure-symbol .wmf-fill{fill:rgba(11,102,141,.22);stroke:#0b668d;stroke-width:3}
+.wmf-structure-symbol .wmf-rock{fill:#d9822b;stroke:#fff;stroke-width:1.5}
+.wmf-structure-symbol .wmf-dot{fill:#0b668d;stroke:#fff;stroke-width:1.5}
 
 .live-help-backdrop{
  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
@@ -313,7 +323,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 </div>
 
 <div id="wmfMapHelpBar" style="padding:8px 12px;background:#0f1f2d;border-bottom:1px solid #284153">
-<div class="small muted"><strong>Map:</strong> Standard • NOAA Chart • Satellite. Use <strong>Fishing Structure</strong> at close zoom for spot-specific bottom/structure guidance. On the NOAA chart at zoom 12+, tap a chart symbol for details. Tap ◎ for GPS. NOAA chart is for planning/reference, not navigation.</div>
+<div class="small muted"><strong>Map:</strong> Standard • NOAA Chart • Satellite. Use <strong>Other Fishing Structure</strong> to show structure-type symbols directly on the map; tap a symbol for details. On the NOAA chart at zoom 12+, tap a chart symbol for details. Tap ◎ for GPS. NOAA chart is for planning/reference, not navigation.</div>
 </div>
 <div id="map"></div>
 <div id="wmfToolsMenu" class="wmf-tools-overlay" aria-hidden="true">
@@ -931,17 +941,76 @@ function structureShortType(d){
  const t=(d&&d.type?String(d.type):"Structure").replace(/\s*\/\s*/g," / ");
  return t.length>40?t.slice(0,37)+"…":t;
 }
+
+function structureSymbolSvg(d){
+ const t=((d&&d.type)||"").toLowerCase();
+
+ // These are map symbols that show the KIND of structure at the fishing reference.
+ // They do not claim an exact surveyed footprint unless the source data provides one.
+ if(t.includes("jetty")||t.includes("riprap")||t.includes("rock")){
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <path class="wmf-stroke" d="M5 31 L35 9"/>
+    <circle class="wmf-rock" cx="8" cy="29" r="4"/><circle class="wmf-rock" cx="15" cy="24" r="4"/>
+    <circle class="wmf-rock" cx="22" cy="19" r="4"/><circle class="wmf-rock" cx="29" cy="14" r="4"/>
+    <circle class="wmf-rock" cx="35" cy="9" r="4"/>
+  </svg>`;
+ }
+ if(t.includes("reef")||t.includes("shell")||t.includes("hard-bottom")||t.includes("oyster")){
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <ellipse class="wmf-fill" cx="20" cy="22" rx="15" ry="9"/>
+    <circle class="wmf-dot" cx="12" cy="21" r="2.5"/><circle class="wmf-dot" cx="20" cy="18" r="2.5"/>
+    <circle class="wmf-dot" cx="28" cy="23" r="2.5"/><circle class="wmf-dot" cx="18" cy="26" r="2.5"/>
+  </svg>`;
+ }
+ if(t.includes("channel")||t.includes("ledge")||t.includes("drop")){
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <path class="wmf-stroke" d="M5 10 C13 15 12 25 20 30 C28 35 30 22 36 19"/>
+    <path class="wmf-stroke" style="stroke-width:2;stroke-dasharray:3 4" d="M5 17 C13 22 12 32 20 36"/>
+  </svg>`;
+ }
+ if(t.includes("flat")||t.includes("shoreline")){
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <path class="wmf-fill" d="M5 27 C12 19 18 22 24 16 C29 12 34 13 36 11 L36 32 L5 32 Z"/>
+    <path class="wmf-stroke" d="M5 27 C12 19 18 22 24 16 C29 12 34 13 36 11"/>
+  </svg>`;
+ }
+ if(t.includes("point")||t.includes("island")){
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <path class="wmf-fill" d="M5 30 C14 28 18 20 21 9 C25 20 30 25 36 27 L36 34 L5 34 Z"/>
+    <path class="wmf-stroke" d="M5 30 C14 28 18 20 21 9 C25 20 30 25 36 27"/>
+  </svg>`;
+ }
+ if(t.includes("bayou")||t.includes("drain")||t.includes("confluence")||t.includes("pass")){
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <path class="wmf-stroke" d="M7 6 C13 14 15 20 20 34"/>
+    <path class="wmf-stroke" d="M33 7 C27 15 25 21 20 34"/>
+  </svg>`;
+ }
+ if(t.includes("weir")||t.includes("water-control")){
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <path class="wmf-stroke" d="M6 10 L34 30"/>
+    <path class="wmf-stroke" d="M11 8 L8 14 M17 13 L14 19 M23 18 L20 24 M29 23 L26 29"/>
+  </svg>`;
+ }
+ return `<svg viewBox="0 0 40 40" aria-hidden="true">
+   <path class="wmf-stroke" d="M5 26 C11 16 17 30 23 20 C29 10 33 23 36 14"/>
+   <circle class="wmf-dot" cx="20" cy="20" r="3"/>
+ </svg>`;
+}
 function updateBottomStructureLayer(){
  bottomStructureLayer.clearLayers();
  if(!map.hasLayer(bottomStructureLayer))return;
- if(map.getZoom()<12)return;
+ // Show structure early enough that checking the layer causes an immediate, visible change.
+ if(map.getZoom()<10)return;
 
  const areaEl=document.getElementById("areaPicker");
  const area=areaEl?areaEl.value:"";
  const bounds=map.getBounds().pad(.08);
 
  spots.forEach((s,i)=>{
-  const d=structureDetails[s.name];
+  // Use exact structure notes when available, otherwise use the app's existing
+  // spot-name/category interpretation so the layer works across the full area.
+  const d=structureContext(s);
   if(!d)return;
   if(area && !spotBelongsToArea(s,area))return;
   const ll=L.latLng(s.lat,s.lon);
@@ -953,9 +1022,10 @@ function updateBottomStructureLayer(){
    zIndexOffset:300,
    icon:L.divIcon({
     className:"wmf-structure-label",
-    html:`<div class="wmf-structure-pill">${s.name}<span>${structureShortType(d)}</span></div>`,
-    iconSize:null,
-    iconAnchor:[0,0]
+    html:`<div class="wmf-structure-symbol" aria-label="${structureShortType(d)} at ${s.name}" title="${structureShortType(d)}">${structureSymbolSvg(d)}</div>`,
+    iconSize:[22,22],
+    iconAnchor:[11,11],
+    popupAnchor:[14,-14]
    })
   });
 
@@ -1311,7 +1381,7 @@ ccaReefLayer.addTo(map);
 const compactLayerControl=window.matchMedia&&window.matchMedia("(max-width:1400px), (hover:none) and (pointer:coarse)").matches;
 L.control.layers(
  baseMaps,
- {"CCA Artificial Reefs":ccaReefLayer,"Fishing Structure":bottomStructureLayer},
+ {"CCA Artificial Reefs":ccaReefLayer,"Other Fishing Structure":bottomStructureLayer},
  {position:"topright",collapsed:compactLayerControl}
 ).addTo(map);
 
@@ -1501,11 +1571,13 @@ const fg=L.featureGroup().addTo(map);
 const whereNowLayer=L.layerGroup().addTo(map);
 const spotMarkers=new Map();
 function spotMarkerSize(zoom,isSelected=false){
- // Keep pins readable without covering the chart on phones.
+ // On phones/tablets keep the spot marker a fixed, compact size so zooming
+ // enlarges the chart rather than turning the selected spot into a bullseye.
  const mobile=window.matchMedia&&window.matchMedia("(max-width:1400px), (hover:none) and (pointer:coarse)").matches;
- let size=zoom<=8?14:zoom===9?18:zoom===10?24:mobile?30:38;
- if(zoom>=13)size=mobile?32:42;
- if(isSelected)size=Math.min(mobile?40:50,size+(mobile?6:8));
+ if(mobile)return isSelected?22:18;
+ let size=zoom<=8?14:zoom===9?18:zoom===10?24:38;
+ if(zoom>=13)size=42;
+ if(isSelected)size=Math.min(50,size+8);
  return size;
 }
 function makeSpotIcon(s,isSelected=false){

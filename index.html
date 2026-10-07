@@ -547,6 +547,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
       <input id="wmfForecastDate" type="date">
       <label for="wmfForecastTime">Time</label>
       <input id="wmfForecastTime" type="time" step="900">
+      <div id="wmfForecastChosenPreview" class="small" style="font-weight:800;margin-top:2px"></div>
       <div id="wmfForecastSpotName" style="font-weight:800;margin-top:2px">Choose a fishing spot first.</div><div class="small muted" style="margin-top:8px">Choose any time within the next 7 days. The forecast uses predicted wind, weather, tide movement and known structure for the selected spot. Future water clarity is not guessed.</div>
       <button id="wmfForecastRunBtn" class="primary" type="button" style="margin-top:12px;width:100%" onclick="runForecastForSelectedSpot()">Show Spot Forecast</button>
       <div id="wmfForecastStatus" class="small muted" style="margin-top:10px">Choose a spot, date and time.</div>
@@ -1676,6 +1677,7 @@ function openForecastChooser(){
   date.value=vals.date;
  }
  if(time&&!time.value)time.value=vals.time;
+ updateForecastChosenPreview();
 
  if(status)status.textContent="Choose a date and time, then run the forecast.";
  if(sheet){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
@@ -1690,6 +1692,16 @@ function selectedForecastTarget(){
  if(!date||!time)return null;
  const d=new Date(`${date}T${time}:00`);
  return Number.isFinite(d.getTime())?d:null;
+}
+
+function updateForecastChosenPreview(){
+ const el=document.getElementById("wmfForecastChosenPreview");
+ if(!el)return;
+ const target=selectedForecastTarget();
+ if(!target){el.textContent="";return;}
+ const past=target.getTime()<Date.now()-60000;
+ el.textContent=`You selected: ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}${past?" — this time has already passed":""}`;
+ el.style.color=past?"#ffb4a8":"";
 }
 function nearestForecastPeriod(periods,target){
  if(!periods||!periods.length)return null;
@@ -1795,8 +1807,13 @@ async function runForecastForSelectedSpot(){
  }
 
  const now=Date.now(),max=now+7*86400000;
- if(target.getTime()<now-15*60000||target.getTime()>max){
-  status.textContent="Choose a time between now and 7 days from now.";
+ if(target.getTime()<now-15*60000){
+  status.textContent=`${target.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})} on ${target.toLocaleDateString([],{month:"short",day:"numeric"})} has already passed. Choose a later time (for example PM) or choose tomorrow.`;
+  updateForecastChosenPreview();
+  return;
+ }
+ if(target.getTime()>max){
+  status.textContent="Choose a time within the next 7 days.";
   return;
  }
 
@@ -3936,6 +3953,10 @@ document.getElementById("wmfMoreMenu")?.addEventListener("click",e=>{
 document.getElementById("wmfWaterCheckSheet")?.addEventListener("click",e=>{
  if(e.target===e.currentTarget)closeWaterCheck();
 });
+
+
+document.getElementById("wmfForecastDate")?.addEventListener("change",updateForecastChosenPreview);
+document.getElementById("wmfForecastTime")?.addEventListener("change",updateForecastChosenPreview);
 
 </script>
 

@@ -282,9 +282,9 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
     <p class="small muted">Planning and fishing reference only — not for navigation.</p>
     <div class="live-help-actions">
       <button class="primary" type="button" onclick="closeLiveConditionsHelp()">Continue</button>
-      <button type="button" onclick="hideLiveConditionsHelpForever()">Don't show this again</button>
+      <button type="button" onclick="hideLiveConditionsHelpForever()">Don't show again until the next update</button>
     </div>
-    <div class="small muted" style="margin-top:10px">You can reopen this explanation anytime from the Live conditions section.</div>
+    <div class="small muted" style="margin-top:10px">You can reopen this explanation anytime from Tools. After an app update, it will appear once again so you can see what changed.</div>
   </div>
 </div>
 <div id="offlineBanner" class="small" style="display:none;padding:8px 12px;background:#5d4311;color:#fff3c4;border-bottom:1px solid #8d6a1c">
@@ -1132,7 +1132,8 @@ let selected=null,wx=null,tides=[],pressureSeries=[],waterState={sal:null,tempF:
 let freshnessState={weather:"unavailable",tides:"unavailable",observed:"unavailable",clarity:"unavailable"};
 const ccaReefs=[{"name":"Cypremort Point II Reef","lat":29.7388,"lon":-91.8794,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Sweet Lake Reef","lat":29.9419,"lon":-93.29025,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Turner's Bay Island Reef","lat":30.055433,"lon":-93.307833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Redfish Pointe Reef","lat":29.677917,"lon":-92.118467,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Bird Island Reef","lat":29.059333,"lon":-90.723833,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Point Mast Reef","lat":29.1074,"lon":-90.635717,"group":"Inshore","source":"LDWF Oct 2023 \u2014 NOAA disaster grant + CCA"},{"name":"Independence Island Reef","lat":29.3075,"lon":-89.933367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Laketown Reef","lat":30.043883,"lon":-90.239367,"group":"Inshore","source":"LDWF Oct 2023 \u2014 CCA partner"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 East","lat":29.320417,"lon":-92.133333,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Ted Beaullieu Sr. Reef \u2014 SMI 233 West","lat":29.323133,"lon":-92.143767,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Timbalier 51 Reef","lat":28.883817,"lon":-90.484283,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 D","lat":29.095167,"lon":-92.500433,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 119 G","lat":29.120567,"lon":-92.503117,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 E","lat":29.08715,"lon":-92.505467,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Rawls Reef \u2014 Vermilion 124 H","lat":29.086833,"lon":-92.517017,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Z.T. Jack Cart Reef \u2014 Vermilion 69","lat":29.29415,"lon":-92.264533,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"West Cameron 45 Reef","lat":29.674833,"lon":-93.607633,"group":"Nearshore","source":"LDWF Oct 2023 / CCA"},{"name":"Green Monster Reef \u2014 West Delta 23","lat":29.18,"lon":-89.5527,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Green Monster Reef \u2014 West Delta 24","lat":29.1773,"lon":-89.5348,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 A","lat":29.108417,"lon":-91.05055,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Pickets Reef \u2014 Ship Shoal 26 B","lat":29.104783,"lon":-91.057367,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"Bay Marchand 3 CCA Reef","lat":29.053067,"lon":-90.1692,"group":"Nearshore","source":"LDWF Oct 2023 \u2014 CCA"},{"name":"South Marsh Island 235 Reef","lat":29.312904,"lon":-92.054691,"group":"Nearshore","source":"CCA published center point, 2023"},{"name":"Raising Cane's Grand Isle Reef","lat":29.330917,"lon":-89.969817,"group":"Inshore/Nearshore","source":"LDWF published reef center, 2024"}];
 
-const LIVE_HELP_STORAGE_KEY="wmf-hide-live-conditions-help-v1";
+const WMF_APP_VERSION="2026-10-07a";
+const LIVE_HELP_STORAGE_KEY="wmf-live-help-seen-version";
 function openLiveConditionsHelp(){
  const el=document.getElementById("liveConditionsHelp");
  if(el)el.classList.add("open");
@@ -1142,13 +1143,13 @@ function closeLiveConditionsHelp(){
  if(el)el.classList.remove("open");
 }
 function hideLiveConditionsHelpForever(){
- try{localStorage.setItem(LIVE_HELP_STORAGE_KEY,"1");}catch(e){}
+ try{localStorage.setItem(LIVE_HELP_STORAGE_KEY,WMF_APP_VERSION);}catch(e){}
  closeLiveConditionsHelp();
 }
 function maybeShowLiveConditionsHelp(){
- let hidden=false;
- try{hidden=localStorage.getItem(LIVE_HELP_STORAGE_KEY)==="1";}catch(e){}
- if(!hidden)openLiveConditionsHelp();
+ let seenVersion="";
+ try{seenVersion=localStorage.getItem(LIVE_HELP_STORAGE_KEY)||"";}catch(e){}
+ if(seenVersion!==WMF_APP_VERSION)openLiveConditionsHelp();
 }
 
 

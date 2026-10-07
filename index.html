@@ -466,7 +466,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div id="wmfForecastSheet" class="wmf-forecast-sheet" aria-hidden="true">
   <div class="wmf-forecast-panel">
     <div class="wmf-forecast-head">
-      <strong>Forecast Date & Time</strong>
+      <strong id="wmfForecastTitle">Spot Forecast</strong>
       <button type="button" onclick="closeForecastChooser()" aria-label="Close forecast chooser">✕</button>
     </div>
     <div class="wmf-forecast-body">
@@ -474,9 +474,9 @@ Offline / weak signal — showing the most recently cached app and any previousl
       <input id="wmfForecastDate" type="date">
       <label for="wmfForecastTime">Time</label>
       <input id="wmfForecastTime" type="time" step="900">
-      <div class="small muted" style="margin-top:8px">Choose any time within the next 7 days. Forecast ranking uses predicted wind, weather and tide movement plus known structure. Future water clarity is not guessed.</div>
-      <button id="wmfForecastRunBtn" class="primary" type="button" style="margin-top:12px;width:100%" onclick="runForecastTop3()">Show Forecast Top 3</button>
-      <div id="wmfForecastStatus" class="small muted" style="margin-top:10px">Choose a date and time.</div>
+      <div id="wmfForecastSpotName" style="font-weight:800;margin-top:2px">Choose a fishing spot first.</div><div class="small muted" style="margin-top:8px">Choose any time within the next 7 days. The forecast uses predicted wind, weather, tide movement and known structure for the selected spot. Future water clarity is not guessed.</div>
+      <button id="wmfForecastRunBtn" class="primary" type="button" style="margin-top:12px;width:100%" onclick="runForecastForSelectedSpot()">Show Spot Forecast</button>
+      <div id="wmfForecastStatus" class="small muted" style="margin-top:10px">Choose a spot, date and time.</div>
     </div>
   </div>
 </div>
@@ -1221,6 +1221,8 @@ function renderSpotQuickList(){
      picker.value=String(i);
      closeSpotSelector();
      selectSpot(s);
+     const fsn=document.getElementById("wmfForecastSpotName");
+     if(fsn)fsn.textContent=`Forecast for: ${s.name}`;
      setTimeout(()=>map.setView([s.lat,s.lon],Math.max(map.getZoom(),13)),80);
    });
  });
@@ -1431,6 +1433,23 @@ function openForecastChooser(){
  closeFishingTool?.();
  closeFishingToolsMenu?.();
  closeSpotSelector?.();
+
+ const sheet=document.getElementById("wmfForecastSheet");
+ const status=document.getElementById("wmfForecastStatus");
+ const spotName=document.getElementById("wmfForecastSpotName");
+ const runBtn=document.getElementById("wmfForecastRunBtn");
+
+ if(!selected){
+  if(spotName)spotName.textContent="No fishing spot selected.";
+  if(status)status.textContent="Choose a fishing spot first.";
+  if(runBtn)runBtn.disabled=true;
+  openSpotSelector();
+  return;
+ }
+
+ if(spotName)spotName.textContent=`Forecast for: ${selected.name}`;
+ if(runBtn)runBtn.disabled=false;
+
  const now=new Date(),def=new Date(now.getTime()+3*3600000);
  const vals=forecastLocalInputValue(def);
  const date=document.getElementById("wmfForecastDate");
@@ -1442,7 +1461,8 @@ function openForecastChooser(){
   date.value=vals.date;
  }
  if(time&&!time.value)time.value=vals.time;
- const sheet=document.getElementById("wmfForecastSheet");
+
+ if(status)status.textContent="Choose a date and time, then run the forecast.";
  if(sheet){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
 }
 function closeForecastChooser(){
@@ -1545,48 +1565,59 @@ function renderForecastPins(top,target){
  });
  if(bounds.length)map.fitBounds(bounds,{padding:[55,55],maxZoom:10});
 }
-async function runForecastTop3(){
+async function runForecastForSelectedSpot(){
  const target=selectedForecastTarget();
  const status=document.getElementById("wmfForecastStatus");
  const btn=document.getElementById("wmfForecastRunBtn");
- if(!target){status.textContent="Choose a valid date and time.";return;}
+
+ if(!selected){
+  status.textContent="Choose a fishing spot first.";
+  return;
+ }
+ if(!target){
+  status.textContent="Choose a valid date and time.";
+  return;
+ }
+
  const now=Date.now(),max=now+7*86400000;
  if(target.getTime()<now-15*60000||target.getTime()>max){
-  status.textContent="Choose a time between now and 7 days from now.";return;
+  status.textContent="Choose a time between now and 7 days from now.";
+  return;
  }
+
  forecastTarget=target;
- btn.disabled=true;btn.textContent="Scanning…";
- status.textContent="Checking nearby forecast conditions…";
+ btn.disabled=true;
+ btn.textContent="Loading forecast…";
+ status.textContent=`Loading forecast for ${selected.name}…`;
 
- const center=map.getCenter(),bounds=map.getBounds().pad(.22);
- const dist=s=>Math.hypot((s.lon-center.lng)*Math.cos(center.lat*Math.PI/180),s.lat-center.lat);
- let candidates=spots.filter(s=>bounds.contains([s.lat,s.lon]));
- const seen=new Set(candidates.map(s=>`${s.area}|${s.name}`));
- if(candidates.length<8){
-  for(const s of spots.slice().sort((a,b)=>dist(a)-dist(b))){
-   const k=`${s.area}|${s.name}`;if(seen.has(k))continue;
-   candidates.push(s);seen.add(k);if(candidates.length>=10)break;
-  }
- }
- candidates=candidates.sort((a,b)=>dist(a)-dist(b)).slice(0,10);
+ try{
+  const r=await buildForecastSpotData(selected,target);
 
- const rows=[];
- for(let i=0;i<candidates.length;i+=4){
-  const batch=candidates.slice(i,i+4);
-  const got=await Promise.all(batch.map(async s=>{try{return await buildForecastSpotData(s,target);}catch{return null;}}));
-  rows.push(...got.filter(Boolean));
-  status.textContent=`Forecast scan ${Math.min(i+batch.length,candidates.length)}/${candidates.length}…`;
+  whereNowLayer.clearLayers();
+
+  const cls=fishNowClass(r.forecast.score);
+  const icon=L.divIcon({
+   className:"",
+   html:`<div class="fish-now-pin ${cls}">F</div>`,
+   iconSize:[34,34],
+   iconAnchor:[17,17]
+  });
+
+  const marker=L.marker([selected.lat,selected.lon],{icon})
+   .bindPopup(forecastGamePlanHtml(r,1,target),{maxWidth:340})
+   .addTo(whereNowLayer);
+
+  map.setView([selected.lat,selected.lon],Math.max(map.getZoom(),13));
+  setTimeout(()=>marker.openPopup(),180);
+
+  status.textContent=`Forecast ready for ${selected.name} • ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}.`;
+  setTimeout(closeForecastChooser,350);
+ }catch(e){
+  status.textContent=`Forecast unavailable for ${selected.name} at that time. Try another time.`;
+ }finally{
+  btn.disabled=false;
+  btn.textContent="Show Spot Forecast";
  }
- if(!rows.length){
-  status.textContent="No forecast data returned for that time.";
-  btn.disabled=false;btn.textContent="Show Forecast Top 3";return;
- }
- rows.sort((a,b)=>b.forecast.score-a.forecast.score||dist(a.spot)-dist(b.spot));
- const top=rows.slice(0,3);
- renderForecastPins(top,target);
- status.textContent=`Forecast Top 3 ready for ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}. Tap a number on the map.`;
- btn.disabled=false;btn.textContent="Show Forecast Top 3";
- setTimeout(closeForecastChooser,350);
 }
 
 const map=L.map("map").setView([29.55,-91.88],9);
@@ -1637,8 +1668,8 @@ const ForecastControl=L.Control.extend({
   const box=L.DomUtil.create("div","wmf-forecast-control leaflet-control");
   const btn=L.DomUtil.create("button","",box);
   btn.type="button";
-  btn.innerHTML="📅 Forecast";
-  btn.title="Choose a future date and time";
+  btn.innerHTML="📅 Spot Forecast";
+  btn.title="Forecast the selected fishing spot for a future date and time";
   L.DomEvent.disableClickPropagation(box);
   L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openForecastChooser();});
   return box;

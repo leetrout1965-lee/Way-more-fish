@@ -302,6 +302,14 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  .wmf-forecast-body input{width:100%;box-sizing:border-box;font-size:16px}
 }
 
+
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+  .wmf-forecast-control{display:block!important}
+  .wmf-forecast-control button{
+    min-height:42px;border-radius:12px
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1314,9 +1322,9 @@ function fishNowStartLure(r){
 function gamePlanForRankedSpot(r,rank){
  const ctx=structureDetails[r.spot.name]||{};
  const reasons=(r.now&&r.now.reasons||[]).slice(0,4);
- const water=r.clarity&&Number.isFinite(r.clarity.score)
+ const water=usableClaritySignal(r.clarity)
    ?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`
-   :`Water signal ${r.now.cleanScore}/100`;
+   :`Direct clarity unavailable — not scored`;
  const setup=ctx.how||"Start on the current-facing edge or depth change; reposition if bait or fish are absent.";
  return `
  <div class="wmf-game-plan">
@@ -1324,7 +1332,7 @@ function gamePlanForRankedSpot(r,rank){
    <div class="small muted">${r.spot.area}</div>
    <div class="gp-score">${r.now.score}/100 • ${fishNowRating(r.now.score)}</div>
    <div class="gp-row"><span class="gp-label">Best window:</span> ${fishNowWindow(r)}</div>
-   <div class="gp-row"><span class="gp-label">Why now:</span> ${reasons.join(" • ")||"Current conditions fit"}</div>
+   <div class="gp-row"><span class="gp-label">Current score factors:</span> ${reasons.join(" • ")||"Current conditions fit"}</div>
    <div class="gp-row"><span class="gp-label">Water:</span> ${water}</div>
    <div class="gp-row"><span class="gp-label">Structure:</span> ${ctx.type||"Local fishing structure"}</div>
    <div class="gp-row"><span class="gp-label">Set up:</span> ${setup}</div>
@@ -2689,6 +2697,15 @@ function updateRecoveryOutlook(){
  document.getElementById("recoveryTide").textContent=r.tide;
  document.getElementById("recoveryWhy").textContent="Basis: "+r.basis+" • Why: "+(r.reasons.join(" • ")||"not enough recent-condition data");
 }
+
+function usableClaritySignal(c){
+ if(!c||!Number.isFinite(c.score))return false;
+ const label=String(c.label||"").toLowerCase();
+ const source=String(c.source||"").toLowerCase();
+ if(label.includes("unavailable")||label.includes("unknown")||source==="unavailable"||source==="none")return false;
+ return true;
+}
+
 function cleanWaterLikelihood(data){
  const r=recoveryOutlookFor({recent:data.recent,wx:data.wx,tides:data.tides,spot:data.spot});
  let score=70;
@@ -2697,7 +2714,7 @@ function cleanWaterLikelihood(data){
  const tm=nextTideMovementLabel(data.tides);if(tm.startsWith("Rising"))score+=8;else if(tm.startsWith("Falling"))score-=2;
  if(r.pace==="FAST")score+=8;else if(r.pace==="SLOW")score-=10;
  const ctx=structureContext(data.spot),st=(ctx.type||"").toLowerCase();if(st.includes("pass")||st.includes("channel")||st.includes("reef")||st.includes("jetty"))score+=4;if(st.includes("flat")||st.includes("marsh"))score-=3;
- if(data.clarity&&Number.isFinite(data.clarity.score)){
+ if(usableClaritySignal(data.clarity)){
   const weight=data.clarity.direct?0.45:0.20;
   score=Math.round(score*(1-weight)+data.clarity.score*weight);
  }
@@ -2833,10 +2850,12 @@ function microSpotAdjustment(data){
 function currentFishingOpportunity(data){
  let score=Number(data.currentScore)||50,reasons=[...(data.current&&data.current.reasons||[])];
  const c=data.clarity;
- if(c&&Number.isFinite(c.score)){
+ if(usableClaritySignal(c)){
   const weight=c.direct?0.30:0.14;
   score=Math.round(score*(1-weight)+c.score*weight);
   reasons.unshift(`${c.label.toLowerCase()} water signal`);
+ }else if(c){
+  reasons.push("water clarity unavailable — not scored");
  }
  const clean=cleanWaterLikelihood(data);
  score=Math.round(score*.72+clean.score*.28);

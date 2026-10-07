@@ -400,6 +400,18 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   .wmf-water-check-body button{min-height:44px}
 }
 
+
+.wmf-water-preview-wrap{margin-top:10px}
+.wmf-water-preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.wmf-water-preview-actions button{flex:1;min-width:130px}
+.wmf-water-preview-frame{
+  position:relative;width:100%;background:#071018;border:1px solid #38566d;
+  border-radius:12px;overflow:hidden;min-height:180px;display:flex;align-items:center;justify-content:center
+}
+.wmf-water-preview-frame img{display:block;width:100%;height:auto;max-height:52vh;object-fit:contain;background:#071018}
+.wmf-water-preview-fallback{padding:24px 14px;text-align:center;color:#9fb0bf}
+.wmf-water-preview-caption{margin-top:7px;font-size:12px;color:#9fb0bf;line-height:1.35}
+
 </style>
 </head>
 <body>
@@ -1379,6 +1391,74 @@ function worldviewUrlForSelectedWater(){
  const layers='Coastlines_15m,VIIRS_NOAA21_CorrectedReflectance_TrueColor,VIIRS_NOAA20_CorrectedReflectance_TrueColor,VIIRS_SNPP_CorrectedReflectance_TrueColor,MODIS_Aqua_CorrectedReflectance_TrueColor,MODIS_Terra_CorrectedReflectance_TrueColor';
  return `https://worldview.earthdata.nasa.gov/?l=${encodeURIComponent(layers)}&t=${date}&v=${west.toFixed(4)},${south.toFixed(4)},${east.toFixed(4)},${north.toFixed(4)}`;
 }
+
+function selectedWaterPreviewBounds(){
+ if(!selected)return null;
+ const pad=.20;
+ return {
+  west:selected.lon-pad,south:selected.lat-pad,
+  east:selected.lon+pad,north:selected.lat+pad
+ };
+}
+function selectedWaterPreviewTime(){
+ const meta=waterSatelliteMeta();
+ if(meta&&meta.time)return meta.time;
+ return new Date(Date.now()-24*3600000).toISOString();
+}
+function kd490PreviewUrl(){
+ if(!selected)return "";
+ const b=selectedWaterPreviewBounds();
+ const t=selectedWaterPreviewTime();
+ const base="https://coastwatch.noaa.gov/erddap/wms/noaacwNPPN20VIIRSkd490Daily/request";
+ const q=new URLSearchParams({
+  service:"WMS",version:"1.1.1",request:"GetMap",
+  bbox:`${b.west.toFixed(4)},${b.south.toFixed(4)},${b.east.toFixed(4)},${b.north.toFixed(4)}`,
+  time:t,srs:"EPSG:4326",width:"900",height:"560",
+  bgcolor:"0x0b1520",
+  layers:"noaacwNPPN20VIIRSkd490Daily:kd_490",
+  styles:"",format:"image/png",transparent:"FALSE"
+ });
+ return `${base}?${q.toString()}`;
+}
+function nasaTrueColorPreviewUrl(layer="VIIRS_NOAA20_CorrectedReflectance_TrueColor"){
+ if(!selected)return "";
+ const b=selectedWaterPreviewBounds();
+ const date=selectedWaterPreviewTime().slice(0,10);
+ const base="https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
+ const q=new URLSearchParams({
+  SERVICE:"WMS",REQUEST:"GetMap",VERSION:"1.1.1",
+  LAYERS:layer,STYLES:"",SRS:"EPSG:4326",
+  BBOX:`${b.west.toFixed(4)},${b.south.toFixed(4)},${b.east.toFixed(4)},${b.north.toFixed(4)}`,
+  WIDTH:"900",HEIGHT:"560",FORMAT:"image/jpeg",TRANSPARENT:"FALSE",TIME:date
+ });
+ return `${base}?${q.toString()}`;
+}
+function waterPreviewLabel(mode){
+ const meta=waterSatelliteMeta();
+ const age=meta&&Number.isFinite(Number(meta.ageHours))?`${Math.round(Number(meta.ageHours))} hr old`:"age unavailable";
+ if(mode==="kd490")return `NOAA CoastWatch VIIRS Kd490 • ${age}`;
+ return `NASA GIBS true color • ${selectedWaterPreviewTime().slice(0,10)}`;
+}
+function showWaterPreview(mode="kd490"){
+ const img=document.getElementById("wmfWaterPreviewImg");
+ const fallback=document.getElementById("wmfWaterPreviewFallback");
+ const cap=document.getElementById("wmfWaterPreviewCaption");
+ if(!img||!fallback)return;
+ fallback.style.display="none";
+ img.style.display="block";
+ img.onerror=()=>{
+   img.style.display="none";
+   fallback.style.display="block";
+   fallback.textContent=mode==="kd490"
+     ?"No Kd490 image rendered for this pass. Try True Color or open NASA Worldview."
+     :"No true-color image rendered for this date. Clouds or a missing pass may be the reason.";
+ };
+ img.onload=()=>{fallback.style.display="none";img.style.display="block";};
+ img.src=mode==="kd490"?kd490PreviewUrl():nasaTrueColorPreviewUrl();
+ if(cap)cap.textContent=waterPreviewLabel(mode);
+ document.querySelectorAll("[data-water-preview]").forEach(b=>b.classList.toggle("primary",b.dataset.waterPreview===mode));
+}
+
 function openLatestWaterImage(){
  if(!selected){openSpotSelector();return;}
  window.open(worldviewUrlForSelectedWater(),"_blank","noopener");
@@ -1421,8 +1501,19 @@ function renderWaterCheck(){
     <strong>Latest water image</strong>
     <div class="wmf-water-value">${usable?"Recent satellite available":"Satellite check needed"}</div>
     <div class="small muted">${satStatus}</div>
-    <button class="primary" type="button" style="margin-top:9px;width:100%" onclick="openLatestWaterImage()">Open latest NASA water view</button>
-    <div class="small muted" style="margin-top:6px">The image date is matched to the newest NOAA VIIRS water pixel when available. Clouds can still obscure the coast.</div>
+    <div class="wmf-water-preview-wrap">
+      <div class="wmf-water-preview-actions">
+        <button type="button" class="primary" data-water-preview="kd490" onclick="showWaterPreview('kd490')">Water Clarity (Kd490)</button>
+        <button type="button" data-water-preview="truecolor" onclick="showWaterPreview('truecolor')">True Color</button>
+      </div>
+      <div class="wmf-water-preview-frame">
+        <img id="wmfWaterPreviewImg" alt="Latest satellite water image for the selected fishing spot">
+        <div id="wmfWaterPreviewFallback" class="wmf-water-preview-fallback">Loading latest satellite image…</div>
+      </div>
+      <div id="wmfWaterPreviewCaption" class="wmf-water-preview-caption"></div>
+    </div>
+    <button type="button" style="margin-top:9px;width:100%" onclick="openLatestWaterImage()">Open full NASA Worldview</button>
+    <div class="small muted" style="margin-top:6px">Kd490 is the actual NOAA water-clarity/light-attenuation product: lower values generally indicate clearer water and higher values more turbid water. True Color is a visual cross-check and can be obscured by clouds.</div>
   </div>
   <div class="wmf-water-grid">
     <div class="wmf-water-card">
@@ -1447,6 +1538,7 @@ function renderWaterCheck(){
     <div>${recovery.window}</div>
     <div class="small muted" style="margin-top:4px">${recovery.tide} • ${recovery.reasons.join(" • ")}</div>
   </div>`;
+ setTimeout(()=>showWaterPreview("kd490"),0);
 }
 function openWaterCheck(){
  closeFishingTool?.();

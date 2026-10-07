@@ -310,6 +310,23 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   }
 }
 
+
+.wmf-spot-quick-list{display:none}
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+  #wmfSpotSheetContent{display:none!important}
+  .wmf-spot-quick-list{display:block;padding:10px 12px 14px}
+  .wmf-spot-area-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .wmf-spot-area-row select{flex:1;min-width:0}
+  .wmf-spot-list{display:grid;gap:8px;max-height:52vh;overflow:auto;-webkit-overflow-scrolling:touch}
+  .wmf-spot-choice{
+    display:block;width:100%;text-align:left;padding:11px 12px;background:#132332;
+    border:1px solid #38566d;border-radius:12px;color:#eef6fb
+  }
+  .wmf-spot-choice strong{display:block;font-size:16px}
+  .wmf-spot-choice span{display:block;margin-top:3px;font-size:12px;color:#9fb0bf}
+  .wmf-spot-choice.selected{border-color:#8fd3ff;background:#17364a}
+}
+
 </style>
 </head>
 <body>
@@ -438,10 +455,11 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div id="wmfSpotSheet" class="wmf-spot-sheet" aria-hidden="true">
   <div class="wmf-spot-sheet-panel">
     <div class="wmf-spot-sheet-head">
-      <strong>Choose Fishing Spot</strong>
+      <strong id="wmfSpotSheetTitle">Choose Fishing Spot</strong>
       <button type="button" onclick="closeSpotSelector()" aria-label="Close spot selector">✕</button>
     </div>
     <div id="wmfSpotSheetContent"></div>
+    <div id="wmfSpotQuickList" class="wmf-spot-quick-list"></div>
   </div>
 </div>
 
@@ -1165,20 +1183,57 @@ let wmfToolOriginalNext=null;
 let wmfPickerOriginalParent=null;
 let wmfPickerOriginalNext=null;
 
+function renderSpotQuickList(){
+ const host=document.getElementById("wmfSpotQuickList");
+ if(!host)return;
+ const area=areaPicker.value||"";
+ const areas=[...new Set(spots.map(s=>parentAreaForArea(s.area)))];
+ const areaSelect=`<div class="wmf-spot-area-row">
+   <select id="wmfQuickArea" aria-label="Fishing area">
+     <option value="">Choose area…</option>
+     ${areas.map(a=>`<option value="${a}" ${a===area?"selected":""}>${a}</option>`).join("")}
+   </select>
+ </div>`;
+ const matches=area?spots.map((s,i)=>({s,i})).filter(x=>spotBelongsToArea(x.s,area)):[];
+ const list=matches.length
+   ?`<div class="wmf-spot-list">${matches.map(x=>`<button type="button" class="wmf-spot-choice ${selected===x.s?"selected":""}" data-spot-index="${x.i}">
+       <strong>${x.s.name}</strong>
+       <span>${x.s.area}${x.s.tideName?` • Tide: ${x.s.tideName}`:""}</span>
+     </button>`).join("")}</div>`
+   :`<div class="small muted">Choose an area to see fishing spots.</div>`;
+ host.innerHTML=areaSelect+list;
+
+ const qa=document.getElementById("wmfQuickArea");
+ if(qa)qa.addEventListener("change",()=>{
+   const v=qa.value;
+   if(v){areaPicker.value=v;showArea(v);}
+   else{areaPicker.value="";}
+   renderSpotQuickList();
+ });
+
+ host.querySelectorAll("[data-spot-index]").forEach(btn=>{
+   btn.addEventListener("click",()=>{
+     const i=Number(btn.getAttribute("data-spot-index"));
+     const s=spots[i];
+     if(!s)return;
+     const parent=parentAreaForArea(s.area);
+     if(areaPicker.value!==parent){areaPicker.value=parent;showArea(parent);}
+     picker.value=String(i);
+     closeSpotSelector();
+     selectSpot(s);
+     setTimeout(()=>map.setView([s.lat,s.lon],Math.max(map.getZoom(),13)),80);
+   });
+ });
+}
 function openSpotSelector(){
  closeFishingTool();
  closeFishingToolsMenu();
 
- const panel=document.getElementById("wmfPickerPanel");
- const host=document.getElementById("wmfSpotSheetContent");
  const sheet=document.getElementById("wmfSpotSheet");
- if(!panel||!host||!sheet)return;
-
- if(!wmfPickerOriginalParent){
-  wmfPickerOriginalParent=panel.parentNode;
-  wmfPickerOriginalNext=panel.nextSibling;
- }
- host.appendChild(panel);
+ if(!sheet)return;
+ renderSpotQuickList();
+ const title=document.getElementById("wmfSpotSheetTitle");
+ if(title)title.textContent=areaPicker.value?`Choose Spot — ${areaPicker.value}`:"Choose Fishing Area";
  sheet.classList.add("open");
  sheet.setAttribute("aria-hidden","false");
  refreshMapSize();
@@ -1194,6 +1249,7 @@ function closeSpotSelector(){
   }
  }
  if(sheet){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
+ const quick=document.getElementById("wmfSpotQuickList");if(quick)quick.innerHTML="";
  refreshMapSize();
 }
 

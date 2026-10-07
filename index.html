@@ -327,6 +327,33 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   .wmf-spot-choice.selected{border-color:#8fd3ff;background:#17364a}
 }
 
+
+.wmf-more-control{display:none}
+.wmf-more-menu{display:none}
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+  .wmf-more-control{display:block}
+  .wmf-more-control button{
+    min-height:42px;border:0;border-radius:12px;background:#0b668d;color:#fff;
+    font-weight:900;font-size:15px;padding:10px 13px;box-shadow:0 3px 10px #0008
+  }
+  .wmf-more-menu{
+    position:fixed;inset:0;z-index:5450;background:rgba(3,12,19,.35)
+  }
+  .wmf-more-menu.open{display:block}
+  .wmf-more-panel{
+    position:absolute;right:max(12px,env(safe-area-inset-right));
+    bottom:max(150px,calc(env(safe-area-inset-bottom) + 140px));
+    width:min(280px,76vw);display:grid;gap:8px;
+    background:#0f1f2d;border:1px solid #38566d;border-radius:14px;padding:10px;
+    box-shadow:0 12px 32px rgba(0,0,0,.45)
+  }
+  .wmf-more-panel button{
+    min-height:46px;text-align:left;border-radius:10px;background:#132332;
+    border:1px solid #38566d;color:#eef6fb;font-weight:800;padding:10px 12px
+  }
+  .wmf-tools-control,.wmf-spots-control{display:none!important}
+}
+
 </style>
 </head>
 <body>
@@ -478,6 +505,14 @@ Offline / weak signal — showing the most recently cached app and any previousl
       <button id="wmfForecastRunBtn" class="primary" type="button" style="margin-top:12px;width:100%" onclick="runForecastForSelectedSpot()">Show Spot Forecast</button>
       <div id="wmfForecastStatus" class="small muted" style="margin-top:10px">Choose a spot, date and time.</div>
     </div>
+  </div>
+</div>
+
+<div id="wmfMoreMenu" class="wmf-more-menu" aria-hidden="true">
+  <div class="wmf-more-panel">
+    <button type="button" onclick="closeMoreMenu();openSpotSelector()">🎣 Change Spot</button>
+    <button type="button" onclick="closeMoreMenu();openFishingTool('Current Conditions')">📊 Current Conditions</button>
+    <button type="button" onclick="closeMoreMenu();openFishingToolsMenu()">☰ Fishing Tools</button>
   </div>
 </div>
 
@@ -1223,7 +1258,10 @@ function renderSpotQuickList(){
      selectSpot(s);
      const fsn=document.getElementById("wmfForecastSpotName");
      if(fsn)fsn.textContent=`Forecast for: ${s.name}`;
-     setTimeout(()=>map.setView([s.lat,s.lon],Math.max(map.getZoom(),13)),80);
+     setTimeout(()=>{
+       map.setView([s.lat,s.lon],Math.max(map.getZoom(),13));
+       showSpotTooltipTemporarily(i);
+     },80);
    });
  });
 }
@@ -1253,6 +1291,16 @@ function closeSpotSelector(){
  if(sheet){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
  const quick=document.getElementById("wmfSpotQuickList");if(quick)quick.innerHTML="";
  refreshMapSize();
+}
+
+
+function openMoreMenu(){
+ const m=document.getElementById("wmfMoreMenu");
+ if(m){m.classList.add("open");m.setAttribute("aria-hidden","false");}
+}
+function closeMoreMenu(){
+ const m=document.getElementById("wmfMoreMenu");
+ if(m){m.classList.remove("open");m.setAttribute("aria-hidden","true");}
 }
 
 function openFishingToolsMenu(){
@@ -1668,7 +1716,7 @@ const ForecastControl=L.Control.extend({
   const box=L.DomUtil.create("div","wmf-forecast-control leaflet-control");
   const btn=L.DomUtil.create("button","",box);
   btn.type="button";
-  btn.innerHTML="📅 Spot Forecast";
+  btn.innerHTML="📅 Forecast";
   btn.title="Forecast the selected fishing spot for a future date and time";
   L.DomEvent.disableClickPropagation(box);
   L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openForecastChooser();});
@@ -1676,6 +1724,22 @@ const ForecastControl=L.Control.extend({
  }
 });
 map.addControl(new ForecastControl());
+
+
+const MoreControl=L.Control.extend({
+ options:{position:"bottomright"},
+ onAdd:function(){
+  const box=L.DomUtil.create("div","wmf-more-control leaflet-control");
+  const btn=L.DomUtil.create("button","",box);
+  btn.type="button";
+  btn.innerHTML="☰ More";
+  btn.title="More fishing controls";
+  L.DomEvent.disableClickPropagation(box);
+  L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openMoreMenu();});
+  return box;
+ }
+});
+map.addControl(new MoreControl());
 
 const FishingToolsControl=L.Control.extend({
  options:{position:"bottomright"},
@@ -1690,7 +1754,7 @@ const FishingToolsControl=L.Control.extend({
   return box;
  }
 });
-map.addControl(new FishingToolsControl());
+// Tools moved into More menu
 
 const SpotsControl=L.Control.extend({
  options:{position:"bottomright"},
@@ -1706,7 +1770,7 @@ const SpotsControl=L.Control.extend({
   return box;
  }
 });
-map.addControl(new SpotsControl());
+// Spot chooser moved into More menu
 
 
 const QuickStatusControl=L.Control.extend({
@@ -2057,6 +2121,16 @@ function showArea(area){
 areaPicker.addEventListener("change",()=>{if(areaPicker.value)showArea(areaPicker.value);else{picker.disabled=true;picker.innerHTML='<option value="">Select an area first…</option>';areaStatus.textContent='Choose an area, then pick a fishing spot.';fg.clearLayers();}});
 
 picker.addEventListener("change",()=>{if(picker.value!=="")selectSpot(spots[Number(picker.value)]);});
+
+let wmfSpotTooltipTimer=null;
+function showSpotTooltipTemporarily(i,ms=3500){
+ const marker=spotMarkers.get(Number(i));
+ if(!marker)return;
+ if(wmfSpotTooltipTimer)clearTimeout(wmfSpotTooltipTimer);
+ try{marker.openTooltip();}catch(e){}
+ wmfSpotTooltipTimer=setTimeout(()=>{try{marker.closeTooltip();}catch(e){}},ms);
+}
+
 function viewSpotOnMap(spotIndex){
  const i=Number(spotIndex),s=spots[i];
  if(!s)return;
@@ -2067,7 +2141,7 @@ function viewSpotOnMap(spotIndex){
  map.setView([s.lat,s.lon],13);
  setTimeout(()=>{
   const marker=spotMarkers.get(i);
-  if(marker&&marker.openTooltip)marker.openTooltip();
+  if(marker)showSpotTooltipTemporarily(i);
   const mapEl=document.getElementById("map");
   if(mapEl&&mapEl.scrollIntoView)mapEl.scrollIntoView({behavior:"smooth",block:"center"});
  },120);
@@ -3669,6 +3743,11 @@ document.getElementById("wmfSpotSheet")?.addEventListener("click",e=>{
 
 document.getElementById("wmfForecastSheet")?.addEventListener("click",e=>{
  if(e.target===e.currentTarget)closeForecastChooser();
+});
+
+
+document.getElementById("wmfMoreMenu")?.addEventListener("click",e=>{
+ if(e.target===e.currentTarget)closeMoreMenu();
 });
 
 </script>

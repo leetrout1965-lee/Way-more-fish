@@ -295,6 +295,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <select id="areaPicker" style="width:100%;font-size:17px;margin-bottom:8px">
 <option value="">Select an area…</option>
 <option value="Vermilion Bay">Vermilion Bay</option>
+<option value="The Worm / Marsh Island">The Worm / Marsh Island</option>
 <option value="Tiger Shoal West">Tiger Shoal West</option>
 <option value="Tiger Shoal East">Tiger Shoal East</option>
 <option value="Big Lake / Calcasieu">Big Lake / Calcasieu</option>
@@ -663,7 +664,9 @@ const spots=[
 {name:"Shell Keys Reef",area:"Vermilion Bay",lat:29.40656833,lon:-91.85370667,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
 {name:"Nickel Reef",area:"Cote Blanche / Nickel Reef",lat:29.41945,lon:-91.7075,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"LDWF nearshore reef"},
 {name:"Rabbit Island Pass",area:"Cote Blanche / Nickel Reef",lat:29.42695,lon:-91.70750,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay",sourceNote:"Published LDWF nearshore reference"},
-{name:"Lake Tom",area:"Vermilion Bay",lat:29.57111,lon:-91.82639,tide:"8765251",tideName:"Cypremort Point"},
+{name:"Worm Cove",area:"The Worm / Marsh Island",lat:29.5896847,lon:-91.8033617,tide:"8765251",tideName:"Cypremort Point",sourceNote:"Official Louisiana sensitive-site coordinate; Worm Cove / Marsh Island reference point"},
+{name:"Worm Bayou",area:"The Worm / Marsh Island",lat:29.5847647,lon:-91.8031316,tide:"8765251",tideName:"Cypremort Point",sourceNote:"USGS/GNIS named-feature coordinate; Worm Bayou reference point"},
+{name:"Lake Tom",area:"The Worm / Marsh Island",lat:29.5650095,lon:-91.8156931,tide:"8765251",tideName:"Cypremort Point",sourceNote:"USGS/GNIS named-feature coordinate; Lake Tom reference point"},
 {name:"Oyster Lake",area:"Vermilion Bay",lat:29.52917,lon:-91.86861,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Mound Point",area:"Vermilion Bay",lat:29.47472,lon:-91.82278,tide:"8765251",tideName:"Cypremort Point"},
 {name:"South Point",area:"Vermilion Bay",lat:29.49361,lon:-91.77222,tide:"8765251",tideName:"Cypremort Point"},
@@ -833,6 +836,7 @@ const spots=[
 // Live salinity sources. Each spot uses the nearest practical monitoring station, not an exact on-spot reading.
 const salinitySources={
  "Vermilion Bay":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional proxy for Vermilion Bay spots; backup is a broad coastal proxy"},
+ "The Worm / Marsh Island":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional salinity proxy for The Worm / northeast Marsh Island; local Worm Bayou and Lake Tom salinity can differ materially with tide and marsh drainage"},
  "Cote Blanche / Nickel Reef":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional Vermilion Bay proxy for Cote Blanche / Nickel Reef; backup is a broad coastal proxy"},
  "Big Lake / Calcasieu":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional proxy for Big Lake spots; backup is farther north in the Calcasieu system"},
  "Lake Charles":{provider:"USGS",site:"08017095",backupSite:"08017044",backupName:"Calcasieu River at I-10 at Lake Charles",name:"North Calcasieu Lake near Hackberry",note:"Regional Calcasieu-system salinity proxy for Lake Charles; local salinity can differ after rainfall and river runoff"},
@@ -856,6 +860,10 @@ const salinitySources={
 };
 
 const structureDetails={
+
+ "Worm Cove":{type:"Tidal cove / Worm entrance",depth:"Official reference point at Worm Cove; nearby channel and cove edges vary with tide",how:"Fish moving-water seams and cove/channel edges. The Worm is a documented redfish area. Exact deep-hole coordinates are not published in the sources checked, so this pin is a verified named-feature reference rather than a claimed hole waypoint."},
+ "Worm Bayou":{type:"Tidal bayou / deep-bend system",depth:"Bayou bends and channel edges; published fishing reports describe deep holes in The Worm but do not publish exact hole coordinates",how:"On a falling tide, work bends, outside edges and current seams as water drains from the interior lakes. Use sonar to identify the actual deep hole before anchoring or making repeated casts."},
+ "Lake Tom":{type:"Shallow marsh lake / drainage source",depth:"Published fishing reporting describes Lake Tom as roughly 4–5 ft in the discussed pattern, draining toward a much deeper hole nearby",how:"Focus on the outlet/drainage path on a falling tide where bait leaves Lake Tom toward Worm Bayou. The lake coordinate is verified; the reported deep hole nearby is intentionally not pinned without an independently published coordinate."},
 
  "Little Florida Beach":{type:"Open Gulf beach / surf zone",depth:"First and second guts, sandbar edges and any visible current cuts",how:"Fish moving water along the guts and cuts. Look for cleaner water, bait, birds and breaks in the sandbar; this pin is an approximate offshore fishing reference, not a navigation waypoint."},
 

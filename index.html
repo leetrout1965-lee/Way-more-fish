@@ -376,6 +376,30 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   }
 }
 
+
+.wmf-water-check-sheet{display:none}
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+  .wmf-water-check-sheet{
+    position:fixed;inset:0;z-index:5460;background:rgba(3,12,19,.72);
+    padding:12px;align-items:flex-end;justify-content:center
+  }
+  .wmf-water-check-sheet.open{display:flex}
+  .wmf-water-check-panel{
+    width:min(640px,100%);background:#0b1520;border:1px solid #38566d;
+    border-radius:18px 18px 10px 10px;box-shadow:0 18px 50px rgba(0,0,0,.58)
+  }
+  .wmf-water-check-head{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    background:#0f1f2d;border-bottom:1px solid #284153;padding:10px 12px
+  }
+  .wmf-water-check-body{padding:12px 14px 16px;display:grid;gap:10px}
+  .wmf-water-card{padding:10px 12px;background:#132332;border:1px solid #38566d;border-radius:12px}
+  .wmf-water-card strong{font-size:15px}
+  .wmf-water-value{font-size:20px;font-weight:900;margin-top:3px}
+  .wmf-water-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .wmf-water-check-body button{min-height:44px}
+}
+
 </style>
 </head>
 <body>
@@ -533,8 +557,19 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div id="wmfMoreMenu" class="wmf-more-menu" aria-hidden="true">
   <div class="wmf-more-panel">
     <button type="button" onclick="closeMoreMenu();openSpotSelector()">🎣 Change Spot</button>
+    <button type="button" onclick="closeMoreMenu();openWaterCheck()">💧 Water Check</button>
     <button type="button" onclick="closeMoreMenu();openFishingTool('Current Conditions')">📊 Current Conditions</button>
     <button type="button" onclick="closeMoreMenu();openFishingToolsMenu()">☰ Fishing Tools</button>
+  </div>
+</div>
+
+<div id="wmfWaterCheckSheet" class="wmf-water-check-sheet" aria-hidden="true">
+  <div class="wmf-water-check-panel">
+    <div class="wmf-water-check-head">
+      <strong id="wmfWaterCheckTitle">Water Check</strong>
+      <button type="button" onclick="closeWaterCheck()" aria-label="Close water check">✕</button>
+    </div>
+    <div id="wmfWaterCheckBody" class="wmf-water-check-body"></div>
   </div>
 </div>
 
@@ -1315,6 +1350,116 @@ function closeSpotSelector(){
  refreshMapSize();
 }
 
+
+
+function waterSatelliteMeta(){
+ const raw=clarityState&&clarityState.raw;
+ return raw&&raw.satellite?raw.satellite:null;
+}
+function waterSatelliteUsable(meta){
+ if(!meta)return false;
+ return meta.freshness==="fresh"||meta.freshness==="usable";
+}
+function satelliteAgeText(meta){
+ if(!meta||!Number.isFinite(Number(meta.ageHours)))return "No recent VIIRS water image";
+ const h=Math.round(Number(meta.ageHours));
+ return `${h} hr old • ${String(meta.freshness||"unknown")}`;
+}
+function worldviewUrlForSelectedWater(){
+ if(!selected)return worldviewUrlForArea();
+ const pad=.18,west=selected.lon-pad,south=selected.lat-pad,east=selected.lon+pad,north=selected.lat+pad;
+ const meta=waterSatelliteMeta();
+ let date=null;
+ if(meta&&meta.time){
+  const d=new Date(meta.time);
+  if(Number.isFinite(d.getTime()))date=d.toISOString().slice(0,10);
+ }
+ if(!date)date=new Date(Date.now()-24*3600000).toISOString().slice(0,10);
+ const layers='Coastlines_15m,VIIRS_NOAA21_CorrectedReflectance_TrueColor,VIIRS_NOAA20_CorrectedReflectance_TrueColor,VIIRS_SNPP_CorrectedReflectance_TrueColor,MODIS_Aqua_CorrectedReflectance_TrueColor,MODIS_Terra_CorrectedReflectance_TrueColor';
+ return `https://worldview.earthdata.nasa.gov/?l=${encodeURIComponent(layers)}&t=${date}&v=${west.toFixed(4)},${south.toFixed(4)},${east.toFixed(4)},${north.toFixed(4)}`;
+}
+function openLatestWaterImage(){
+ if(!selected){openSpotSelector();return;}
+ window.open(worldviewUrlForSelectedWater(),"_blank","noopener");
+}
+function waterDisruptionSummary(){
+ const r=recentConditions||{};
+ const parts=[];
+ if(r.thunder)parts.push("thunder nearby");
+ if(Number.isFinite(r.maxGust))parts.push(`gusts ${Math.round(r.maxGust)} mph`);
+ if(Number.isFinite(r.maxWind))parts.push(`wind ${Math.round(r.maxWind)} mph max`);
+ if(Number.isFinite(r.rainIn))parts.push(r.rainIn>=0.01?`rain ${r.rainIn.toFixed(2)} in/hr peak`:"little/no rain");
+ if(Number.isFinite(r.windShift)&&r.windShift>=30)parts.push(`wind shift ${Math.round(r.windShift)}°`);
+ return parts.length?parts.join(" • "):"No strong recent wind/rain disruption signal found.";
+}
+function renderWaterCheck(){
+ const body=document.getElementById("wmfWaterCheckBody");
+ const title=document.getElementById("wmfWaterCheckTitle");
+ if(!body)return;
+ if(!selected){
+  if(title)title.textContent="Water Check";
+  body.innerHTML='<div class="wmf-water-card"><strong>Choose a fishing spot first.</strong></div>';
+  return;
+ }
+ if(title)title.textContent=`Water Check — ${selected.name}`;
+
+ const meta=waterSatelliteMeta();
+ const usable=waterSatelliteUsable(meta);
+ const satStatus=meta
+   ?`${satelliteAgeText(meta)}${Number.isFinite(Number(meta.distanceMiles))?` • pixel ${Number(meta.distanceMiles).toFixed(1)} mi away`:""}`
+   :"No usable recent VIIRS water pixel returned for this spot.";
+ const clarity=usableClaritySignal(clarityState)
+   ?`${clarityState.label} • ${Math.round(clarityState.score)}/100`
+   :"Current clarity not directly available";
+ const recovery=recoveryOutlookFor({recent:recentConditions,wx,tides,spot:selected});
+ const risk=(recentConditions&&recentConditions.risk)||"Unknown";
+ const observed=(recentConditions&&recentConditions.observedWind)||"Recent station wind unavailable";
+
+ body.innerHTML=`
+  <div class="wmf-water-card">
+    <strong>Latest water image</strong>
+    <div class="wmf-water-value">${usable?"Recent satellite available":"Satellite check needed"}</div>
+    <div class="small muted">${satStatus}</div>
+    <button class="primary" type="button" style="margin-top:9px;width:100%" onclick="openLatestWaterImage()">Open latest NASA water view</button>
+    <div class="small muted" style="margin-top:6px">The image date is matched to the newest NOAA VIIRS water pixel when available. Clouds can still obscure the coast.</div>
+  </div>
+  <div class="wmf-water-grid">
+    <div class="wmf-water-card">
+      <strong>Current clarity signal</strong>
+      <div class="wmf-water-value">${clarity}</div>
+      <div class="small muted">${clarityState&&clarityState.details?clarityState.details:"Unavailable data is not scored."}</div>
+    </div>
+    <div class="wmf-water-card">
+      <strong>Recent disruption risk</strong>
+      <div class="wmf-water-value">${risk}</div>
+      <div class="small muted">${waterDisruptionSummary()}</div>
+    </div>
+  </div>
+  <div class="wmf-water-card">
+    <strong>Observed weather near the spot</strong>
+    <div style="font-weight:800;margin-top:4px">${observed}</div>
+    <div class="small muted" style="margin-top:4px">${recentConditions&&recentConditions.stationName?`NWS: ${recentConditions.stationName}${recentConditions.age?` • ${recentConditions.age}`:""}`:"Using modeled fallback if direct station observations are unavailable."}</div>
+  </div>
+  <div class="wmf-water-card">
+    <strong>Water recovery outlook</strong>
+    <div class="wmf-water-value">${recovery.pace}</div>
+    <div>${recovery.window}</div>
+    <div class="small muted" style="margin-top:4px">${recovery.tide} • ${recovery.reasons.join(" • ")}</div>
+  </div>`;
+}
+function openWaterCheck(){
+ closeFishingTool?.();
+ closeFishingToolsMenu?.();
+ closeSpotSelector?.();
+ if(!selected){openSpotSelector();return;}
+ renderWaterCheck();
+ const s=document.getElementById("wmfWaterCheckSheet");
+ if(s){s.classList.add("open");s.setAttribute("aria-hidden","false");}
+}
+function closeWaterCheck(){
+ const s=document.getElementById("wmfWaterCheckSheet");
+ if(s){s.classList.remove("open");s.setAttribute("aria-hidden","true");}
+}
 
 function openMoreMenu(){
  const m=document.getElementById("wmfMoreMenu");
@@ -2427,6 +2572,7 @@ async function selectSpot(s){
  if(failed.length===0){document.getElementById("status").textContent=warnings.length?"Loaded cached conditions because a live source was unavailable: "+warnings.join("; "):"Conditions loaded (live or recent cache).";}
  else{document.getElementById("status").textContent="Some conditions are unavailable: "+failed.map(r=>r.reason.message).join("; ")+". The score uses only the factors that loaded.";}
  calcScore();
+ if(document.getElementById("wmfWaterCheckSheet")?.classList.contains("open"))renderWaterCheck();
 }
 function msToMph(v){return Number.isFinite(v)?v*2.236936:null;}
 function qvToMph(qv){
@@ -3784,6 +3930,11 @@ document.getElementById("wmfForecastSheet")?.addEventListener("click",e=>{
 
 document.getElementById("wmfMoreMenu")?.addEventListener("click",e=>{
  if(e.target===e.currentTarget)closeMoreMenu();
+});
+
+
+document.getElementById("wmfWaterCheckSheet")?.addEventListener("click",e=>{
+ if(e.target===e.currentTarget)closeWaterCheck();
 });
 
 </script>

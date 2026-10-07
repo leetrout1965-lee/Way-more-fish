@@ -267,6 +267,14 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  }
 }
 
+
+.wmf-structure-dot{background:transparent;border:0}
+.wmf-structure-dot-inner{
+ width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+ background:rgba(11,102,141,.92);color:#fff;border:2px solid #eef6fb;
+ font-size:14px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.45)
+}
+
 </style>
 </head>
 <body>
@@ -338,7 +346,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
     <div class="wmf-tools-group">
       <h4>Fish now</h4>
       <div class="wmf-tools-buttons">
-        <button type="button" onclick="openFishingTool('Where Should I Fish Right Now?')">Fish Now — Top 3</button>
+        <button type="button" onclick="openFishingTool('Where Should I Fish Right Now?')">Fish Now — Nearby Top 3</button>
         <button type="button" onclick="openFishingTool('Best Fishing Spot Near Me')">Best Spot Near Me</button>
         <button type="button" onclick="openFishingTool('Current Conditions')">Spot Conditions</button>
         <button type="button" onclick="openFishingTool('What to throw now')">Lure / Bait Suggestion</button>
@@ -943,6 +951,15 @@ function structureShortType(d){
  const t=(d&&d.type?String(d.type):"Structure").replace(/\s*\/\s*/g," / ");
  return t.length>40?t.slice(0,37)+"…":t;
 }
+function structureIconGlyph(d){
+ const t=String((d&&d.type)||"").toLowerCase();
+ if(/reef|shell|oyster|hard bottom/.test(t))return "◈";
+ if(/ledge|drop|channel|deep/.test(t))return "⌁";
+ if(/point|island|shoreline/.test(t))return "●";
+ if(/weir|rock|jetty|riprap/.test(t))return "◆";
+ if(/drain|bayou|pass|cut/.test(t))return "↝";
+ return "•";
+}
 function updateBottomStructureLayer(){
  bottomStructureLayer.clearLayers();
  if(!map.hasLayer(bottomStructureLayer))return;
@@ -962,22 +979,23 @@ function updateBottomStructureLayer(){
   const marker=L.marker(ll,{
    interactive:true,
    keyboard:false,
-   zIndexOffset:300,
+   zIndexOffset:250,
    icon:L.divIcon({
-    className:"wmf-structure-label",
-    html:`<div class="wmf-structure-pill">${s.name}<span>${structureShortType(d)}</span></div>`,
-    iconSize:null,
-    iconAnchor:[0,0]
+    className:"wmf-structure-dot",
+    html:`<div class="wmf-structure-dot-inner" aria-label="${s.name}">${structureIconGlyph(d)}</div>`,
+    iconSize:[26,26],
+    iconAnchor:[13,13]
    })
   });
 
   const depth=d.depth?`<div style="margin-top:6px"><strong>Depth / bottom:</strong> ${d.depth}</div>`:"";
   const how=d.how?`<div style="margin-top:6px"><strong>How to fish it:</strong> ${d.how}</div>`:"";
+  marker.bindTooltip(s.name,{direction:"top",offset:[0,-10],opacity:.92});
   marker.bindPopup(
    `<strong>${s.name}</strong>`+
    `<div style="margin-top:5px"><strong>Structure:</strong> ${d.type||"Reference structure"}</div>`+
    depth+how+
-   `<div style="margin-top:7px;font-size:11px">Fishing-structure interpretation only. Use the NOAA Nautical Chart for charted soundings, hazards and navigation reference.</div>`
+   `<div style="margin-top:7px;font-size:11px">Tap-only structure reference. Use NOAA chart soundings/hazards for navigation.</div>`
   );
   bottomStructureLayer.addLayer(marker);
  });
@@ -1323,7 +1341,7 @@ const FishNowControl=L.Control.extend({
   btn.id="wmfFishNowBtn";
   btn.type="button";
   btn.innerHTML="🎯 Fish Now";
-  btn.title="Scan current conditions and show the top 3 spots";
+  btn.title="Show the best 3 nearby spots for current conditions";
   L.DomEvent.disableClickPropagation(box);
   L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);runFishNowMap();});
   return box;
@@ -2625,105 +2643,90 @@ async function findWhereNow(){
  const btn=document.getElementById("whereNowBtn"),status=document.getElementById("whereNowStatus"),box=document.getElementById("whereNowResults");
  btn.disabled=true;box.innerHTML="";whereNowLayer.clearLayers();
 
- const areas=[...new Set(spots.map(s=>s.area))];
- const stage1=[];let failed=0;
+ // Fish Now should answer "what should I fish around what I'm looking at?"
+ // Start with visible spots, then add the nearest spots to the current map center if needed.
+ const center=map.getCenter();
+ const bounds=map.getBounds().pad(.22);
+ const distance=(s)=>{
+  const dx=(s.lon-center.lng)*Math.cos(center.lat*Math.PI/180),dy=s.lat-center.lat;
+  return Math.sqrt(dx*dx+dy*dy);
+ };
 
- // Small parallel batches are much faster than one-at-a-time without hammering NOAA/NWS.
- async function runBatch(items,worker,batchSize=4){
+ let candidates=spots.filter(s=>bounds.contains([s.lat,s.lon]));
+ const seen=new Set(candidates.map(s=>`${s.area}|${s.name}`));
+
+ if(candidates.length<8){
+  const nearest=spots.slice().sort((a,b)=>distance(a)-distance(b));
+  for(const s of nearest){
+   const k=`${s.area}|${s.name}`;
+   if(seen.has(k))continue;
+   candidates.push(s);seen.add(k);
+   if(candidates.length>=12)break;
+  }
+ }
+ candidates=candidates.sort((a,b)=>distance(a)-distance(b)).slice(0,12);
+
+ if(!candidates.length){
+  status.textContent="No Way More Fish spots are available near this map view.";
+  btn.disabled=false;return;
+ }
+
+ // Keep the recommendation map clean while ranking.
+ if(map.hasLayer(bottomStructureLayer))map.removeLayer(bottomStructureLayer);
+
+ status.textContent=`Checking ${candidates.length} nearby spots…`;
+
+ async function runBatch(items,batchSize=4){
   const out=[];
   for(let i=0;i<items.length;i+=batchSize){
    const batch=items.slice(i,i+batchSize);
-   const rows=await Promise.all(batch.map(async item=>{
-    try{return await worker(item);}catch(e){return {__error:e};}
+   const rows=await Promise.all(batch.map(async sp=>{
+    try{
+     const d=await buildCompareSpotData(sp);
+     return {...d,now:currentFishingOpportunity(d)};
+    }catch(e){return null;}
    }));
-   out.push(...rows);
-   status.textContent=`Fast scan ${Math.min(i+batch.length,items.length)}/${items.length}…`;
+   out.push(...rows.filter(Boolean));
+   status.textContent=`Nearby scan ${Math.min(i+batch.length,items.length)}/${items.length}…`;
   }
   return out;
  }
 
- status.textContent=`Fast scanning ${areas.length} Louisiana coastal areas…`;
-
- // PASS 1: representative spot only, and skip clarity until we know the finalists.
- const coarse=await runBatch(areas,async area=>{
-  const rep=representativeAreaSpots(area,1)[0];
-  if(!rep)return null;
-  const d=await buildCompareSpotData(rep);
-  const now=currentFishingOpportunity(d);
-  return {...d,now};
- },4);
-
- for(const r of coarse){
-  if(!r||r.__error){failed++;continue;}
-  stage1.push(r);
- }
-
- if(!stage1.length){
-  status.textContent="No areas returned enough current data. Try again in a few minutes.";
+ let ranked=await runBatch(candidates,4);
+ if(!ranked.length){
+  status.textContent="Nearby conditions feeds did not return enough data. Try again in a moment.";
   btn.disabled=false;return;
  }
 
- stage1.sort((a,b)=>b.now.score-a.now.score);
+ ranked.sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||distance(a.spot)-distance(b.spot));
 
- // PASS 2: refine only the strongest four areas, three spots each.
- const finalistAreas=[...new Set(stage1.slice(0,4).map(x=>x.spot.area))];
- const refineJobs=[];
- for(const area of finalistAreas){
-  for(const sp of representativeAreaSpots(area,3))refineJobs.push(sp);
- }
-
- status.textContent=`Refining ${finalistAreas.length} strongest areas…`;
-
- const refined=await runBatch(refineJobs,async sp=>{
-  const d=await buildCompareSpotData(sp);
-  try{d.clarity=await fetchClarityForSpot(sp,d);}catch{}
-  return {...d,now:currentFishingOpportunity(d)};
- },4);
-
- const rows=refined.filter(r=>r&&!r.__error);
-
- // Add clarity only for the best coarse representatives if they survive into ranking.
- const keyed=new Map();
- for(const r of [...stage1,...rows]){
-  const k=`${r.spot.area}|${r.spot.name}`;
-  const old=keyed.get(k);
-  if(!old||r.now.score>old.now.score)keyed.set(k,r);
- }
-
- const ranked=[...keyed.values()].sort((a,b)=>
-  b.now.score-a.now.score||
-  b.now.cleanScore-a.now.cleanScore||
-  a.spot.name.localeCompare(b.spot.name)
- );
-
- const bestByArea=new Map();
- for(const r of ranked){
-  if(!bestByArea.has(r.spot.area))bestByArea.set(r.spot.area,r);
- }
-
- const top=[...bestByArea.values()]
-  .sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name))
-  .slice(0,3);
-
- // Fill clarity only for the final Top 3 if missing.
- await Promise.all(top.map(async r=>{
-  if(r.clarity&&Number.isFinite(r.clarity.score))return;
+ // Give the best candidates the more expensive clarity lookup only after the fast pass.
+ const finalists=ranked.slice(0,5);
+ await Promise.all(finalists.map(async r=>{
   try{
    r.clarity=await fetchClarityForSpot(r.spot,r);
    r.now=currentFishingOpportunity(r);
   }catch{}
  }));
 
- // Re-sort once after final clarity is available.
- top.sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||a.spot.name.localeCompare(b.spot.name));
+ finalists.sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||distance(a.spot)-distance(b.spot));
+
+ // Keep some geographic variety without forcing one-per-area statewide.
+ const top=[];
+ const usedNames=new Set();
+ for(const r of finalists){
+  if(usedNames.has(r.spot.name))continue;
+  top.push(r);usedNames.add(r.spot.name);
+  if(top.length===3)break;
+ }
 
  renderWhereNowPins(top);
 
- status.textContent=`Fast Fish Now complete. ${stage1.length}/${areas.length} areas checked${failed?`; ${failed} skipped`:""}. Top 3 are pinned with Game Plans.`;
+ status.textContent=`Fish Now checked ${ranked.length} nearby spots. Top 3 are pinned — tap a number for the Game Plan.`;
 
  box.innerHTML='<table><thead><tr><td><strong>Rank</strong></td><td><strong>Spot / area</strong></td><td><strong>Now</strong></td><td><strong>Water</strong></td><td><strong>Why</strong></td></tr></thead><tbody>'+
- top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}${Number.isFinite(r.now.microAdjustment)&&r.now.microAdjustment!==0?` • Micro ${r.now.microAdjustment>0?"+":""}${r.now.microAdjustment}`:""}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Clean-water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,5).join(" • ")||"current conditions fit"}</td></tr>`).join("")+
- '</tbody></table><div class="small muted" style="margin-top:8px">Fast Fish Now uses a two-pass scan: one representative spot per area, then a deeper check of only the strongest areas. The final Top 3 still include water, structure and confidence checks.</div>';
+ top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,4).join(" • ")||"current conditions fit"}</td></tr>`).join("")+
+ '</tbody></table><div class="small muted" style="margin-top:8px">Fish Now ranks the current map area first, then nearby spots if needed. It performs the expensive water-clarity check only on finalists.</div>';
 
  btn.disabled=false;
 }

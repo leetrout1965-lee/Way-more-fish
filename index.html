@@ -275,6 +275,33 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  font-size:14px;font-weight:900;box-shadow:0 2px 6px rgba(0,0,0,.45)
 }
 
+
+.wmf-forecast-control{display:none}
+.wmf-forecast-sheet{display:none}
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+ .wmf-forecast-control{display:block}
+ .wmf-forecast-control button{
+   border:0;border-radius:12px;background:#5d4aa8;color:#fff;
+   font-weight:900;font-size:15px;padding:10px 13px;box-shadow:0 3px 10px #0008
+ }
+ .wmf-forecast-sheet{
+   position:fixed;inset:0;z-index:5400;background:rgba(3,12,19,.72);
+   padding:12px;align-items:flex-end;justify-content:center
+ }
+ .wmf-forecast-sheet.open{display:flex}
+ .wmf-forecast-panel{
+   width:min(620px,100%);background:#0b1520;border:1px solid #38566d;
+   border-radius:18px 18px 10px 10px;box-shadow:0 18px 50px rgba(0,0,0,.58)
+ }
+ .wmf-forecast-head{
+   display:flex;justify-content:space-between;align-items:center;gap:10px;
+   background:#0f1f2d;border-bottom:1px solid #284153;padding:10px 12px
+ }
+ .wmf-forecast-body{padding:14px;display:grid;gap:8px}
+ .wmf-forecast-body label{font-size:13px;font-weight:800;color:#9fb0bf}
+ .wmf-forecast-body input{width:100%;box-sizing:border-box;font-size:16px}
+}
+
 </style>
 </head>
 <body>
@@ -407,6 +434,24 @@ Offline / weak signal — showing the most recently cached app and any previousl
       <button type="button" onclick="closeSpotSelector()" aria-label="Close spot selector">✕</button>
     </div>
     <div id="wmfSpotSheetContent"></div>
+  </div>
+</div>
+
+<div id="wmfForecastSheet" class="wmf-forecast-sheet" aria-hidden="true">
+  <div class="wmf-forecast-panel">
+    <div class="wmf-forecast-head">
+      <strong>Forecast Date & Time</strong>
+      <button type="button" onclick="closeForecastChooser()" aria-label="Close forecast chooser">✕</button>
+    </div>
+    <div class="wmf-forecast-body">
+      <label for="wmfForecastDate">Date</label>
+      <input id="wmfForecastDate" type="date">
+      <label for="wmfForecastTime">Time</label>
+      <input id="wmfForecastTime" type="time" step="900">
+      <div class="small muted" style="margin-top:8px">Choose any time within the next 7 days. Forecast ranking uses predicted wind, weather and tide movement plus known structure. Future water clarity is not guessed.</div>
+      <button id="wmfForecastRunBtn" class="primary" type="button" style="margin-top:12px;width:100%" onclick="runForecastTop3()">Show Forecast Top 3</button>
+      <div id="wmfForecastStatus" class="small muted" style="margin-top:10px">Choose a date and time.</div>
+    </div>
   </div>
 </div>
 
@@ -1308,6 +1353,178 @@ async function runFishNowMap(){
  }
 }
 
+
+let forecastTarget=null;
+
+function forecastLocalInputValue(d){
+ const pad=n=>String(n).padStart(2,"0");
+ return {
+  date:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
+  time:`${pad(d.getHours())}:${pad(Math.floor(d.getMinutes()/15)*15)}`
+ };
+}
+function openForecastChooser(){
+ closeFishingTool?.();
+ closeFishingToolsMenu?.();
+ closeSpotSelector?.();
+ const now=new Date(),def=new Date(now.getTime()+3*3600000);
+ const vals=forecastLocalInputValue(def);
+ const date=document.getElementById("wmfForecastDate");
+ const time=document.getElementById("wmfForecastTime");
+ if(date&&!date.value){
+  date.min=forecastLocalInputValue(now).date;
+  const max=new Date(now.getTime()+7*86400000);
+  date.max=forecastLocalInputValue(max).date;
+  date.value=vals.date;
+ }
+ if(time&&!time.value)time.value=vals.time;
+ const sheet=document.getElementById("wmfForecastSheet");
+ if(sheet){sheet.classList.add("open");sheet.setAttribute("aria-hidden","false");}
+}
+function closeForecastChooser(){
+ const sheet=document.getElementById("wmfForecastSheet");
+ if(sheet){sheet.classList.remove("open");sheet.setAttribute("aria-hidden","true");}
+}
+function selectedForecastTarget(){
+ const date=document.getElementById("wmfForecastDate")?.value;
+ const time=document.getElementById("wmfForecastTime")?.value;
+ if(!date||!time)return null;
+ const d=new Date(`${date}T${time}:00`);
+ return Number.isFinite(d.getTime())?d:null;
+}
+function nearestForecastPeriod(periods,target){
+ if(!periods||!periods.length)return null;
+ return periods.slice().sort((a,b)=>Math.abs(new Date(a.startTime)-target)-Math.abs(new Date(b.startTime)-target))[0]||null;
+}
+async function fetchTidesForSpotAt(s,target){
+ const before=new Date(target.getTime()-12*3600000);
+ const after=new Date(target.getTime()+18*3600000);
+ const u=`https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?begin_date=${ymd(before)}&end_date=${ymd(after)}&station=${s.tide}&product=predictions&datum=MLLW&time_zone=lst_ldt&interval=hilo&units=english&application=WayMoreFish&format=json`;
+ try{
+  const res=await fetchJSON(u,{cacheKey:`coops-forecast:${s.tide}:${ymd(before)}:${ymd(after)}`,ttl:TTL.tides});
+  const tt=res.data.predictions||[];
+  if(!tt.length)throw Error("No NOAA tide predictions");
+  return {tides:tt,source:res.source};
+ }catch(e){
+  return {tides:[],source:"unavailable"};
+ }
+}
+function forecastPressureTrend(periods,target){
+ const sorted=(periods||[]).slice().sort((a,b)=>new Date(a.startTime)-new Date(b.startTime));
+ const i=sorted.findIndex(p=>new Date(p.startTime).getTime()>=target.getTime());
+ if(i<0)return "Unavailable";
+ const vals=sorted.slice(Math.max(0,i-2),i+2).map(p=>Number(p.pressure)).filter(Number.isFinite);
+ if(vals.length<2)return "Unavailable";
+ const diff=(vals[vals.length-1]-vals[0])*0.0295299831;
+ return diff>.03?"Rising":diff<-.03?"Falling":"Stable";
+}
+function forecastScoreForSpot(data,target){
+ const p=nearestForecastPeriod(data.hourlyPeriods,target);
+ if(!p)return null;
+ const pressureTrend=forecastPressureTrend(data.hourlyPeriods,target);
+ const scored=hourWindowScoreFor({
+  hourlyPeriods:data.hourlyPeriods,
+  pressureTrend,
+  tides:data.tides,
+  recent:null
+ },p);
+ const ctx=structureContext(data.spot),st=String(ctx.type||"").toLowerCase();
+ let score=scored.score,reasons=[...scored.reasons];
+ if(/reef|shell|oyster|hard bottom|ledge|channel|pass|point/.test(st)){score+=3;reasons.push("productive structure");}
+ score=Math.max(0,Math.min(100,Math.round(score)));
+ return {score,reasons:[...new Set(reasons)].slice(0,5),period:p,pressureTrend};
+}
+async function buildForecastSpotData(s,target){
+ const w=await fetchOpenMeteoForSpot(s);
+ const t=await fetchTidesForSpotAt(s,target);
+ const score=forecastScoreForSpot({spot:s,hourlyPeriods:w.hourlyPeriods,tides:t.tides},target);
+ if(!score)throw Error("No hourly forecast for selected time");
+ return {
+  spot:s,
+  forecast:score,
+  hourlyPeriods:w.hourlyPeriods,
+  tides:t.tides,
+  confidence:t.tides.length?"High":"Medium",
+  weatherProvider:w.provider||"Open-Meteo"
+ };
+}
+function forecastGamePlanHtml(r,rank,target){
+ const p=r.forecast.period||{};
+ const ctx=structureDetails[r.spot.name]||{};
+ const temp=Number.isFinite(Number(p.temperature))?`${Math.round(Number(p.temperature))}°F`:"—";
+ const wind=`${p.windDirection||""} ${p.windSpeed||"—"}`.trim();
+ const tide=tideMovementAtFor(r.tides,target);
+ const weather=p.shortForecast||"Forecast";
+ return `<div class="wmf-game-plan">
+   <strong>#${rank} ${r.spot.name}</strong>
+   <div class="small muted">${r.spot.area}</div>
+   <div class="gp-score">${r.forecast.score}/100 • ${fishNowRating(r.forecast.score)}</div>
+   <div class="gp-row"><span class="gp-label">Forecast:</span> ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
+   <div class="gp-row"><span class="gp-label">Weather:</span> ${temp} • ${weather}</div>
+   <div class="gp-row"><span class="gp-label">Wind:</span> ${wind}</div>
+   <div class="gp-row"><span class="gp-label">Tide:</span> ${tide}</div>
+   <div class="gp-row"><span class="gp-label">Why:</span> ${r.forecast.reasons.join(" • ")}</div>
+   <div class="gp-row"><span class="gp-label">Structure:</span> ${ctx.type||"Local fishing structure"}</div>
+   <div class="gp-row"><span class="gp-label">Start with:</span> ${fishNowStartLure({spot:r.spot})}</div>
+   <div class="gp-row"><span class="gp-label">Confidence:</span> ${r.confidence}</div>
+   <div class="small muted" style="margin-top:7px">Forecast conditions only. Future water clarity is not guessed.</div>
+ </div>`;
+}
+function renderForecastPins(top,target){
+ whereNowLayer.clearLayers();
+ const bounds=[];
+ top.forEach((r,i)=>{
+  const rank=i+1,cls=fishNowClass(r.forecast.score);
+  const icon=L.divIcon({className:"",html:`<div class="fish-now-pin ${cls}">${rank}</div>`,iconSize:[34,34],iconAnchor:[17,17]});
+  const marker=L.marker([r.spot.lat,r.spot.lon],{icon}).bindPopup(forecastGamePlanHtml(r,rank,target),{maxWidth:340});
+  whereNowLayer.addLayer(marker);bounds.push([r.spot.lat,r.spot.lon]);
+ });
+ if(bounds.length)map.fitBounds(bounds,{padding:[55,55],maxZoom:10});
+}
+async function runForecastTop3(){
+ const target=selectedForecastTarget();
+ const status=document.getElementById("wmfForecastStatus");
+ const btn=document.getElementById("wmfForecastRunBtn");
+ if(!target){status.textContent="Choose a valid date and time.";return;}
+ const now=Date.now(),max=now+7*86400000;
+ if(target.getTime()<now-15*60000||target.getTime()>max){
+  status.textContent="Choose a time between now and 7 days from now.";return;
+ }
+ forecastTarget=target;
+ btn.disabled=true;btn.textContent="Scanning…";
+ status.textContent="Checking nearby forecast conditions…";
+
+ const center=map.getCenter(),bounds=map.getBounds().pad(.22);
+ const dist=s=>Math.hypot((s.lon-center.lng)*Math.cos(center.lat*Math.PI/180),s.lat-center.lat);
+ let candidates=spots.filter(s=>bounds.contains([s.lat,s.lon]));
+ const seen=new Set(candidates.map(s=>`${s.area}|${s.name}`));
+ if(candidates.length<8){
+  for(const s of spots.slice().sort((a,b)=>dist(a)-dist(b))){
+   const k=`${s.area}|${s.name}`;if(seen.has(k))continue;
+   candidates.push(s);seen.add(k);if(candidates.length>=10)break;
+  }
+ }
+ candidates=candidates.sort((a,b)=>dist(a)-dist(b)).slice(0,10);
+
+ const rows=[];
+ for(let i=0;i<candidates.length;i+=4){
+  const batch=candidates.slice(i,i+4);
+  const got=await Promise.all(batch.map(async s=>{try{return await buildForecastSpotData(s,target);}catch{return null;}}));
+  rows.push(...got.filter(Boolean));
+  status.textContent=`Forecast scan ${Math.min(i+batch.length,candidates.length)}/${candidates.length}…`;
+ }
+ if(!rows.length){
+  status.textContent="No forecast data returned for that time.";
+  btn.disabled=false;btn.textContent="Show Forecast Top 3";return;
+ }
+ rows.sort((a,b)=>b.forecast.score-a.forecast.score||dist(a.spot)-dist(b.spot));
+ const top=rows.slice(0,3);
+ renderForecastPins(top,target);
+ status.textContent=`Forecast Top 3 ready for ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}. Tap a number on the map.`;
+ btn.disabled=false;btn.textContent="Show Forecast Top 3";
+ setTimeout(closeForecastChooser,350);
+}
+
 const map=L.map("map").setView([29.55,-91.88],9);
 
 // Base map choices. NOAA Chart Display uses NOAA ENC data with traditional chart symbology.
@@ -1348,6 +1565,22 @@ const FishNowControl=L.Control.extend({
  }
 });
 map.addControl(new FishNowControl());
+
+
+const ForecastControl=L.Control.extend({
+ options:{position:"bottomright"},
+ onAdd:function(){
+  const box=L.DomUtil.create("div","wmf-forecast-control leaflet-control");
+  const btn=L.DomUtil.create("button","",box);
+  btn.type="button";
+  btn.innerHTML="📅 Forecast";
+  btn.title="Choose a future date and time";
+  L.DomEvent.disableClickPropagation(box);
+  L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openForecastChooser();});
+  return box;
+ }
+});
+map.addControl(new ForecastControl());
 
 const FishingToolsControl=L.Control.extend({
  options:{position:"bottomright"},
@@ -2533,7 +2766,7 @@ function weatherCodeText(code){
  const c=Number(code);if(c===0)return "Clear";if([1,2,3].includes(c))return "Partly cloudy";if([45,48].includes(c))return "Fog";if([51,53,55,56,57].includes(c))return "Drizzle";if([61,63,65,66,67].includes(c))return c>=65?"Heavy rain":"Rain";if([80,81,82].includes(c))return c===82?"Heavy showers":"Showers";if([95,96,99].includes(c))return "Thunderstorms";return "Forecast";
 }
 async function fetchOpenMeteoForSpot(s){
- const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure&timezone=America%2FChicago&forecast_days=3&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&cell_selection=sea`;
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure&timezone=America%2FChicago&forecast_days=7&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&cell_selection=sea`;
  const cacheKey=`openmeteo:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;const fresh=cacheRead(cacheKey,TTL.weather);let j=null,source="live";
  if(fresh){j=fresh;source="cache";}else{
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
@@ -3325,6 +3558,11 @@ document.getElementById("wmfToolSheet")?.addEventListener("click",e=>{
 
 document.getElementById("wmfSpotSheet")?.addEventListener("click",e=>{
  if(e.target===e.currentTarget)closeSpotSelector();
+});
+
+
+document.getElementById("wmfForecastSheet")?.addEventListener("click",e=>{
+ if(e.target===e.currentTarget)closeForecastChooser();
 });
 
 </script>

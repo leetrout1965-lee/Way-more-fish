@@ -354,6 +354,28 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   .wmf-tools-control,.wmf-spots-control{display:none!important}
 }
 
+
+@media (max-width:1600px), (hover:none) and (pointer:coarse){
+  .leaflet-control-layers:not(.leaflet-control-layers-expanded){
+    border:0!important;background:transparent!important;box-shadow:none!important;
+  }
+  .leaflet-control-layers:not(.leaflet-control-layers-expanded) .leaflet-control-layers-toggle{
+    width:auto!important;height:42px!important;min-width:88px!important;
+    display:flex!important;align-items:center!important;justify-content:center!important;
+    padding:0 12px!important;border-radius:12px!important;
+    background:#ffffff!important;color:#0b668d!important;
+    box-shadow:0 3px 10px rgba(0,0,0,.25)!important;
+    text-decoration:none!important;
+  }
+  .leaflet-control-layers:not(.leaflet-control-layers-expanded) .leaflet-control-layers-toggle::after{
+    content:"Layers";font-weight:800;font-size:15px;color:#0b668d;
+  }
+  .leaflet-control-layers-expanded{
+    border-radius:12px!important;
+    box-shadow:0 3px 12px rgba(0,0,0,.28)!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1812,11 +1834,25 @@ ccaReefs.forEach((r,i)=>{
 });
 ccaReefLayer.addTo(map);
 const compactLayerControl=window.matchMedia&&window.matchMedia("(max-width:1400px), (hover:none) and (pointer:coarse)").matches;
-L.control.layers(
+const layerControl=L.control.layers(
  baseMaps,
  {"CCA Artificial Reefs":ccaReefLayer,"Fishing Structure":bottomStructureLayer},
- {position:"topright",collapsed:false}
+ {position:"topright",collapsed:true}
 ).addTo(map);
+
+const layerControlEl=layerControl.getContainer();
+if(layerControlEl){
+ const toggle=layerControlEl.querySelector(".leaflet-control-layers-toggle");
+ if(toggle){
+  toggle.title="Layers";
+  toggle.setAttribute("aria-label","Open map layers");
+ }
+ layerControlEl.addEventListener("change",()=>{
+  setTimeout(()=>{
+   layerControlEl.classList.remove("leaflet-control-layers-expanded");
+  },120);
+ });
+}
 
 // Current-location control. Uses browser/iPad GPS only after the user grants permission.
 let myLocationMarker=null,myLocationAccuracy=null;

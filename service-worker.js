@@ -1,4 +1,4 @@
-const CACHE_NAME="way-more-fish-v2";
+const CACHE_NAME="way-more-fish-v3";
 const APP_SHELL=[
   "/",
   "/index.html",
@@ -33,6 +33,11 @@ self.addEventListener("fetch",e=>{
   if(r.method!=="GET") return;
 
   const u=new URL(r.url);
+
+  // Netlify functions (water clarity, METAR pressure) always go to the network.
+  // The page keeps its own age-checked cache for these, so a saved copy here
+  // would only hand back old water readings as if they were new.
+  if(u.origin===self.location.origin&&u.pathname.startsWith("/.netlify/functions/")) return;
 
   if(r.mode==="navigate"){
     e.respondWith(

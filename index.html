@@ -412,6 +412,32 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-water-preview-fallback{padding:24px 14px;text-align:center;color:#9fb0bf}
 .wmf-water-preview-caption{margin-top:7px;font-size:12px;color:#9fb0bf;line-height:1.35}
 
+
+.wmf-la-brand{
+ position:fixed;z-index:850;left:66px;top:max(12px,env(safe-area-inset-top));
+ padding:8px 11px;border-radius:12px;background:rgba(8,31,43,.84);
+ border:1px solid rgba(130,192,215,.45);box-shadow:0 3px 12px rgba(0,0,0,.24);
+ color:#fff;pointer-events:none;backdrop-filter:blur(6px)
+}
+.wmf-la-brand strong{display:block;font-size:14px;letter-spacing:.08em}
+.wmf-la-brand span{display:block;font-size:11px;font-weight:900;letter-spacing:.16em;color:#f0a23b;margin-top:1px}
+.wmf-la-brand small{display:block;font-size:10px;color:#c7d6df;margin-top:3px}
+.wmf-welcome-toast{
+ position:fixed;z-index:5600;left:50%;bottom:max(22px,calc(env(safe-area-inset-bottom) + 18px));
+ transform:translate(-50%,18px);max-width:min(520px,84vw);padding:10px 14px;border-radius:999px;
+ background:rgba(8,31,43,.94);color:#fff;font-weight:700;font-size:13px;text-align:center;
+ box-shadow:0 5px 18px rgba(0,0,0,.35);opacity:0;transition:opacity .35s,transform .35s;pointer-events:none
+}
+.wmf-welcome-toast.show{opacity:1;transform:translate(-50%,0)}
+.wmf-home-control button{
+ width:42px;height:42px;border:0;border-radius:12px;background:#fff;color:#0b668d;
+ font-weight:900;font-size:20px;box-shadow:0 3px 10px rgba(0,0,0,.25)
+}
+@media (max-width:700px){
+ .wmf-la-brand{left:64px;right:auto;max-width:230px;padding:7px 9px}
+ .wmf-la-brand small{display:none}
+}
+
 </style>
 </head>
 <body>
@@ -473,6 +499,12 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div class="small muted"><strong>Map:</strong> Standard • NOAA Chart • Satellite. Use <strong>Fishing Structure</strong> at close zoom for spot-specific bottom/structure guidance. On the NOAA chart at zoom 12+, tap a chart symbol for details. Tap ◎ for GPS. NOAA chart is for planning/reference, not navigation.</div>
 </div>
 <div id="map"></div>
+<div id="wmfLouisianaBrand" class="wmf-la-brand">
+  <strong>WAY MORE FISH</strong>
+  <span>LOUISIANA COAST</span>
+  <small>Live conditions • tides • water • local structure</small>
+</div>
+<div id="wmfWelcomeToast" class="wmf-welcome-toast">Louisiana coast loaded • Pick a spot or let <strong>Fish Now</strong> find one.</div>
 <div id="wmfToolsMenu" class="wmf-tools-overlay" aria-hidden="true">
   <div class="wmf-tools-menu">
     <div class="wmf-tools-menu-head">
@@ -1686,25 +1718,22 @@ function fishNowStartLure(r){
  return "3–4 in paddle tail on 1/4 oz jig";
 }
 function gamePlanForRankedSpot(r,rank){
- const ctx=structureDetails[r.spot.name]||{};
- const reasons=(r.now&&r.now.reasons||[]).slice(0,4);
- const water=usableClaritySignal(r.clarity)
-   ?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`
-   :`Direct clarity unavailable — not scored`;
+ const ctx=structureDetails[r.spot.name]||{},reasons=(r.now&&r.now.reasons||[]).slice(0,3);
+ const water=usableClaritySignal(r.clarity)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:"Clarity unavailable — not scored";
  const setup=ctx.how||"Start on the current-facing edge or depth change; reposition if bait or fish are absent.";
- return `
- <div class="wmf-game-plan">
-   <strong>#${rank} ${r.spot.name}</strong>
+ return `<div class="wmf-game-plan">
+   <div class="small muted">#${rank} FISH NOW</div>
+   <strong style="font-size:17px">${r.spot.name}</strong>
    <div class="small muted">${r.spot.area}</div>
    <div class="gp-score">${r.now.score}/100 • ${fishNowRating(r.now.score)}</div>
-   <div class="gp-row"><span class="gp-label">Best window:</span> ${fishNowWindow(r)}</div>
-   <div class="gp-row"><span class="gp-label">Current score factors:</span> ${reasons.join(" • ")||"Current conditions fit"}</div>
+   <div class="gp-row"><span class="gp-label">Best time:</span> ${fishNowWindow(r)}</div>
+   <div class="gp-row"><span class="gp-label">Why fish it:</span> ${reasons.join(" • ")||"Current conditions fit"}</div>
    <div class="gp-row"><span class="gp-label">Water:</span> ${water}</div>
-   <div class="gp-row"><span class="gp-label">Structure:</span> ${ctx.type||"Local fishing structure"}</div>
-   <div class="gp-row"><span class="gp-label">Set up:</span> ${setup}</div>
+   <div class="gp-row"><span class="gp-label">Target:</span> ${ctx.type||"Local fishing structure"}</div>
+   <div class="gp-row"><span class="gp-label">How:</span> ${setup}</div>
    <div class="gp-row"><span class="gp-label">Start with:</span> ${fishNowStartLure(r)}</div>
    <div class="gp-row"><span class="gp-label">Confidence:</span> ${r.confidence||"—"}</div>
-   <button class="primary" style="margin-top:8px" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">Load this spot</button>
+   <button class="primary" style="margin-top:8px" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">Fish this spot</button>
    <div class="small muted" style="margin-top:7px">Conditions recommendation, not a catch guarantee.</div>
  </div>`;
 }
@@ -1852,25 +1881,26 @@ async function buildForecastSpotData(s,target){
  };
 }
 function forecastGamePlanHtml(r,rank,target){
- const p=r.forecast.period||{};
- const ctx=structureDetails[r.spot.name]||{};
+ const p=r.forecast.period||{},ctx=structureDetails[r.spot.name]||{};
  const temp=Number.isFinite(Number(p.temperature))?`${Math.round(Number(p.temperature))}°F`:"—";
  const wind=`${p.windDirection||""} ${p.windSpeed||"—"}`.trim();
- const tide=tideMovementAtFor(r.tides,target);
- const weather=p.shortForecast||"Forecast";
+ const tide=tideMovementAtFor(r.tides,target),weather=p.shortForecast||"Forecast";
+ const reasons=(r.forecast.reasons||[]).slice(0,3).join(" • ")||"Forecast conditions fit";
+ const setup=ctx.how||"Start on the current-facing edge or nearest depth change; move if bait is absent.";
  return `<div class="wmf-game-plan">
-   <strong>#${rank} ${r.spot.name}</strong>
+   <div class="small muted">SPOT FORECAST</div>
+   <strong style="font-size:17px">${r.spot.name}</strong>
    <div class="small muted">${r.spot.area}</div>
    <div class="gp-score">${r.forecast.score}/100 • ${fishNowRating(r.forecast.score)}</div>
-   <div class="gp-row"><span class="gp-label">Forecast:</span> ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
-   <div class="gp-row"><span class="gp-label">Weather:</span> ${temp} • ${weather}</div>
-   <div class="gp-row"><span class="gp-label">Wind:</span> ${wind}</div>
-   <div class="gp-row"><span class="gp-label">Tide:</span> ${tide}</div>
-   <div class="gp-row"><span class="gp-label">Why:</span> ${r.forecast.reasons.join(" • ")}</div>
-   <div class="gp-row"><span class="gp-label">Structure:</span> ${ctx.type||"Local fishing structure"}</div>
+   <div class="gp-row"><span class="gp-label">When:</span> ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
+   <div class="gp-row"><span class="gp-label">Conditions:</span> ${temp} • ${weather} • ${wind}</div>
+   <div class="gp-row"><span class="gp-label">Water movement:</span> ${tide}</div>
+   <div class="gp-row"><span class="gp-label">Why fish it:</span> ${reasons}</div>
+   <div class="gp-row"><span class="gp-label">Target:</span> ${ctx.type||"Local fishing structure"}</div>
+   <div class="gp-row"><span class="gp-label">How:</span> ${setup}</div>
    <div class="gp-row"><span class="gp-label">Start with:</span> ${fishNowStartLure({spot:r.spot})}</div>
    <div class="gp-row"><span class="gp-label">Confidence:</span> ${r.confidence}</div>
-   <div class="small muted" style="margin-top:7px">Forecast conditions only. Future water clarity is not guessed.</div>
+   <div class="small muted" style="margin-top:7px">Future water clarity is not guessed.</div>
  </div>`;
 }
 function renderForecastPins(top,target){
@@ -1944,7 +1974,25 @@ async function runForecastForSelectedSpot(){
  }
 }
 
-const map=L.map("map").setView([29.55,-91.88],9);
+const LOUISIANA_HOME=[29.42,-91.25],LOUISIANA_HOME_ZOOM=8;
+const map=L.map("map").setView(LOUISIANA_HOME,LOUISIANA_HOME_ZOOM);
+
+const LouisianaHomeControl=L.Control.extend({
+ options:{position:"topleft"},
+ onAdd:function(){
+  const box=L.DomUtil.create("div","wmf-home-control leaflet-control");
+  const btn=L.DomUtil.create("button","",box);
+  btn.type="button";btn.innerHTML="⌂";btn.title="Louisiana Coast home";
+  L.DomEvent.disableClickPropagation(box);
+  L.DomEvent.on(btn,"click",e=>{
+   L.DomEvent.preventDefault(e);
+   map.setView(LOUISIANA_HOME,LOUISIANA_HOME_ZOOM);
+  });
+  return box;
+ }
+});
+map.addControl(new LouisianaHomeControl());
+
 
 // Base map choices. NOAA Chart Display uses NOAA ENC data with traditional chart symbology.
 const standardLayer=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
@@ -1992,7 +2040,7 @@ const ForecastControl=L.Control.extend({
   const box=L.DomUtil.create("div","wmf-forecast-control leaflet-control");
   const btn=L.DomUtil.create("button","",box);
   btn.type="button";
-  btn.innerHTML="📅 Forecast";
+  btn.innerHTML="📅 Spot Forecast";
   btn.title="Forecast the selected fishing spot for a future date and time";
   L.DomEvent.disableClickPropagation(box);
   L.DomEvent.on(btn,"click",e=>{L.DomEvent.preventDefault(e);openForecastChooser();});
@@ -4049,6 +4097,14 @@ document.getElementById("wmfWaterCheckSheet")?.addEventListener("click",e=>{
 
 document.getElementById("wmfForecastDate")?.addEventListener("change",updateForecastChosenPreview);
 document.getElementById("wmfForecastTime")?.addEventListener("change",updateForecastChosenPreview);
+
+
+setTimeout(()=>{
+ const t=document.getElementById("wmfWelcomeToast");
+ if(!t)return;
+ t.classList.add("show");
+ setTimeout(()=>t.classList.remove("show"),3200);
+},700);
 
 </script>
 

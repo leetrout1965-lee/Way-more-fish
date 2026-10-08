@@ -1,4 +1,4 @@
-/* Way More Fish — water clarity v3
+/* Way More Fish — water clarity v4
    Credibility rules:
    Fresh <= 12 hr
    Recent usable >12 and <=24 hr
@@ -8,7 +8,23 @@
    Uses NOAA CoastWatch VIIRS near-real-time Kd490 and checks a small
    neighborhood around the fishing spot so one masked/cloudy shoreline pixel
    does not force an ancient result.
+
+   v4: the merged S-NPP/NOAA-20 dataset used through v3 stopped updating in
+   Sept 2021. v4 asks four live VIIRS Kd490 feeds at once (backups to backups)
+   and keeps the newest usable pixel. NOAA publishes each daily pass roughly
+   a day or more after the satellite flies over (~1-2 pm Louisiana time).
 */
+const FRESH_HOURS=12, USABLE_HOURS=24, STALE_HOURS=48;
+
+// Order matters only for ties: sharper 750 m coastal sector first.
+const SATELLITE_FEEDS=[
+  {id:"noaacwNPPVIIRSkd490SectorVYDaily", name:"S-NPP VIIRS 750 m"},
+  {id:"noaacwN21VIIRSkd490SectorUSDaily", name:"NOAA-21 VIIRS"},
+  {id:"noaacwN20VIIRSkd490SectorUSDaily", name:"NOAA-20 VIIRS"},
+  // Global 4 km product is stamped 12:00Z, earlier than the real afternoon pass,
+  // so its age reads a few hours older than it is (errs toward "older").
+  {id:"noaacwNPPVIIRSkd490Daily", name:"S-NPP VIIRS 4 km"}
+];
 function haversineMiles(lat1, lon1, lat2, lon2) {
   const R = 3958.7613;
   const toRad = d => d * Math.PI / 180;
@@ -33,37 +49,48 @@ function parseCSV(text){
 }
 function satelliteFreshness(ageHours){
   if(!Number.isFinite(ageHours))return "unknown";
-  if(ageHours<=12)return "fresh";
-  if(ageHours<=24)return "usable";
-  if(ageHours<=48)return "stale";
+  if(ageHours<=FRESH_HOURS)return "fresh";
+  if(ageHours<=USABLE_HOURS)return "usable";
+  if(ageHours<=STALE_HOURS)return "stale";
   return "expired";
 }
 
-async function fetchSatellite(lat,lon){
+async function fetchFeedPixels(feed,lat,lon){
   // ~0.04 degrees is only a few miles along the Louisiana coast.
-  // We prefer the newest usable nearby water pixel, then the nearest one.
   const pad=0.04;
   const q=`kd_490[last-4:1:last][0][(${(lat-pad).toFixed(4)}):1:(${(lat+pad).toFixed(4)})][(${(lon-pad).toFixed(4)}):1:(${(lon+pad).toFixed(4)})]`;
-  const url=`https://coastwatch.noaa.gov/erddap/griddap/noaacwNPPN20VIIRSkd490Daily.csv?${encodeURI(q)}`;
+  const url=`https://coastwatch.noaa.gov/erddap/griddap/${feed.id}.csv?${encodeURI(q)}`;
 
-  const r=await fetch(url,{headers:{"User-Agent":"WayMoreFish/1.0","Accept":"text/csv"}});
-  if(!r.ok)throw new Error(`CoastWatch HTTP ${r.status}`);
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),7000);
+  try{
+    const r=await fetch(url,{signal:controller.signal,headers:{"User-Agent":"WayMoreFish/1.0","Accept":"text/csv"}});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    return parseCSV(await r.text()).map(x=>{
+      const kd=Number(x.kd_490);
+      const time=x.time;
+      const plat=Number(x.latitude);
+      const plon=Number(x.longitude);
+      if(!Number.isFinite(kd)||kd<=0||!time)return null;
+      return {
+        kd,time,feed:feed.name,
+        lat:Number.isFinite(plat)?plat:lat,
+        lon:Number.isFinite(plon)?plon:lon
+      };
+    }).filter(Boolean);
+  }catch(e){
+    throw new Error(`${feed.name}: ${e.name==="AbortError"?"timed out":e.message}`);
+  }finally{clearTimeout(timer)}
+}
 
-  const rows=parseCSV(await r.text());
-  const valid=rows.map(x=>{
-    const kd=Number(x.kd_490);
-    const time=x.time;
-    const plat=Number(x.latitude);
-    const plon=Number(x.longitude);
-    if(!Number.isFinite(kd)||kd<=0||!time)return null;
-    return {
-      kd,time,
-      lat:Number.isFinite(plat)?plat:lat,
-      lon:Number.isFinite(plon)?plon:lon
-    };
-  }).filter(Boolean);
+async function fetchSatellite(lat,lon){
+  // Ask every feed at once; any one of them can carry the answer.
+  // We prefer the newest usable nearby water pixel, then the nearest one.
+  const results=await Promise.allSettled(SATELLITE_FEEDS.map(f=>fetchFeedPixels(f,lat,lon)));
+  const valid=[],feedErrors=[];
+  results.forEach(r=>{if(r.status==="fulfilled")valid.push(...r.value);else feedErrors.push(r.reason.message);});
 
-  if(!valid.length)throw new Error("No usable recent Kd490 pixel");
+  if(!valid.length)throw new Error(feedErrors.length===SATELLITE_FEEDS.length?`all satellite feeds failed (${feedErrors.join("; ")})`:"No usable recent Kd490 pixel (clouds or missing pixels)");
 
   valid.forEach(x=>{
     x.ms=Date.parse(x.time);
@@ -85,7 +112,9 @@ async function fetchSatellite(lat,lon){
     score:kdScore(x.kd),
     freshness:satelliteFreshness(x.ageHours),
     distanceMiles:x.distMiles,
-    source:"NOAA CoastWatch VIIRS NRT Kd490"
+    feed:x.feed,
+    feedsAnswered:SATELLITE_FEEDS.length-feedErrors.length,
+    source:`NOAA CoastWatch ${x.feed} NRT Kd490`
   };
 }
 
@@ -119,8 +148,9 @@ exports.handler=async function(event){
   }
 
   let usgs=null,sat=null,errors=[];
-  try{usgs=await fetchUSGSTurbidity(lat,lon);}catch(e){errors.push(`USGS: ${e.message}`);}
-  try{sat=await fetchSatellite(lat,lon);}catch(e){errors.push(`NOAA satellite: ${e.message}`);}
+  const [usgsRes,satRes]=await Promise.allSettled([fetchUSGSTurbidity(lat,lon),fetchSatellite(lat,lon)]);
+  if(usgsRes.status==="fulfilled")usgs=usgsRes.value;else errors.push(`USGS: ${usgsRes.reason.message}`);
+  if(satRes.status==="fulfilled")sat=satRes.value;else errors.push(`NOAA satellite: ${satRes.reason.message}`);
 
   const satCurrent=sat&&(sat.freshness==="fresh"||sat.freshness==="usable");
 

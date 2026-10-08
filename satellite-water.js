@@ -1,4 +1,4 @@
-/* Way More Fish — Satellite Water v5
+/* Way More Fish — Satellite Water v6 (v6: styled legend, rings around spot buttons, status in legend)
    Supports every listed fishing area and every spot.
    Loads samples only for the selected area.
    HARD RULE: imagery older than 24 hours is rejected and never shown as current/context water imagery.
@@ -11,7 +11,16 @@
   const FRESH_HOURS = 12;
   const USABLE_HOURS = 24;
   const satelliteWaterLayer = L.layerGroup();
-  let loading = false, legend = null, button = null;
+  let loading = false, legend = null, button = null, lastStatus = '';
+
+  // Self-contained styling so the legend stays readable on light or dark base maps.
+  const css = document.createElement('style');
+  css.textContent =
+    '.satwater-legend{background:rgba(9,24,35,.92);color:#eef6fb;border:1px solid #38566d;border-radius:10px;' +
+    'padding:8px 10px;font-size:12px;line-height:1.5;max-width:230px;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
+    '.satwater-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}' +
+    '#satwaterStatus{margin-top:6px;padding-top:6px;border-top:1px solid #38566d;color:#ffd9a0}';
+  document.head.appendChild(css);
 
   function bucket(score){
     if(score >= 75) return {label:'Relatively clearer', fill:'#36c275'};
@@ -46,6 +55,8 @@
   }
 
   function areaSpots(area){
+    // The area picker lists parent regions (e.g. "Big Lake / Calcasieu") that group several spot areas.
+    if(typeof spotBelongsToArea === 'function') return spots.filter(x => spotBelongsToArea(x, area));
     return spots.filter(x => x.area === area);
   }
 
@@ -64,6 +75,10 @@
     box.textContent = text;
     box.style.color = bad ? '#ffcc80' : '';
     box.style.fontWeight = bad ? '700' : '';
+    // The map fills the screen in the current layout, so repeat the status inside the legend.
+    lastStatus = text;
+    const inLegend = document.getElementById('satwaterStatus');
+    if(inLegend) inLegend.textContent = text;
   }
 
   function showLegend(){
@@ -77,7 +92,9 @@
         '<div><span class="satwater-dot" style="background:#e5b84b"></span>Mixed / moderate</div>' +
         '<div><span class="satwater-dot" style="background:#a66a3f"></span>Relatively murkier</div>' +
         '<div><span class="satwater-dot" style="background:#7f8c98"></span>Unavailable</div>' +
-        '<div style="margin-top:5px;color:#9fb0bf">Fresh ≤12 hr • usable ≤24 hr • anything older than 24 hr is rejected.</div>';
+        '<div style="margin-top:5px;color:#9fb0bf">Fresh ≤12 hr • usable ≤24 hr • anything older than 24 hr is rejected.</div>' +
+        '<div id="satwaterStatus"></div>';
+      setTimeout(function(){ const st = document.getElementById('satwaterStatus'); if(st) st.textContent = lastStatus; }, 0);
       return d;
     };
     legend.addTo(map);
@@ -89,7 +106,7 @@
 
   function addUnavailableMarker(p,reason){
     const m = L.circleMarker([p.lat,p.lon],{
-      radius:6, weight:1, color:'#aeb8c1', fillColor:'#667784', fillOpacity:.35
+      radius:30, weight:3, color:'#aeb8c1', dashArray:'5 5', fillColor:'#667784', fillOpacity:.12
     });
     m.bindTooltip(p.name + ': satellite unavailable',{direction:'top'});
     m.bindPopup(
@@ -120,7 +137,7 @@
         if(!Number.isFinite(score)) throw new Error('No satellite score');
         const b = bucket(score);
         const m = L.circleMarker([p.lat,p.lon],{
-          radius:10, weight:2, color:'#eef6fb', fillColor:b.fill, fillOpacity:.78
+          radius:30, weight:5, color:b.fill, fillColor:b.fill, fillOpacity:.30
         });
         m.bindTooltip(p.name + ': ' + b.label + ' • ' + age,{direction:'top'});
         m.bindPopup(

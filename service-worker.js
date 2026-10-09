@@ -1,4 +1,4 @@
-const CACHE_NAME="way-more-fish-v5";
+const CACHE_NAME="way-more-fish-v6";
 const APP_SHELL=[
   "/",
   "/index.html",
@@ -38,6 +38,10 @@ self.addEventListener("fetch",e=>{
   // The page keeps its own age-checked cache for these, so a saved copy here
   // would only hand back old water readings as if they were new.
   if(u.origin===self.location.origin&&u.pathname.startsWith("/.netlify/functions/")) return;
+
+  // Radar: the frame list changes every 10 minutes, so a saved copy makes radar
+  // look permanently stale; frame tiles are one-off images that would pile up.
+  if(u.hostname.endsWith("rainviewer.com")) return;
 
   if(r.mode==="navigate"){
     e.respondWith(

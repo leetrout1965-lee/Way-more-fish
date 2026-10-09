@@ -1,10 +1,11 @@
-const CACHE_NAME="way-more-fish-v6";
+const CACHE_NAME="way-more-fish-v7";
 const APP_SHELL=[
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/icon-192.png",
   "/icon-512.png",
+  "/way-more-fish-logo.png",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
   "https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"

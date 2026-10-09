@@ -465,7 +465,8 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-weather-links{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px}
 .wmf-weather-links a{color:#91d8ff;font-weight:800}
 .wmf-weather-note{font-size:12px;color:#bad0dc;margin-top:9px}
-.wmf-radar-bar{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:850;display:flex;align-items:center;gap:8px;width:min(420px,calc(100% - 32px));box-sizing:border-box;padding:6px 8px;border-radius:999px;background:rgba(13,22,32,.88);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35);font:600 13px/1.2 system-ui,-apple-system,sans-serif}
+/* Sits above Netlify's "Powered by Netlify" badge (bottom-right, ~64px tall) and left of the More button. */
+.wmf-radar-bar{position:absolute;left:12px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:850;display:flex;align-items:center;gap:6px;width:min(420px,calc(100% - 110px));box-sizing:border-box;padding:6px 8px;border-radius:999px;background:rgba(13,22,32,.88);color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.35);font:600 13px/1.2 system-ui,-apple-system,sans-serif}
 .wmf-radar-bar button{flex:none;width:32px;height:32px;border:0;border-radius:50%;background:#20384a;color:#fff;font-size:13px;cursor:pointer}
 .wmf-radar-bar input{flex:1;min-width:0;accent-color:#5fc4ff}
 .wmf-radar-time{flex:none;min-width:84px;text-align:right;font-variant-numeric:tabular-nums}
@@ -4341,6 +4342,15 @@ async function wmfLoadWeather(){
 let wmfRadarFrames=[],wmfRadarIndex=0,wmfRadarTimer=null,wmfRadarPlaying=true,wmfRadarBar=null;
 const WMF_RADAR_OPACITY=.63;
 function wmfRadarTime(t){return new Date(t*1000).toLocaleTimeString([],{hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}
+// Radar gets its own pane: above every base map (tilePane is 200, and the Layers control
+// gives NOAA chart / satellite higher zIndex inside it) but below markers (overlayPane 400).
+function wmfRadarPane(){
+ if(!map.getPane("wmfRadar")){
+  const pane=map.createPane("wmfRadar");
+  pane.style.zIndex=350;pane.style.pointerEvents="none";
+ }
+ return "wmfRadar";
+}
 function wmfRadarShowFrame(i){
  if(!wmfRadarFrames.length)return;
  wmfRadarIndex=(i+wmfRadarFrames.length)%wmfRadarFrames.length;
@@ -4392,7 +4402,7 @@ async function wmfToggleRadar(){
   const host=data.host||"https://tilecache.rainviewer.com";
   if(!/^https:\/\//.test(host)||!frames.every(f=>/^\/v2\/radar\/[\w-]+$/.test(f.path)&&Number.isFinite(f.time)))throw Error("Unexpected radar service response");
   wmfRadarClear();
-  wmfRadarFrames=frames.map((f,n)=>({time:f.time,layer:L.tileLayer(`${host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,{opacity:0,maxNativeZoom:7,maxZoom:18,attribution:n===frames.length-1?'Radar © RainViewer':''}).addTo(map)}));
+  wmfRadarFrames=frames.map((f,n)=>({time:f.time,layer:L.tileLayer(`${host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,{pane:wmfRadarPane(),opacity:0,maxNativeZoom:7,maxZoom:18,attribution:n===frames.length-1?'Radar © RainViewer':''}).addTo(map)}));
   wmfRadarBar=wmfRadarBuildBar();
   wmfRadarShowFrame(0);wmfRadarSetPlaying(true);
   wmfRadarVisible=true;btn.textContent="🌧 Hide radar";

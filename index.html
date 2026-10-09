@@ -917,12 +917,11 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <script>
 
 // Marine safety gate: fishing-condition scores must never overrule hazard alerts.
-// A short, dated emergency hold addresses the confirmed Gulf hurricane of Oct 8, 2026.
-// After the hold, live checks are mandatory; failures are NOT treated as all-clear.
-// No hard-coded hurricane names or expiry dates. Official alert feeds must be checked live.
-const WMF_SAFETY_DANGEROUS=/hurricane|tropical storm|storm surge|gale|storm warning|small craft|hazardous seas|high surf|rip current|marine weather|special marine|waterspout/i;
-let wmfSafetyCache={time:0,status:"checking",message:"Checking hazards",key:""};
-let wmfSafetyRequest=null;
+// Live checks are mandatory; failures are NOT treated as all-clear.
+// /.netlify/functions/marine-safety checks NHC, NWS alerts for the spot AND for the
+// marine zone covering it (or the nearest one, for inshore spots outside every zone).
+let wmfSafetyCache={time:0,status:"checking",message:"Checking hazards",key:"",marine:null,zones:[]};
+let wmfSafetyRequest=null,wmfSafetyRequestKey="";
 function wmfSafetyShow(status,message){
  const box=document.getElementById("wmfMarineSafetyBanner"),el=document.getElementById("wmfMarineSafetyMessage");
  if(box)box.dataset.status=status;
@@ -945,18 +944,6 @@ async function wmfFetchJson(url){
   return await response.json();
  }finally{clearTimeout(timer)}
 }
-function wmfActiveGulfCyclone(nhc){
- const entries=Array.isArray(nhc?.activeStorms)?nhc.activeStorms:
-  Array.isArray(nhc?.storms)?nhc.storms:Array.isArray(nhc)?nhc:[];
- return entries.some(x=>{
-  // NHC gives "27.0N"/"87.6W" text plus latitudeNumeric/longitudeNumeric; Number("87.6W") is NaN.
-  const coord=(num,txt)=>{const n=Number(num);if(Number.isFinite(n))return n;const m=String(txt??"").trim().match(/^(-?\d+(?:\.\d+)?)\s*([NSEW])?$/i);if(!m)return NaN;const v=Number(m[1]);return /[SW]/i.test(m[2]||"")?-Math.abs(v):v;};
-  const lat=coord(x?.latitudeNumeric,x?.latitude??x?.lat),lon=coord(x?.longitudeNumeric,x?.longitude??x?.lon);
-  const basin=String(x?.basin||x?.region||"");
-  return (Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=16&&lat<=32&&lon>=-98&&lon<=-80) ||
-    (/gulf/i.test(basin));
- });
-}
 async function wmfCheckMarineSafety(spot){
  const lat=Number(spot?.lat),lon=Number(spot?.lon);
  const key=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(3)},${lon.toFixed(3)}`:"gulf";
@@ -964,30 +951,34 @@ async function wmfCheckMarineSafety(spot){
   wmfSafetyShow(wmfSafetyCache.status,wmfSafetyCache.message);
   return wmfSafetyCache.status==="clear";
  }
- if(wmfSafetyRequest)return wmfSafetyRequest;
+ // Only share an in-flight check for the SAME spot; another spot's answer must never be reused.
+ if(wmfSafetyRequest&&wmfSafetyRequestKey===key)return wmfSafetyRequest;
  wmfSafetyShow("checking","Checking National Hurricane Center and marine alerts. Fishing scores are not a go/no-go safety assessment.");
- wmfSafetyRequest=(async()=>{
+ wmfSafetyRequestKey=key;
+ const request=wmfSafetyRequest=(async()=>{
+  let result;
   try{
-   // Relayed through our Netlify function: nhc.noaa.gov blocks direct browser reads (no CORS headers).
-   const nhc=await wmfFetchJson("/.netlify/functions/nhc-storms");
-   if(!Array.isArray(nhc?.activeStorms)&&!Array.isArray(nhc?.storms)&&!Array.isArray(nhc))throw Error("NHC storm feed format could not be verified");
-   if(wmfActiveGulfCyclone(nhc))throw Error("An active tropical cyclone is reported in the Gulf. Fishing recommendations suspended.");
    if(!Number.isFinite(lat)||!Number.isFinite(lon))throw Error("Select a fishing spot to check location-specific warnings.");
-   const alerts=await wmfFetchJson(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`);
-   const dangerous=(alerts.features||[]).filter(f=>WMF_SAFETY_DANGEROUS.test(`${f.properties?.event||""} ${f.properties?.headline||""}`));
-   if(dangerous.length)throw Error(`Active marine hazard: ${dangerous.map(x=>x.properties?.event).filter(Boolean).slice(0,2).join(", ")}.`);
-   wmfSafetyCache={time:Date.now(),key,status:"clear",message:"No matching alerts found in the checked official feeds. This does NOT certify safe boating conditions."};
+   const r=await wmfFetchJson(`/.netlify/functions/marine-safety?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
+   if(!Array.isArray(r?.hazards)||!Array.isArray(r?.gulfStorms)||!Array.isArray(r?.zones))throw Error("Safety check response could not be verified");
+   const zones=r.zones,marine=r.marineForecast||null;
+   const zoneText=zones.length?` (${zones[0].name}${zones[0].distanceKm>0?", nearest marine zone":""})`:"";
+   if(r.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${r.gulfStorms.slice(0,2).join(", ")}`),{hazard:true,zones,marine});
+   if(r.hazards.length)throw Object.assign(Error(`Active marine hazard: ${r.hazards.map(x=>x.event).slice(0,2).join(", ")}${zoneText}`),{hazard:true,zones,marine});
+   result={time:Date.now(),key,status:"clear",zones,marine,message:`No matching alerts found in the checked official feeds${zoneText}. This does NOT certify safe boating conditions.`};
   }catch(error){
    const msg=String(error.message||"Safety data unavailable").replace(/\.+$/,"");
-   const isWarning=/active marine hazard|active tropical cyclone/i.test(msg);
-   wmfSafetyCache={time:Date.now(),key,status:"blocked",message:`${isWarning?"MARINE HAZARD":"SAFETY STATUS UNAVAILABLE"}: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`};
-  }finally{
-   wmfSafetyRequest=null;
-   wmfSafetyShow(wmfSafetyCache.status,wmfSafetyCache.message);
+   result={time:Date.now(),key,status:"blocked",zones:error.zones||[],marine:error.marine||null,message:`${error.hazard?"MARINE HAZARD":"SAFETY STATUS UNAVAILABLE"}: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`};
   }
-  return wmfSafetyCache.status==="clear";
+  // A slower check for a spot the user already left must not overwrite the current spot's status.
+  if(wmfSafetyRequest===request){
+   wmfSafetyRequest=null;
+   wmfSafetyCache=result;
+   wmfSafetyShow(result.status,result.message);
+  }
+  return result.status==="clear";
  })();
- return wmfSafetyRequest;
+ return request;
 }
 function wmfRequireSafety(spot){
  return wmfCheckMarineSafety(spot||((typeof selected!=="undefined"&&selected)?selected:null));
@@ -4329,7 +4320,9 @@ async function wmfLoadWeather(){
   const current=document.createElement("div");current.textContent=`Current: ${format(now)}`;box.appendChild(current);
   const next=document.createElement("div");next.textContent=`Tomorrow morning: ${format(morning)}`;box.appendChild(next);
   const marine=document.createElement("div");marine.className="wmf-weather-note";
-  marine.textContent="Wave height and marine-zone alerts require an offshore marine forecast. Not available from this hourly point forecast; check NWS Marine before boating.";
+  const mf=(typeof selected!=="undefined"&&selected&&await wmfCheckMarineSafety(selected).then(()=>wmfSafetyCache.key===`${Number(selected.lat).toFixed(3)},${Number(selected.lon).toFixed(3)}`?wmfSafetyCache.marine:null,()=>null))||null;
+  marine.textContent=mf?`NWS marine forecast, ${mf.zoneName} (${mf.period}${mf.updated?`, issued ${new Date(mf.updated).toLocaleString([],{weekday:"short",hour:"numeric",minute:"2-digit",timeZone:"America/Chicago"})}`:""}): ${mf.text}`:
+   "Marine forecast (waves/chop) unavailable for this location. Check NWS Marine before boating.";
   box.appendChild(marine);
   const updated=document.createElement("div");updated.className="wmf-weather-note";
   updated.textContent=`NWS forecast • checked ${new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;box.appendChild(updated);

@@ -956,6 +956,7 @@ async function wmfCheckMarineSafety(spot){
  wmfSafetyShow("checking","Checking National Hurricane Center and marine alerts. Fishing scores are not a go/no-go safety assessment.");
  wmfSafetyRequestKey=key;
  const request=wmfSafetyRequest=(async()=>{
+  await null; // let `request` be assigned before any early (no-spot) exit compares against it
   let result;
   try{
    if(!Number.isFinite(lat)||!Number.isFinite(lon))throw Error("Select a fishing spot to check location-specific warnings.");

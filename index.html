@@ -438,11 +438,11 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 }
 
 
-#wmfMarineSafetyBanner{position:fixed;z-index:6500;top:12px;left:50%;transform:translateX(-50%);
+#wmfMarineSafetyBanner{position:fixed;z-index:6500;top:8px;left:50%;transform:translateX(-50%);
  width:min(640px,calc(100vw - 24px));box-sizing:border-box;background:#66191b;color:#fff;
- border:2px solid #ffb9aa;border-radius:14px;padding:12px 16px;box-shadow:0 6px 25px #0009;
- font-size:14px;line-height:1.4}
-#wmfMarineSafetyBanner strong{display:block;font-size:16px;margin-bottom:3px}
+ border:2px solid #ffb9aa;border-radius:12px;padding:7px 12px;box-shadow:0 6px 25px #0009;
+ font-size:12px;line-height:1.3}
+#wmfMarineSafetyBanner strong{display:block;font-size:13px;margin-bottom:2px}
 #wmfMarineSafetyBanner a{color:#fff;text-decoration:underline;font-weight:800}
 #wmfMarineSafetyBanner[data-status="clear"]{display:none}
 @media(max-width:700px){#wmfMarineSafetyBanner{top:64px;font-size:12px;padding:10px 12px}}
@@ -530,15 +530,17 @@ Offline / weak signal — showing the most recently cached app and any previousl
  <div class="wmf-weather-panel" role="dialog" aria-modal="true" aria-labelledby="wmfWeatherTitle">
   <div class="wmf-weather-top"><h2 id="wmfWeatherTitle">🌦 Marine Weather</h2><button type="button" onclick="wmfCloseWeather()" aria-label="Close weather">✕</button></div>
   <div class="wmf-weather-actions"><button type="button" onclick="wmfToggleRadar()" id="wmfRadarBtn">🌧 Show radar</button><button type="button" onclick="wmfLoadWeather()">↻ Refresh forecast</button></div>
+  <div id="wmfWeatherSafety" role="status" style="background:#5d1c20;border:1px solid #e99b90;border-radius:10px;padding:10px;margin:8px 0;font-weight:700">⚠️ Marine safety status has not been verified. Favorable weather does not mean safe boating.</div>
   <div id="wmfWeatherForecast" class="wmf-weather-card">Choose a spot for a forecast, or use the current map center.</div>
   <div id="wmfRadarStatus" class="wmf-weather-note">Radar is a visual reference. Check timestamp and official warnings.</div>
+  <div class="wmf-weather-note">Radar colors: blues/greens = lighter precipitation; yellows/oranges/reds = heavier precipitation. No radar echo does not mean no danger.</div>
   <div class="wmf-weather-links"><a href="https://radar.weather.gov/" target="_blank" rel="noopener">Official NWS radar ↗</a><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">Hurricane Center ↗</a><a href="https://www.weather.gov/marine/" target="_blank" rel="noopener">Marine warnings ↗</a></div>
   <div class="wmf-weather-note">Forecast and radar are not a declaration that boating is safe. Active hurricane/marine warnings override fishing ratings.</div>
  </div>
 </div>
 
 <div id="wmfMarineSafetyBanner" data-status="checking" role="alert" aria-live="assertive">
-<strong>⚠️ Marine safety not verified</strong>
+<strong>⚠️ Marine safety status</strong>
 <span id="wmfMarineSafetyMessage">Checking current hurricane and marine hazard information. Fishing scores are not safety advice.</span>
 <div><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">National Hurricane Center</a> · <a href="https://www.weather.gov/marine/" target="_blank" rel="noopener">NWS Marine</a></div>
 </div>
@@ -917,7 +919,7 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 // Marine safety gate: fishing-condition scores must never overrule hazard alerts.
 // A short, dated emergency hold addresses the confirmed Gulf hurricane of Oct 8, 2026.
 // After the hold, live checks are mandatory; failures are NOT treated as all-clear.
-const WMF_SAFETY_HOLD_UNTIL=Date.parse("2026-10-13T00:00:00-05:00");
+// No hard-coded hurricane names or expiry dates. Official alert feeds must be checked live.
 const WMF_SAFETY_DANGEROUS=/hurricane|tropical storm|storm surge|gale|storm warning|small craft|hazardous seas|high surf|rip current|marine weather|special marine|waterspout/i;
 let wmfSafetyCache={time:0,status:"checking",message:"Checking hazards",key:""};
 let wmfSafetyRequest=null;
@@ -925,6 +927,11 @@ function wmfSafetyShow(status,message){
  const box=document.getElementById("wmfMarineSafetyBanner"),el=document.getElementById("wmfMarineSafetyMessage");
  if(box)box.dataset.status=status;
  if(el)el.textContent=message;
+ const inside=document.getElementById("wmfWeatherSafety");
+ if(inside){
+  inside.textContent=`${status==="clear"?"ℹ️":"⚠️"} ${message} Good fishing weather never guarantees safe boating.`;
+  inside.style.background=status==="clear"?"#173947":"#5d1c20";
+ }
 }
 function wmfSafetyBlockMessage(){
  return wmfSafetyCache.message||"Marine hazards have not been ruled out. Do not rely on fishing scores.";
@@ -951,11 +958,6 @@ function wmfActiveGulfCyclone(nhc){
 async function wmfCheckMarineSafety(spot){
  const lat=Number(spot?.lat),lon=Number(spot?.lon);
  const key=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(3)},${lon.toFixed(3)}`:"gulf";
- if(Date.now()<WMF_SAFETY_HOLD_UNTIL){
-  wmfSafetyCache={time:Date.now(),key,status:"blocked",message:"HURRICANE IN THE GULF: Fishing recommendations suspended during Hurricane Isaias. Check current NHC advisories and local marine warnings before any boating."};
-  wmfSafetyShow("blocked",wmfSafetyCache.message);
-  return false;
- }
  if(wmfSafetyCache.key===key&&Date.now()-wmfSafetyCache.time<10*60*1000){
   wmfSafetyShow(wmfSafetyCache.status,wmfSafetyCache.message);
   return wmfSafetyCache.status==="clear";
@@ -971,9 +973,11 @@ async function wmfCheckMarineSafety(spot){
    const alerts=await wmfFetchJson(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`);
    const dangerous=(alerts.features||[]).filter(f=>WMF_SAFETY_DANGEROUS.test(`${f.properties?.event||""} ${f.properties?.headline||""}`));
    if(dangerous.length)throw Error(`Active marine hazard: ${dangerous.map(x=>x.properties?.event).filter(Boolean).slice(0,2).join(", ")}.`);
-   wmfSafetyCache={time:Date.now(),key,status:"clear",message:"No matching active alerts found. This does not establish safe boating conditions."};
+   wmfSafetyCache={time:Date.now(),key,status:"clear",message:"No matching alerts found in the checked official feeds. This does NOT certify safe boating conditions."};
   }catch(error){
-   wmfSafetyCache={time:Date.now(),key,status:"blocked",message:`Marine safety NOT cleared: ${error.message}. Do not rely on fishing ratings. Check NHC and NWS marine forecasts.`};
+   const msg=String(error.message||"Safety data unavailable");
+   const isWarning=/active marine hazard|active tropical cyclone/i.test(msg);
+   wmfSafetyCache={time:Date.now(),key,status:"blocked",message:`${isWarning?"MARINE HAZARD":"SAFETY STATUS UNAVAILABLE"}: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`};
   }finally{
    wmfSafetyRequest=null;
    wmfSafetyShow(wmfSafetyCache.status,wmfSafetyCache.message);
@@ -4276,12 +4280,16 @@ async function wmfLoadWeather(){
   const format=x=>{
    if(!x)return "Unavailable";
    const rain=x.probabilityOfPrecipitation?.value;
-   return `${x.temperature}°${x.temperatureUnit} • ${x.shortForecast||"Forecast"} • Wind ${x.windDirection||""} ${x.windSpeed||"—"}${rain!=null?` • Rain ${Math.round(rain)}%`:""}`;
+   const gust=x.windGust||x.windGustSpeed||null;
+   return `${x.temperature}°${x.temperatureUnit} • ${x.shortForecast||"Forecast"} • Wind ${x.windDirection||""} ${x.windSpeed||"—"}${gust?` • Gust ${gust}`:" • Gust unavailable"}${rain!=null?` • Rain ${Math.round(rain)}%`:""}`;
   };
   box.replaceChildren();
   const title=document.createElement("strong");title.textContent=name;box.appendChild(title);
   const current=document.createElement("div");current.textContent=`Current: ${format(now)}`;box.appendChild(current);
   const next=document.createElement("div");next.textContent=`Tomorrow morning: ${format(morning)}`;box.appendChild(next);
+  const marine=document.createElement("div");marine.className="wmf-weather-note";
+  marine.textContent="Wave height and marine-zone alerts require an offshore marine forecast. Not available from this hourly point forecast; check NWS Marine before boating.";
+  box.appendChild(marine);
   const updated=document.createElement("div");updated.className="wmf-weather-note";
   updated.textContent=`NWS forecast • checked ${new Date().toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})}`;box.appendChild(updated);
  }catch(err){box.textContent=`Weather data unavailable (${err.message}). Do not interpret missing data as safe conditions. Use official NWS marine forecasts.`;}

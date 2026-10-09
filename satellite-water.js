@@ -1,7 +1,7 @@
-/* Way More Fish — Satellite Water v6 (v6: styled legend, rings around spot buttons, status in legend)
+/* Way More Fish — Satellite Water v7 (v7: 24-48 hr "yesterday" pictures shown with a lighter ring; v6: styled legend, rings, status in legend)
    Supports every listed fishing area and every spot.
    Loads samples only for the selected area.
-   HARD RULE: imagery older than 24 hours is rejected and never shown as current/context water imagery.
+   HARD RULE: imagery older than 48 hours is rejected. 24-48 hours is shown as "yesterday" with a lighter ring.
 */
 (function () {
   if (typeof L === 'undefined' || typeof map === 'undefined' || typeof spots === 'undefined') return;
@@ -10,6 +10,7 @@
 
   const FRESH_HOURS = 12;
   const USABLE_HOURS = 24;
+  const YESTERDAY_HOURS = 48;
   const satelliteWaterLayer = L.layerGroup();
   let loading = false, legend = null, button = null, lastStatus = '';
 
@@ -38,12 +39,14 @@
     if(!Number.isFinite(hours)) return 'unknown';
     if(hours <= FRESH_HOURS) return 'fresh';
     if(hours <= USABLE_HOURS) return 'usable';
+    if(hours <= YESTERDAY_HOURS) return 'yesterday';
     return 'expired';
   }
 
   function freshnessLabel(state){
     if(state === 'fresh') return 'FRESH';
     if(state === 'usable') return 'RECENT USABLE';
+    if(state === 'yesterday') return "YESTERDAY'S PICTURE";
     return 'UNAVAILABLE';
   }
 
@@ -92,7 +95,8 @@
         '<div><span class="satwater-dot" style="background:#e5b84b"></span>Mixed / moderate</div>' +
         '<div><span class="satwater-dot" style="background:#a66a3f"></span>Relatively murkier</div>' +
         '<div><span class="satwater-dot" style="background:#7f8c98"></span>Unavailable</div>' +
-        '<div style="margin-top:5px;color:#9fb0bf">Fresh ≤12 hr • usable ≤24 hr • anything older than 24 hr is rejected.</div>' +
+        '<div><span class="satwater-dot" style="background:transparent;border:2px dashed #eef6fb;box-sizing:border-box"></span>Lighter ring = yesterday\'s picture</div>' +
+        '<div style="margin-top:5px;color:#9fb0bf">Fresh ≤12 hr • usable ≤24 hr • yesterday ≤48 hr (counts less) • older than 48 hr is rejected.</div>' +
         '<div id="satwaterStatus"></div>';
       setTimeout(function(){ const st = document.getElementById('satwaterStatus'); if(st) st.textContent = lastStatus; }, 0);
       return d;
@@ -111,8 +115,8 @@
     m.bindTooltip(p.name + ': satellite unavailable',{direction:'top'});
     m.bindPopup(
       '<strong>' + p.name + '</strong><br>' +
-      'No satellite water image available from the last 24 hours.<br>' +
-      '<span style="font-size:11px">' + (reason || 'Clouds, missing pixels, or an image older than 24 hours may be the cause.') + '</span>'
+      'No satellite water image available from the last 48 hours.<br>' +
+      '<span style="font-size:11px">' + (reason || 'Clouds, missing pixels, or an image older than 48 hours may be the cause.') + '</span>'
     );
     satelliteWaterLayer.addLayer(m);
   }
@@ -132,12 +136,13 @@
         month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit'
       }) : 'time unavailable';
 
-      if(state === 'fresh' || state === 'usable'){
+      if(state === 'fresh' || state === 'usable' || state === 'yesterday'){
+        const old = state === 'yesterday';
         const score = Math.round(Number(sat.score));
         if(!Number.isFinite(score)) throw new Error('No satellite score');
         const b = bucket(score);
         const m = L.circleMarker([p.lat,p.lon],{
-          radius:30, weight:5, color:b.fill, fillColor:b.fill, fillOpacity:.30
+          radius:30, weight:old ? 3 : 5, color:b.fill, dashArray:old ? '6 5' : null, fillColor:b.fill, fillOpacity:old ? .14 : .30
         });
         m.bindTooltip(p.name + ': ' + b.label + ' • ' + age,{direction:'top'});
         m.bindPopup(
@@ -145,17 +150,17 @@
           '<strong>' + b.label + '</strong> • ' + score + '/100<br>' +
           '<strong>' + freshnessLabel(state) + '</strong><br>' +
           'Sample: ' + sampleTime + ' • ' + age + '<br>' +
-          '<span style="font-size:11px">NOAA CoastWatch VIIRS near-real-time Kd490. Satellite-derived water signal, not a live camera.</span>'
+          '<span style="font-size:11px">' + (sat.feed || 'Satellite') + ' Kd490. Satellite-derived water signal, not a live camera.</span>'
         );
         satelliteWaterLayer.addLayer(m);
         return {spot:p,state,ageHours,sampleTime};
       }
 
-      addUnavailableMarker(p,'Newest satellite pixel is older than 24 hours and was rejected.');
+      addUnavailableMarker(p,'Newest satellite pixel is older than 48 hours and was rejected.');
       return {spot:p,state:'expired',ageHours,sampleTime};
 
     } catch(e){
-      addUnavailableMarker(p,'No usable VIIRS pixel from the last 24 hours was returned for this spot.');
+      addUnavailableMarker(p,'No usable satellite pixel from the last 48 hours was returned for this spot.');
       return {spot:p,state:'unavailable',ageHours:Infinity,sampleTime:null};
     }
   }
@@ -200,13 +205,14 @@
 
     const fresh = results.filter(x => x.state === 'fresh').length;
     const usable = results.filter(x => x.state === 'usable').length;
-    const unavailable = results.length - fresh - usable;
-    const valid = results.filter(x => (x.state === 'fresh' || x.state === 'usable') && Number.isFinite(x.ageHours))
+    const yesterday = results.filter(x => x.state === 'yesterday').length;
+    const unavailable = results.length - fresh - usable - yesterday;
+    const valid = results.filter(x => (x.state === 'fresh' || x.state === 'usable' || x.state === 'yesterday') && Number.isFinite(x.ageHours))
                          .sort((a,b) => a.ageHours - b.ageHours);
     const best = valid[0];
 
     if(!best){
-      setTopBanner('Satellite Water • ' + area + ' • No satellite water image available from the last 24 hours.',true);
+      setTopBanner('Satellite Water • ' + area + ' • No satellite water image available from the last 48 hours.',true);
     } else {
       setTopBanner(
         'Satellite Water • ' + area + ' • ' + best.sampleTime + ' • ' +
@@ -219,8 +225,8 @@
     if(status){
       status.textContent =
         'Satellite Water • ' + area + ': ' + fresh + ' fresh • ' +
-        usable + ' recent usable • ' + unavailable +
-        ' unavailable (older than 24 hr rejected).';
+        usable + ' recent usable • ' + yesterday + " yesterday's • " + unavailable +
+        ' unavailable (older than 48 hr rejected).';
     }
 
     loading = false;

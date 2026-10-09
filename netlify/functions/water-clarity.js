@@ -1,8 +1,8 @@
-/* Way More Fish — water clarity v4
+/* Way More Fish — water clarity v5
    Credibility rules:
    Fresh <= 12 hr
    Recent usable >12 and <=24 hr
-   Stale >24 and <=48 hr: metadata only, never current scoring
+   Yesterday >24 and <=48 hr: counted at reduced weight, labeled "yesterday's satellite"
    Older than 48 hr: unavailable for current-water use
 
    Uses NOAA CoastWatch VIIRS near-real-time Kd490 and checks a small
@@ -13,17 +13,28 @@
    Sept 2021. v4 asks four live VIIRS Kd490 feeds at once (backups to backups)
    and keeps the newest usable pixel. NOAA publishes each daily pass roughly
    a day or more after the satellite flies over (~1-2 pm Louisiana time).
+
+   v5: satellite up to 48 hr counts at reduced weight. Adds a second server
+   (NOAA West Coast ERDDAP) carrying NASA Aqua MODIS Kd490 and a mirror of the
+   S-NPP feed, so one server going down no longer takes out every satellite.
 */
 const FRESH_HOURS=12, USABLE_HOURS=24, STALE_HOURS=48;
 
 // Order matters only for ties: sharper 750 m coastal sector first.
+const NOAA_MAIN="https://coastwatch.noaa.gov/erddap";
+const NOAA_WEST="https://coastwatch.pfeg.noaa.gov/erddap";
+// Order matters only for ties: sharper 750 m coastal sector first.
+// 4 km daily products are stamped 12:00Z, earlier than the real afternoon pass,
+// so their age reads a few hours older than it is (errs toward "older").
 const SATELLITE_FEEDS=[
-  {id:"noaacwNPPVIIRSkd490SectorVYDaily", name:"S-NPP VIIRS 750 m"},
-  {id:"noaacwN21VIIRSkd490SectorUSDaily", name:"NOAA-21 VIIRS"},
-  {id:"noaacwN20VIIRSkd490SectorUSDaily", name:"NOAA-20 VIIRS"},
-  // Global 4 km product is stamped 12:00Z, earlier than the real afternoon pass,
-  // so its age reads a few hours older than it is (errs toward "older").
-  {id:"noaacwNPPVIIRSkd490Daily", name:"S-NPP VIIRS 4 km"}
+  {server:NOAA_MAIN, id:"noaacwNPPVIIRSkd490SectorVYDaily", v:"kd_490", alt:true, name:"S-NPP VIIRS 750 m"},
+  {server:NOAA_MAIN, id:"noaacwN21VIIRSkd490SectorUSDaily", v:"kd_490", alt:true, name:"NOAA-21 VIIRS"},
+  {server:NOAA_MAIN, id:"noaacwN20VIIRSkd490SectorUSDaily", v:"kd_490", alt:true, name:"NOAA-20 VIIRS"},
+  {server:NOAA_MAIN, id:"noaacwNPPVIIRSkd490Daily", v:"kd_490", alt:true, name:"S-NPP VIIRS 4 km"},
+  // Second server: still answers when the main CoastWatch server is down.
+  {server:NOAA_WEST, id:"nesdisVHNkd490Daily", v:"kd_490", alt:true, name:"S-NPP VIIRS 4 km (West Coast mirror)"},
+  // NASA's own Aqua MODIS product. Sparse right at the shoreline (4 km pixels, turbid water masked).
+  {server:NOAA_WEST, id:"erdMH1kd4901day_R2022NRT", v:"Kd_490", alt:false, name:"NASA Aqua MODIS 4 km"}
 ];
 function haversineMiles(lat1, lon1, lat2, lon2) {
   const R = 3958.7613;
@@ -51,15 +62,15 @@ function satelliteFreshness(ageHours){
   if(!Number.isFinite(ageHours))return "unknown";
   if(ageHours<=FRESH_HOURS)return "fresh";
   if(ageHours<=USABLE_HOURS)return "usable";
-  if(ageHours<=STALE_HOURS)return "stale";
+  if(ageHours<=STALE_HOURS)return "yesterday";
   return "expired";
 }
 
 async function fetchFeedPixels(feed,lat,lon){
   // ~0.04 degrees is only a few miles along the Louisiana coast.
   const pad=0.04;
-  const q=`kd_490[last-4:1:last][0][(${(lat-pad).toFixed(4)}):1:(${(lat+pad).toFixed(4)})][(${(lon-pad).toFixed(4)}):1:(${(lon+pad).toFixed(4)})]`;
-  const url=`https://coastwatch.noaa.gov/erddap/griddap/${feed.id}.csv?${encodeURI(q)}`;
+  const q=`${feed.v}[last-4:1:last]${feed.alt?"[0]":""}[(${(lat-pad).toFixed(4)}):1:(${(lat+pad).toFixed(4)})][(${(lon-pad).toFixed(4)}):1:(${(lon+pad).toFixed(4)})]`;
+  const url=`${feed.server}/griddap/${feed.id}.csv?${encodeURI(q)}`;
 
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),7000);
@@ -67,7 +78,7 @@ async function fetchFeedPixels(feed,lat,lon){
     const r=await fetch(url,{signal:controller.signal,headers:{"User-Agent":"WayMoreFish/1.0","Accept":"text/csv"}});
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
     return parseCSV(await r.text()).map(x=>{
-      const kd=Number(x.kd_490);
+      const kd=Number(x[feed.v]);
       const time=x.time;
       const plat=Number(x.latitude);
       const plon=Number(x.longitude);
@@ -114,7 +125,7 @@ async function fetchSatellite(lat,lon){
     distanceMiles:x.distMiles,
     feed:x.feed,
     feedsAnswered:SATELLITE_FEEDS.length-feedErrors.length,
-    source:`NOAA CoastWatch ${x.feed} NRT Kd490`
+    source:`${/NASA/.test(x.feed)?"":"NOAA "}${x.feed} satellite Kd490`
   };
 }
 
@@ -153,6 +164,8 @@ exports.handler=async function(event){
   if(satRes.status==="fulfilled")sat=satRes.value;else errors.push(`NOAA satellite: ${satRes.reason.message}`);
 
   const satCurrent=sat&&(sat.freshness==="fresh"||sat.freshness==="usable");
+  // Yesterday's pass (24-48 hr) still counts, at reduced weight and clearly labeled.
+  const satYesterday=sat&&sat.freshness==="yesterday";
 
   if(!usgs&&!sat){
     return {
@@ -162,24 +175,32 @@ exports.handler=async function(event){
     };
   }
 
-  let score=null,source="unavailable",details="",ageHours=null;
+  let score=null,source="unavailable",details="",ageHours=null,reduced=false;
 
-  if(usgs&&satCurrent){
-    const uw=usgs.dist<=20?0.65:0.55,sw=1-uw;
+  if(usgs&&(satCurrent||satYesterday)){
+    let uw=usgs.dist<=20?0.65:0.55;
+    if(satYesterday)uw=0.85; // a day-old picture gets a much smaller say than a live sensor
+    const sw=1-uw;
     score=(usgs.score*uw+sat.score*sw)/(uw+sw);
-    source="USGS turbidity + recent NOAA VIIRS Kd490";
-    details=`USGS ${usgs.v.toFixed(1)} FNU, ${usgs.dist.toFixed(0)} mi away • VIIRS ${sat.freshness}, ${Math.round(sat.ageHours)} hr old`;
+    source=satYesterday?"USGS turbidity + yesterday's satellite":"USGS turbidity + recent satellite";
+    details=`USGS ${usgs.v.toFixed(1)} FNU, ${usgs.dist.toFixed(0)} mi away • ${sat.feed} ${Math.round(sat.ageHours)} hr old${satYesterday?" (reduced weight)":""}`;
     ageHours=Math.min(usgs.ageHours,sat.ageHours);
   }else if(usgs){
     score=usgs.score;
     source="USGS turbidity";
     details=`${usgs.v.toFixed(1)} FNU at ${usgs.site} • ${usgs.dist.toFixed(0)} mi away`;
-    if(sat)details+=` • satellite ${sat.freshness}, ${Math.round(sat.ageHours)} hr old and NOT used`;
+    if(sat)details+=` • satellite ${Math.round(sat.ageHours)} hr old and NOT used`;
     ageHours=usgs.ageHours;
   }else if(satCurrent){
     score=sat.score;
-    source="recent NOAA VIIRS Kd490 satellite";
+    source=`recent satellite (${sat.feed})`;
     details=`Kd490 ${sat.kd.toFixed(2)} m⁻¹ • ${Math.round(sat.ageHours)} hr old • ${sat.freshness} • pixel ${sat.distanceMiles.toFixed(1)} mi from spot`;
+    ageHours=sat.ageHours;
+  }else if(satYesterday){
+    score=sat.score;
+    reduced=true;
+    source=`yesterday's satellite (${sat.feed})`;
+    details=`Kd490 ${sat.kd.toFixed(2)} m⁻¹ • ${Math.round(sat.ageHours)} hr old • counted at reduced weight • pixel ${sat.distanceMiles.toFixed(1)} mi from spot`;
     ageHours=sat.ageHours;
   }else{
     return {
@@ -188,8 +209,8 @@ exports.handler=async function(event){
       body:JSON.stringify({
         score:null,
         label:"Current satellite water unavailable",
-        source:"stale NOAA VIIRS Kd490 satellite",
-        details:`Newest usable satellite pixel is ${Math.round(sat.ageHours)} hr old and is not used as a current-water signal`,
+        source:"satellite older than 48 hr",
+        details:`Newest usable satellite pixel is ${Math.round(sat.ageHours)} hr old and is not used (limit is ${STALE_HOURS} hr)`,
         ageHours:sat.ageHours,
         usgs:null,
         satellite:sat,
@@ -204,7 +225,7 @@ exports.handler=async function(event){
     statusCode:200,
     headers:{"content-type":"application/json","cache-control":"public, max-age=600, s-maxage=600"},
     body:JSON.stringify({
-      score,label:label(score),source,details,ageHours,usgs,satellite:sat,heuristic:true,currentWaterUsable:true
+      score,label:label(score),source,details,ageHours,reduced,usgs,satellite:sat,heuristic:true,currentWaterUsable:true
     })
   };
 };

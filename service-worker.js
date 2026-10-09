@@ -1,4 +1,4 @@
-const CACHE_NAME="way-more-fish-v3";
+const CACHE_NAME="way-more-fish-v4";
 const APP_SHELL=[
   "/",
   "/index.html",

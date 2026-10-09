@@ -415,13 +415,13 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 
 .wmf-la-brand{
  position:fixed;z-index:850;left:66px;top:max(12px,env(safe-area-inset-top));
- padding:8px 11px;border-radius:12px;background:rgba(8,31,43,.84);
- border:1px solid rgba(130,192,215,.45);box-shadow:0 3px 12px rgba(0,0,0,.24);
- color:#fff;pointer-events:none;backdrop-filter:blur(6px)
+ width:112px;height:112px;padding:0;border:0;background:transparent;
+ box-shadow:none;pointer-events:none
 }
-.wmf-la-brand strong{display:block;font-size:14px;letter-spacing:.08em}
-.wmf-la-brand span{display:block;font-size:11px;font-weight:900;letter-spacing:.16em;color:#f0a23b;margin-top:1px}
-.wmf-la-brand small{display:block;font-size:10px;color:#c7d6df;margin-top:3px}
+.wmf-la-brand img{
+ display:block;width:100%;height:100%;object-fit:contain;
+ filter:drop-shadow(0 3px 8px rgba(0,0,0,.35))
+}
 .wmf-welcome-toast{
  position:fixed;z-index:5600;left:50%;bottom:max(22px,calc(env(safe-area-inset-bottom) + 18px));
  transform:translate(-50%,18px);max-width:min(520px,84vw);padding:10px 14px;border-radius:999px;
@@ -434,10 +434,18 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  font-weight:900;font-size:20px;box-shadow:0 3px 10px rgba(0,0,0,.25)
 }
 @media (max-width:700px){
- .wmf-la-brand{left:64px;right:auto;max-width:230px;padding:7px 9px}
- .wmf-la-brand small{display:none}
+ .wmf-la-brand{left:62px;right:auto;width:94px;height:94px}
 }
 
+
+#wmfMarineSafetyBanner{position:fixed;z-index:6500;top:12px;left:50%;transform:translateX(-50%);
+ width:min(640px,calc(100vw - 24px));box-sizing:border-box;background:#66191b;color:#fff;
+ border:2px solid #ffb9aa;border-radius:14px;padding:12px 16px;box-shadow:0 6px 25px #0009;
+ font-size:14px;line-height:1.4}
+#wmfMarineSafetyBanner strong{display:block;font-size:16px;margin-bottom:3px}
+#wmfMarineSafetyBanner a{color:#fff;text-decoration:underline;font-weight:800}
+#wmfMarineSafetyBanner[data-status="clear"]{display:none}
+@media(max-width:700px){#wmfMarineSafetyBanner{top:64px;font-size:12px;padding:10px 12px}}
 </style>
 </head>
 <body>
@@ -499,10 +507,13 @@ Offline / weak signal — showing the most recently cached app and any previousl
 <div class="small muted"><strong>Map:</strong> Standard • NOAA Chart • Satellite. Use <strong>Fishing Structure</strong> at close zoom for spot-specific bottom/structure guidance. On the NOAA chart at zoom 12+, tap a chart symbol for details. Tap ◎ for GPS. NOAA chart is for planning/reference, not navigation.</div>
 </div>
 <div id="map"></div>
+<div id="wmfMarineSafetyBanner" data-status="checking" role="alert" aria-live="assertive">
+<strong>⚠️ Marine safety not verified</strong>
+<span id="wmfMarineSafetyMessage">Checking current hurricane and marine hazard information. Fishing scores are not safety advice.</span>
+<div><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">National Hurricane Center</a> · <a href="https://www.weather.gov/marine/" target="_blank" rel="noopener">NWS Marine</a></div>
+</div>
 <div id="wmfLouisianaBrand" class="wmf-la-brand">
-  <strong>WAY MORE FISH</strong>
-  <span>LOUISIANA COAST</span>
-  <small>Live conditions • tides • water • local structure</small>
+  <img src="/way-more-fish-logo.jpg" alt="Way More Fish speckled trout logo">
 </div>
 <div id="wmfWelcomeToast" class="wmf-welcome-toast">Louisiana coast loaded • Pick a spot or let <strong>Fish Now</strong> find one.</div>
 <div id="wmfToolsMenu" class="wmf-tools-overlay" aria-hidden="true">
@@ -872,6 +883,78 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
 <script>
+
+// Marine safety gate: fishing-condition scores must never overrule hazard alerts.
+// A short, dated emergency hold addresses the confirmed Gulf hurricane of Oct 8, 2026.
+// After the hold, live checks are mandatory; failures are NOT treated as all-clear.
+const WMF_SAFETY_HOLD_UNTIL=Date.parse("2026-10-13T00:00:00-05:00");
+const WMF_SAFETY_DANGEROUS=/hurricane|tropical storm|storm surge|gale|storm warning|small craft|hazardous seas|high surf|rip current|marine weather|special marine|waterspout/i;
+let wmfSafetyCache={time:0,status:"checking",message:"Checking hazards",key:""};
+let wmfSafetyRequest=null;
+function wmfSafetyShow(status,message){
+ const box=document.getElementById("wmfMarineSafetyBanner"),el=document.getElementById("wmfMarineSafetyMessage");
+ if(box)box.dataset.status=status;
+ if(el)el.textContent=message;
+}
+function wmfSafetyBlockMessage(){
+ return wmfSafetyCache.message||"Marine hazards have not been ruled out. Do not rely on fishing scores.";
+}
+async function wmfFetchJson(url){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),7500);
+ try{
+  const response=await fetch(url,{cache:"no-store",signal:controller.signal,headers:{"Accept":"application/geo+json, application/json"}});
+  if(!response.ok)throw Error("Safety data service unavailable");
+  return await response.json();
+ }finally{clearTimeout(timer)}
+}
+function wmfActiveGulfCyclone(nhc){
+ const entries=Array.isArray(nhc?.activeStorms)?nhc.activeStorms:
+  Array.isArray(nhc?.storms)?nhc.storms:Array.isArray(nhc)?nhc:[];
+ return entries.some(x=>{
+  const lat=Number(x?.latitude??x?.lat),lon=Number(x?.longitude??x?.lon);
+  const basin=String(x?.basin||x?.region||"");
+  return (Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=16&&lat<=32&&lon>=-98&&lon<=-80) ||
+    (/gulf/i.test(basin));
+ });
+}
+async function wmfCheckMarineSafety(spot){
+ const lat=Number(spot?.lat),lon=Number(spot?.lon);
+ const key=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(3)},${lon.toFixed(3)}`:"gulf";
+ if(Date.now()<WMF_SAFETY_HOLD_UNTIL){
+  wmfSafetyCache={time:Date.now(),key,status:"blocked",message:"HURRICANE IN THE GULF: Fishing recommendations suspended during Hurricane Isaias. Check current NHC advisories and local marine warnings before any boating."};
+  wmfSafetyShow("blocked",wmfSafetyCache.message);
+  return false;
+ }
+ if(wmfSafetyCache.key===key&&Date.now()-wmfSafetyCache.time<10*60*1000){
+  wmfSafetyShow(wmfSafetyCache.status,wmfSafetyCache.message);
+  return wmfSafetyCache.status==="clear";
+ }
+ if(wmfSafetyRequest)return wmfSafetyRequest;
+ wmfSafetyShow("checking","Checking National Hurricane Center and marine alerts. Fishing scores are not a go/no-go safety assessment.");
+ wmfSafetyRequest=(async()=>{
+  try{
+   const nhc=await wmfFetchJson("https://www.nhc.noaa.gov/CurrentStorms.json");
+   if(!Array.isArray(nhc?.activeStorms)&&!Array.isArray(nhc?.storms)&&!Array.isArray(nhc))throw Error("NHC storm feed format could not be verified");
+   if(wmfActiveGulfCyclone(nhc))throw Error("An active tropical cyclone is reported in the Gulf. Fishing recommendations suspended.");
+   if(!Number.isFinite(lat)||!Number.isFinite(lon))throw Error("Select a fishing spot to check location-specific warnings.");
+   const alerts=await wmfFetchJson(`https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lon.toFixed(4)}`);
+   const dangerous=(alerts.features||[]).filter(f=>WMF_SAFETY_DANGEROUS.test(`${f.properties?.event||""} ${f.properties?.headline||""}`));
+   if(dangerous.length)throw Error(`Active marine hazard: ${dangerous.map(x=>x.properties?.event).filter(Boolean).slice(0,2).join(", ")}.`);
+   wmfSafetyCache={time:Date.now(),key,status:"clear",message:"No matching active alerts found. This does not establish safe boating conditions."};
+  }catch(error){
+   wmfSafetyCache={time:Date.now(),key,status:"blocked",message:`Marine safety NOT cleared: ${error.message}. Do not rely on fishing ratings. Check NHC and NWS marine forecasts.`};
+  }finally{
+   wmfSafetyRequest=null;
+   wmfSafetyShow(wmfSafetyCache.status,wmfSafetyCache.message);
+  }
+  return wmfSafetyCache.status==="clear";
+ })();
+ return wmfSafetyRequest;
+}
+function wmfRequireSafety(spot){
+ return wmfCheckMarineSafety(spot||((typeof selected!=="undefined"&&selected)?selected:null));
+}
 const spots=[
 {name:"Cypremort Point",area:"Vermilion Bay",lat:29.71336,lon:-91.88,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Tete Butte Reef",area:"Vermilion Bay",lat:29.58472,lon:-92.09444,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
@@ -1738,6 +1821,7 @@ function gamePlanForRankedSpot(r,rank){
  </div>`;
 }
 async function runFishNowMap(){
+ if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
  if(typeof closeFishingToolsMenu==="function")closeFishingToolsMenu();
  if(typeof closeFishingTool==="function")closeFishingTool();
  const b=document.getElementById("wmfFishNowBtn");
@@ -1915,6 +1999,7 @@ function renderForecastPins(top,target){
  if(bounds.length)map.fitBounds(bounds,{padding:[55,55],maxZoom:10});
 }
 async function runForecastForSelectedSpot(){
+ if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
  const target=selectedForecastTarget();
  const status=document.getElementById("wmfForecastStatus");
  const btn=document.getElementById("wmfForecastRunBtn");
@@ -2507,7 +2592,6 @@ function cacheRead(key,maxAge){
  try{const raw=localStorage.getItem(CACHE_PREFIX+key);if(!raw)return null;const obj=JSON.parse(raw);if(Date.now()-obj.savedAt>maxAge)return null;return obj.data}catch{return null}
 }
 function cacheReadStale(key){try{const raw=localStorage.getItem(CACHE_PREFIX+key);return raw?JSON.parse(raw).data:null}catch{return null}}
-function cacheSavedAt(key){try{const raw=localStorage.getItem(CACHE_PREFIX+key);return raw?Number(JSON.parse(raw).savedAt):null}catch{return null}}
 function cacheWrite(key,data){try{localStorage.setItem(CACHE_PREFIX+key,JSON.stringify({savedAt:Date.now(),data}))}catch{}}
 
 function freshnessText(source,kind){
@@ -2630,30 +2714,20 @@ function modeledClarityScore(data={}){
  score=Math.max(0,Math.min(100,Math.round(score)));
  return {score,label:clarityLabel(score),source:"Modeled fallback",details:reasons.slice(0,4).join(" • ")||"wind/tide/recent-weather estimate",direct:false};
 }
-// Same hard rule as the clarity function: a measurement older than this never counts as current water.
-const CLARITY_MAX_AGE_HOURS=24;
-function cachedClarityAgedNow(key,stored){
- // A cached reading keeps aging after it was saved; add the time it sat in the cache.
- const savedAt=cacheSavedAt(key);
- if(!stored||!Number.isFinite(savedAt))return null;
- const ageNow=(Number.isFinite(stored.age)?stored.age:0)+(Date.now()-savedAt)/3600000;
- return ageNow<=CLARITY_MAX_AGE_HOURS?{...stored,age:ageNow}:null;
-}
 async function fetchClarityForSpot(s,data=null){
  const key=`clarity:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;
- const cached=cachedClarityAgedNow(key,cacheRead(key,TTL.clarity));
+ const cached=cacheRead(key,TTL.clarity);
  if(cached)return {...cached,cached:true,source:(cached.source||"Clarity")+" • recent cache"};
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
  try{
   const r=await fetch(`/.netlify/functions/water-clarity?lat=${encodeURIComponent(s.lat)}&lon=${encodeURIComponent(s.lon)}`,{signal:controller.signal,cache:"no-store"});
   if(!r.ok)throw Error(`clarity HTTP ${r.status}`);
   const j=await r.json();
-  // score:null means "no current measurement" — Number(null) is 0, which would read as very muddy water.
-  if(!j||j.score==null||j.currentWaterUsable===false||!Number.isFinite(Number(j.score)))throw Error((j&&(j.error||j.details))||"no current clarity value");
+  if(!j||!Number.isFinite(Number(j.score)))throw Error((j&&j.error)||"no clarity value");
   const out={score:Number(j.score),label:j.label||clarityLabel(Number(j.score)),source:j.source||"Direct clarity",details:j.details||"",direct:true,age:j.ageHours,raw:j};
   cacheWrite(key,out);return out;
  }catch(e){
-  const stale=cachedClarityAgedNow(key,cacheReadStale(key));
+  const stale=cacheReadStale(key);
   if(stale)return {...stale,source:(stale.source||"Clarity")+" • cached",details:(stale.details||"")+" • live clarity source unavailable"};
   return modeledClarityScore(data||{});
  }finally{clearTimeout(timer)}
@@ -2730,12 +2804,6 @@ async function selectSpot(s){
  document.getElementById("autoClarityStatus").textContent="Loading…";document.getElementById("autoClaritySource").textContent="Checking measured/satellite clarity…";document.getElementById("salinityStatus").textContent="Loading…";document.getElementById("waterTempStatus").textContent="Loading…";document.getElementById("salinitySource").textContent="Finding nearest monitoring station…";document.getElementById("speciesFit").textContent="Species fit: calculating…";document.getElementById("speciesWhy").textContent="Waiting for water-quality data.";
  resetWaterLevelComparison();
  const results=await Promise.allSettled([loadWeather(s),loadTides(s),loadSalinity(s),loadWaterClarity(s),loadObservedVsPredictedWater(s)]);
- if(clarityState&&!clarityState.direct&&Number.isFinite(clarityState.score)){
-  // The modeled estimate ran alongside the weather download; redo it now that wind and recent weather are in.
-  clarityState=modeledClarityScore({recent:recentConditions,wx,tides,spot:s});
-  document.getElementById("autoClarityStatus").textContent=`${clarityState.label} • ${Math.round(clarityState.score)}/100`;
-  document.getElementById("autoClaritySource").textContent=`${clarityState.source}${clarityState.details?` • ${clarityState.details}`:""}`;
- }
  freshnessState.weather=dataQuality.weather||"unavailable";
  freshnessState.tides=dataQuality.tides||"unavailable";
  freshnessState.observed=dataQuality.observedWind||"unavailable";
@@ -3409,6 +3477,7 @@ function renderWhereNowPins(top){
  if(bounds.length)map.fitBounds(bounds,{padding:[55,55],maxZoom:10});
 }
 async function findWhereNow(){
+ if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
  const btn=document.getElementById("whereNowBtn"),status=document.getElementById("whereNowStatus"),box=document.getElementById("whereNowResults");
  btn.disabled=true;box.innerHTML="";whereNowLayer.clearLayers();
 
@@ -3501,6 +3570,7 @@ async function findWhereNow(){
 }
 
 async function findTop3Tomorrow(){
+ if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
  const btn=document.getElementById("top3TomorrowBtn"),status=document.getElementById("top3TomorrowStatus"),box=document.getElementById("top3TomorrowResults"),target=targetTomorrowMorning();
  btn.disabled=true;box.innerHTML="";
  const areas=[...new Set(spots.map(s=>s.area))],stage1=[];let failed=0;const failures=[];
@@ -3633,13 +3703,8 @@ function tideStateAt(date){
  if(prev){const span=next.time-prev.time,phase=span>0?(t-prev.time)/span:null;if(phase!=null){if(phase<0.12||phase>0.88){score-=5;motion="near slack"}else if(phase>=0.30&&phase<=0.70){score+=4;motion="stronger movement"}else{score+=1;motion="moderate movement"}}}
  return {label:`${rising?"rising":"falling"} tide, ${motion}`,score};
 }
-// Fishing windows are about Louisiana daylight, not the clock on the viewer's phone.
-function louisianaHour(d=new Date()){
- const h=Number(new Intl.DateTimeFormat("en-US",{timeZone:"America/Chicago",hour:"numeric",hourCycle:"h23"}).format(d));
- return Number.isFinite(h)?h:d.getHours();
-}
 function hourWindowScore(period){
- const d=new Date(period.startTime),h=louisianaHour(d);let score=50,reasons=[];
+ const d=new Date(period.startTime),h=d.getHours();let score=50,reasons=[];
  const w=parseWindMph(period.windSpeed);
  if(w!=null){if(w<=7){score+=10;reasons.push("light wind")}else if(w<=12){score+=5;reasons.push("manageable wind")}else if(w<=17){score-=3;reasons.push("breezy")}else{score-=12;reasons.push("strong wind")}const ds=windDirectionScore(period.windDirection);score+=ds;if(ds>0)reasons.push("favorable wind direction")}
  if(h>=5&&h<9){score+=8;reasons.push("early-morning timing")}else if(h>=9&&h<12){score+=3;reasons.push("morning timing")}else if(h>=17&&h<20){score+=5;reasons.push("evening timing")}else if(h>=12&&h<16){score-=4;reasons.push("midday heat window")}
@@ -3711,55 +3776,44 @@ function currentConfidencePercent(){
  return Math.max(0,Math.min(100,Math.round(pct)));
 }
 
-// The selected-spot score uses the same model as "Where Should I Fish Right Now?" so a ranked spot
-// shows the same number when tapped. Your on-the-water reports (clarity, bait, storm) are layered on top.
-function liveSpotScoreData(){
- const manualClarity=Number(document.getElementById("clarity").value);
- return {
-  spot:selected,wx,tides,
-  pressureTrend:document.getElementById("pressureTrend").textContent,
-  recent:{...recentConditions,penalty:effectiveDisruptionPenalty()},
-  // A clarity report from the water replaces the automatic clarity signal.
-  clarity:manualClarity!==0?null:clarityState,
-  confidence:qualitySummary(dataQuality)
- };
-}
 function calcScore(){
  if(!selected)return;
- const data=liveSpotScoreData();
- const base=currentScoreFromData(data);
- data.current=base;data.currentScore=base.score;
- const opp=currentFishingOpportunity(data);
- let s=opp.score;const why=[...opp.reasons];
- const w=parseWindMph(wx&&wx.windSpeed);
+ let s=50,why=[],liveParts=0,totalLive=3;
+ const w=windAvg();
+ if(w!==null){liveParts++;if(w<=7){s+=10;why.push("light wind")}else if(w<=12){s+=5;why.push("manageable wind")}else if(w<=17){s-=3;why.push("breezy")}else{s-=12;why.push("strong wind")}const ds=windDirectionScore(wx&&wx.windDirection);s+=ds;if(ds>0)why.push("favorable wind direction");else if(ds<0)why.push("less favorable wind direction");}
  const tm=document.getElementById("tideMove").textContent;
- const pt=data.pressureTrend;
+ if(tm.startsWith("Rising")){liveParts++;s+=9;why.push("rising tide")}else if(tm.startsWith("Falling")){liveParts++;s+=7;why.push("moving falling tide")}
+ const pt=document.getElementById("pressureTrend").textContent;
+ if(["Falling","Stable","Rising"].includes(pt)){liveParts++;if(pt==="Falling"){s+=4;why.push("falling pressure")}else if(pt==="Stable"){s+=3;why.push("stable pressure")}else{s-=2;why.push("rising pressure")}}
+ const hr=new Date().getHours();
+ if(hr>=5&&hr<9){s+=7;why.push("early-morning window")}else if(hr>=9&&hr<12){s+=3;why.push("morning window")}else if(hr>=17&&hr<20){s+=4;why.push("evening window")}else if(hr>=12&&hr<16){s-=4;why.push("midday heat window")}
  const manualClarity=Number(document.getElementById("clarity").value);
- if(manualClarity!==0){s+=manualClarity;why.unshift(manualClarity>0?"reported cleaner water":"reported muddy water");}
- const bait=Number(document.getElementById("bait").value);
- if(bait!==0){s+=bait;why.push(bait>0?"bait reported":"no bait seen");}
- const disruption=effectiveDisruptionPenalty();
- if(manualStormPenalty()>0)why.push("reported recent storm/churned water");
+ if(manualClarity!==0){s+=manualClarity;if(manualClarity>0)why.push("reported cleaner water");else why.push("reported muddy water");}
+ else if(Number.isFinite(clarityState.score)){
+  let adj=0;
+  if(clarityState.score>=78)adj=clarityState.direct?8:4;
+  else if(clarityState.score>=60)adj=clarityState.direct?4:2;
+  else if(clarityState.score<25)adj=clarityState.direct?-10:-5;
+  else if(clarityState.score<42)adj=clarityState.direct?-6:-3;
+  s+=adj;
+  if(adj>=4)why.push("clear-water signal");else if(adj<=-6)why.push("muddy-water signal");else if(adj<0)why.push("stained-water signal");
+ }
+ s+=Number(document.getElementById("bait").value);
+ const disruption=effectiveDisruptionPenalty();if(disruption>0){s-=disruption;why.push(`${manualStormPenalty()>0?"reported":"observed"} recent storm/water disruption -${disruption}`);}
  s=Math.max(0,Math.min(100,Math.round(s)));
  const scoreEl=document.getElementById("score");scoreEl.textContent=s+"%";scoreEl.className="big "+(s>=75?"good":s>=55?"mid":"bad");
  const rating=s>=80?"Very good":s>=70?"Good":s>=55?"Fair":s>=40?"Poor":"Very poor";document.getElementById("rating").textContent=rating;
  const conf=currentConfidencePercent();document.getElementById("confidence").textContent="Data confidence: "+conf+"% of key inputs available";
- document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • "+(manualClarity===0&&clarityState.direct?"clarity source loaded":"you can still override clarity from the water")+". Add bait activity for a better estimate.";
+ document.getElementById("why").textContent=(why.join(" • ")||"Base estimate")+" • "+(Number(document.getElementById("clarity").value)===0&&clarityState.direct?"clarity source loaded":"you can still override clarity from the water")+". Add bait activity for a better estimate.";
  const br=document.getElementById("scoreBreakdown");
  if(br){
-  const autoClarity=manualClarity===0&&usableClaritySignal(clarityState)?` (auto ${Math.round(clarityState.score)}/100${clarityState.direct?"":", modeled"})`:``;
   const inputs=[
    `Final score: ${s}/100`,
-   `Conditions (wind, tide, pressure, time of day): ${base.score}/100`,
-   `Clean-water likelihood: ${opp.cleanScore}/100`,
-   `Spot structure adjustment: ${opp.microAdjustment>=0?"+":""}${opp.microAdjustment}`,
-   `Data confidence: ${data.confidence}`,
-   `Wind: ${w==null?"unavailable":w.toFixed(0)+" mph"}`,
+   `Wind: ${w===null?"unavailable":w.toFixed(0)+" mph"}`,
    `Tide: ${tm||"unavailable"}`,
    `Pressure: ${pt||"unavailable"}`,
-   `Water clarity: ${document.getElementById("clarity").options[document.getElementById("clarity").selectedIndex].text}${autoClarity}`,
+   `Water clarity: ${document.getElementById("clarity").options[document.getElementById("clarity").selectedIndex].text}${Number(document.getElementById("clarity").value)===0&&clarityState&&Number.isFinite(clarityState.score)?` (auto ${Math.round(clarityState.score)}/100)`:``}`,
    `Recent disruption penalty: -${disruption}`,
-   `Your reports: clarity ${manualClarity>=0?"+":""}${manualClarity}, bait ${bait>=0?"+":""}${bait}`,
    `Reasons: ${why.join(" • ")||"base estimate only"}`
   ];
   br.innerHTML=inputs.map(x=>`<div style="margin:4px 0">${x}</div>`).join("");
@@ -3799,14 +3853,14 @@ function currentScoreFromData(data){
  if(tideMove.startsWith("Rising")){s+=9;reasons.push("rising tide");}else if(tideMove.startsWith("Falling")){s+=7;reasons.push("moving falling tide");}
  const pt=data.pressureTrend;
  if(pt==="Falling"){s+=4;reasons.push("falling pressure");}else if(pt==="Stable"){s+=3;reasons.push("stable pressure");}else if(pt==="Rising"){s-=2;reasons.push("rising pressure");}
- const hr=louisianaHour();
+ const hr=new Date().getHours();
  if(hr>=5&&hr<9){s+=7;reasons.push("early-morning window");}else if(hr>=9&&hr<12){s+=3;reasons.push("morning window");}else if(hr>=17&&hr<20){s+=4;reasons.push("evening window");}else if(hr>=12&&hr<16){s-=4;reasons.push("midday heat window");}
  if(data.recent&&data.recent.penalty){s-=data.recent.penalty;reasons.push("recent observed disruption");}
  const score=Math.max(0,Math.min(100,Math.round(s)));
  return {score,reasons};
 }
 function hourWindowScoreFor(data,period){
- const d=new Date(period.startTime),h=louisianaHour(d);let score=50,reasons=[];
+ const d=new Date(period.startTime),h=d.getHours();let score=50,reasons=[];
  const w=parseWindMph(period.windSpeed);
  if(w!=null){if(w<=7){score+=10;reasons.push("light wind")}else if(w<=12){score+=5;reasons.push("manageable wind")}else if(w<=17){score-=3;reasons.push("breezy")}else{score-=12;reasons.push("strong wind")}const ds=windDirectionScore(period.windDirection);score+=ds;if(ds>0)reasons.push("favorable wind direction");}
  if(h>=5&&h<9){score+=8;reasons.push("early-morning timing")}else if(h>=9&&h<12){score+=3;reasons.push("morning timing")}else if(h>=17&&h<20){score+=5;reasons.push("evening timing")}else if(h>=12&&h<16){score-=4;reasons.push("midday heat window")}
@@ -3859,6 +3913,7 @@ function nearMeCompositeScore(fishingScore,distance){
  return Math.round(Math.max(0,Math.min(100,fishingScore-penalty)));
 }
 async function findBestNearMe(){
+ if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
  const btn=document.getElementById("nearMeBtn"),status=document.getElementById("nearMeStatus"),results=document.getElementById("nearMeResults");
  btn.disabled=true;results.innerHTML="";status.textContent="Getting your location…";
  try{
@@ -3898,8 +3953,6 @@ async function buildCompareSpotData(s){
  try{const w=await fetchWeatherForSpot(s);wx=w.wx;hourlyPeriods=w.hourlyPeriods;pressureSeries=w.pressureSeries;pressureTrend=w.pressureTrend;recent=w.recent;quality.weather=w.source;quality.observedWind=w.observedSource;}catch{}
  try{const t=await fetchTidesForSpot(s);tidesList=t.tides;quality.tides=t.source;}catch{}
  try{salData=await fetchSalinityForSpot(s);quality.salinity=salData.source;}catch{}
- // Same pressure backup the selected-spot view uses, so rankings and the tapped spot agree.
- if(!["Falling","Stable","Rising"].includes(pressureTrend)){try{const pf=await fetchPressureFallback(s);pressureSeries=pf.series;pressureTrend=pf.trend;}catch{}}
  const current=currentScoreFromData({wx,pressureTrend,tides:tidesList,recent});
  const windows=bestWindowsFromData({hourlyPeriods,pressureTrend,tides:tidesList,recent});
  return {spot:s,current,currentScore:current.score,wx,hourlyPeriods,pressureSeries,pressureTrend,tides:tidesList,water:salData,recent,bestWindows:windows,quality,confidence:qualitySummary(quality)};
@@ -4028,6 +4081,7 @@ function renderOpportunityCalendar(rows,area,target){
  document.getElementById("calendarStatus").textContent=`${area} • ${target} • 28-day planning calendar built from NOAA tide predictions and sun/moon timing${rows.some(r=>r.offset<=6)?", with NWS weather added to the first 7 days":""}.`;
 }
 async function buildOpportunityCalendar(){
+ if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
  const area=(calendarArea&&calendarArea.value)||areaPicker.value;
  const target=(calendarTarget&&calendarTarget.value)||"Any";
  if(!area){document.getElementById("calendarStatus").textContent="Choose an area first.";return;}
@@ -4084,6 +4138,7 @@ updateConnectivityBanner();
 setTimeout(maybeShowLiveConditionsHelp,250);
 
 setTimeout(updateMapQuickStatus,300);
+setTimeout(()=>wmfCheckMarineSafety(typeof selected!=="undefined"?selected:null),100);
 setTimeout(refreshMapSize,350);
 ["score","wind","tideMove","pressure","locationPicker"].forEach(id=>{
  const el=document.getElementById(id);
@@ -4142,6 +4197,5 @@ setTimeout(()=>{
 },700);
 
 </script>
-<script src="/satellite-water.js?v=6"></script>
 
 </body></html>

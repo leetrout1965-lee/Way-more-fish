@@ -91,6 +91,15 @@ const reply = (statusCode, body, cache) => ({
 });
 
 exports.handler = async function(event) {
+  // ?scope=gulf: no spot picked yet, so only the Gulf-wide hurricane check applies.
+  if (event.queryStringParameters?.scope === "gulf") {
+    try {
+      const storms = gulfStorms(await getJson("https://www.nhc.noaa.gov/CurrentStorms.json"));
+      return reply(200, {checkedAt: new Date().toISOString(), zones: [], gulfStorms: storms, hazards: [], marineForecast: null, sources: ["National Hurricane Center CurrentStorms.json"]}, "private, max-age=120");
+    } catch (e) {
+      return reply(502, {error: `Could not check: National Hurricane Center (${e.name === "AbortError" ? "timed out" : e.message})`, zones: []}, "no-store");
+    }
+  }
   const lat = Number(event.queryStringParameters?.lat), lon = Number(event.queryStringParameters?.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 27 || lat > 32 || lon < -95 || lon > -87) {
     return reply(400, {error: "Valid Louisiana lat and lon are required"}, "no-store");

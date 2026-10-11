@@ -445,6 +445,9 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 #wmfMarineSafetyBanner strong{display:block;font-size:13px;margin-bottom:2px}
 #wmfMarineSafetyBanner a{color:#fff;text-decoration:underline;font-weight:800}
 #wmfMarineSafetyBanner[data-status="clear"]{display:none}
+/* No spot picked / still checking: a quiet note, not the red hazard alarm. */
+#wmfMarineSafetyBanner[data-status="idle"],#wmfMarineSafetyBanner[data-status="checking"]{width:auto;max-width:min(520px,calc(100vw - 24px));background:rgba(13,34,48,.9);border:1px solid #3d6a85;border-radius:999px;padding:6px 14px;box-shadow:0 3px 12px #0006;text-align:center}
+#wmfMarineSafetyBanner[data-status="idle"] strong,#wmfMarineSafetyBanner[data-status="idle"] div,#wmfMarineSafetyBanner[data-status="checking"] strong,#wmfMarineSafetyBanner[data-status="checking"] div{display:none}
 @media(max-width:700px){#wmfMarineSafetyBanner{top:64px;font-size:12px;padding:10px 12px}}
 
 /* Weather is a separate inspection tool, never a marine safety clearance. */
@@ -934,8 +937,8 @@ function wmfSafetyShow(status,message){
  if(el)el.textContent=message;
  const inside=document.getElementById("wmfWeatherSafety");
  if(inside){
-  inside.textContent=`${status==="clear"?"ℹ️":"⚠️"} ${message} Good fishing weather never guarantees safe boating.`;
-  inside.style.background=status==="clear"?"#173947":"#5d1c20";
+  inside.textContent=`${status==="blocked"?"⚠️":"ℹ️"} ${message} Good fishing weather never guarantees safe boating.`;
+  inside.style.background=status==="blocked"?"#5d1c20":"#173947";
  }
 }
 function wmfSafetyBlockMessage(){
@@ -965,7 +968,13 @@ async function wmfCheckMarineSafety(spot){
   await null; // let `request` be assigned before any early (no-spot) exit compares against it
   let result;
   try{
-   if(!Number.isFinite(lat)||!Number.isFinite(lon))throw Error("Select a fishing spot to check location-specific warnings.");
+   if(!Number.isFinite(lat)||!Number.isFinite(lon)){
+    // No spot yet: only a Gulf hurricane is worth an alarm; otherwise just prompt for a spot.
+    const g=await wmfFetchJson("/.netlify/functions/marine-safety?scope=gulf");
+    if(!Array.isArray(g?.gulfStorms))throw Error("Safety check response could not be verified");
+    if(g.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${g.gulfStorms.slice(0,2).join(", ")}`),{hazard:true});
+    result={time:Date.now(),key,status:"idle",zones:[],marine:null,message:"No tropical storms in the Gulf. Pick a fishing spot to check its marine alerts."};
+   }else{
    const r=await wmfFetchJson(`/.netlify/functions/marine-safety?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
    if(!Array.isArray(r?.hazards)||!Array.isArray(r?.gulfStorms)||!Array.isArray(r?.zones))throw Error("Safety check response could not be verified");
    const zones=r.zones,marine=r.marineForecast||null;
@@ -973,8 +982,9 @@ async function wmfCheckMarineSafety(spot){
    if(r.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${r.gulfStorms.slice(0,2).join(", ")}`),{hazard:true,zones,marine});
    if(r.hazards.length)throw Object.assign(Error(`Active marine hazard: ${r.hazards.map(x=>x.event).slice(0,2).join(", ")}${zoneText}`),{hazard:true,zones,marine});
    result={time:Date.now(),key,status:"clear",zones,marine,message:`No matching alerts found in the checked official feeds${zoneText}. This does NOT certify safe boating conditions.`};
+   }
   }catch(error){
-   const msg=String(error.message||"Safety data unavailable").replace(/\.+$/,"");
+   const msg=String(error?.message||"Safety data unavailable").replace(/\.+$/,"");
    result={time:Date.now(),key,status:"blocked",zones:error.zones||[],marine:error.marine||null,message:`${error.hazard?"MARINE HAZARD":"SAFETY STATUS UNAVAILABLE"}: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`};
   }
   // A slower check for a spot the user already left must not overwrite the current spot's status.

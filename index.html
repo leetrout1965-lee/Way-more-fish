@@ -474,6 +474,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-radar-bar input{flex:1;min-width:0;accent-color:#5fc4ff}
 .wmf-radar-time{flex:none;min-width:84px;text-align:right;font-variant-numeric:tabular-nums}
 .wmf-radar-time.latest{color:#7ee0a1}
+.leaflet-wmfRadar-pane .leaflet-layer{transition:opacity .25s linear}
 </style>
 </head>
 <body>
@@ -4374,8 +4375,15 @@ function wmfRadarSchedule(){
  clearTimeout(wmfRadarTimer);
  if(!wmfRadarPlaying||!wmfRadarFrames.length)return;
  // Linger on the newest frame so it's clear where the loop ends.
- const wait=wmfRadarIndex===wmfRadarFrames.length-1?1500:500;
- wmfRadarTimer=setTimeout(()=>{wmfRadarShowFrame(wmfRadarIndex+1);wmfRadarSchedule()},wait);
+ const wait=wmfRadarIndex===wmfRadarFrames.length-1?1500:600;
+ wmfRadarTimer=setTimeout(function advance(started=Date.now()){
+  // Never switch to a frame whose tiles are still downloading (after a pan/zoom
+  // or on a slow connection) - that's what shows up as patchy rectangles.
+  // Give a slow frame up to 4 s, then skip past it.
+  const next=(wmfRadarIndex+1)%wmfRadarFrames.length;
+  if(wmfRadarFrames[next]?.layer.isLoading()&&Date.now()-started<4000){wmfRadarTimer=setTimeout(()=>advance(started),150);return}
+  wmfRadarShowFrame(next);wmfRadarSchedule();
+ },wait);
 }
 function wmfRadarSetPlaying(on){
  wmfRadarPlaying=on;
@@ -4412,12 +4420,21 @@ async function wmfToggleRadar(){
   const host=data.host||"https://tilecache.rainviewer.com";
   if(!/^https:\/\//.test(host)||!frames.every(f=>/^\/v2\/radar\/[\w-]+$/.test(f.path)&&Number.isFinite(f.time)))throw Error("Unexpected radar service response");
   wmfRadarClear();
-  wmfRadarFrames=frames.map((f,n)=>({time:f.time,layer:L.tileLayer(`${host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,{pane:wmfRadarPane(),opacity:0,maxNativeZoom:7,maxZoom:18,attribution:n===frames.length-1?'Radar © RainViewer':''}).addTo(map)}));
+  // 512-px tiles one zoom level down: RainViewer's free tiles stop at zoom 7, and the
+  // double-resolution tiles are the sharpest it offers (shown up to map zoom 8 natively).
+  wmfRadarFrames=frames.map((f,n)=>({time:f.time,layer:L.tileLayer(`${host}${f.path}/512/{z}/{x}/{y}/2/1_1.png`,{pane:wmfRadarPane(),opacity:0,tileSize:512,zoomOffset:-1,maxNativeZoom:8,maxZoom:18,updateWhenZooming:false,attribution:n===frames.length-1?'Radar © RainViewer':''}).addTo(map)}));
   wmfRadarBar=wmfRadarBuildBar();
-  wmfRadarShowFrame(0);wmfRadarSetPlaying(true);
   wmfRadarVisible=true;btn.textContent="🌧 Hide radar";
   status.textContent=`Radar loop ${wmfRadarTime(frames[0].time)}–${wmfRadarTime(latest.time)} CT. RainViewer data may lag; use NWS for warnings.`;
   wmfCloseWeather();
+  // Start on the newest frame, and only start looping once every frame has loaded
+  // (or after 8 s on a slow connection) so the first pass isn't patchy.
+  wmfRadarShowFrame(wmfRadarFrames.length-1);wmfRadarSetPlaying(false);
+  const label=wmfRadarBar.querySelector(".wmf-radar-time");if(label)label.textContent="Loading…";
+  const myFrames=wmfRadarFrames;
+  await Promise.race([Promise.all(myFrames.map(f=>f.layer.isLoading()?new Promise(r=>f.layer.once("load",r)):null)),new Promise(r=>setTimeout(r,8000))]);
+  if(wmfRadarFrames!==myFrames)return; // radar was closed or reopened while loading
+  wmfRadarShowFrame(0);wmfRadarSetPlaying(true);
  }catch(e){wmfRadarClear();status.textContent=`Radar unavailable: ${e.message}. Open official NWS radar below.`;}
 }
 document.getElementById("wmfWeatherSheet")?.addEventListener("click",e=>{if(e.target===e.currentTarget)wmfCloseWeather();});

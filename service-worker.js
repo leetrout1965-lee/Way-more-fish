@@ -44,6 +44,10 @@ self.addEventListener("fetch",e=>{
   // look permanently stale; frame tiles are one-off images that would pile up.
   if(u.hostname.endsWith("rainviewer.com")) return;
 
+  // Google Analytics: the tag script and its visit reports must always reach
+  // Google. A saved copy would serve an old tag and swallow repeat reports.
+  if(u.hostname.endsWith("googletagmanager.com")||u.hostname.endsWith("google-analytics.com")) return;
+
   if(r.mode==="navigate"){
     e.respondWith(
       fetch(r)

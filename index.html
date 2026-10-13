@@ -2105,8 +2105,17 @@ async function runForecastForSelectedSpot(){
  }
 }
 
-const LOUISIANA_HOME=[29.42,-91.25],LOUISIANA_HOME_ZOOM=8;
-const map=L.map("map").setView(LOUISIANA_HOME,LOUISIANA_HOME_ZOOM);
+// Opening view: the coast from Sabine Pass to the Chandeleurs, as tight as the screen allows.
+const LOUISIANA_COAST=L.latLngBounds([29.0,-93.9],[30.35,-89.15]);
+function louisianaHomeZoom(){
+ const size=map.getSize().subtract([40,40]);
+ const nw=map.project(LOUISIANA_COAST.getNorthWest(),0),se=map.project(LOUISIANA_COAST.getSouthEast(),0);
+ const fit=Math.log2(Math.min(size.x/(se.x-nw.x),size.y/(se.y-nw.y)));
+ return Math.min(8,Math.max(7,Math.round(fit)));
+}
+function showLouisianaHome(){map.setView(LOUISIANA_COAST.getCenter(),louisianaHomeZoom());}
+const map=L.map("map");
+showLouisianaHome();
 
 const LouisianaHomeControl=L.Control.extend({
  options:{position:"topleft"},
@@ -2117,7 +2126,7 @@ const LouisianaHomeControl=L.Control.extend({
   L.DomEvent.disableClickPropagation(box);
   L.DomEvent.on(btn,"click",e=>{
    L.DomEvent.preventDefault(e);
-   map.setView(LOUISIANA_HOME,LOUISIANA_HOME_ZOOM);
+   showLouisianaHome();
   });
   return box;
  }
@@ -2638,7 +2647,7 @@ fg.clearLayers();
 whereNowLayer.clearLayers();
 selected=null;
 updateSpotGps(null);
-map.setView([29.55,-91.88],7);
+showLouisianaHome();
 
 ["clarity","bait"].forEach(id=>document.getElementById(id).onchange=calcScore);
 document.getElementById("recentStorm").onchange=()=>{renderRecentConditions();updateRecoveryOutlook();calcScore();};

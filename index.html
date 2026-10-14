@@ -455,10 +455,10 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  font-size:12px;line-height:1.3}
 #wmfMarineSafetyBanner strong{display:block;font-size:13px;margin-bottom:2px}
 #wmfMarineSafetyBanner a{color:#fff;text-decoration:underline;font-weight:800}
-#wmfMarineSafetyBanner[data-status="clear"]{display:none}
-/* No spot picked / still checking: a quiet note, not the red hazard alarm. */
-#wmfMarineSafetyBanner[data-status="idle"],#wmfMarineSafetyBanner[data-status="checking"]{width:auto;max-width:min(520px,calc(100vw - 24px));background:rgba(13,34,48,.9);border:1px solid #3d6a85;border-radius:999px;padding:6px 14px;box-shadow:0 3px 12px #0006;text-align:center}
-#wmfMarineSafetyBanner[data-status="idle"] strong,#wmfMarineSafetyBanner[data-status="idle"] div,#wmfMarineSafetyBanner[data-status="checking"] strong,#wmfMarineSafetyBanner[data-status="checking"] div{display:none}
+#wmfMarineSafetyBanner[data-status="clear"],#wmfMarineSafetyBanner[data-status="idle"]{display:none}
+/* Still checking a spot: a quiet note, not the red hazard alarm. No spot and no Gulf storm shows nothing. */
+#wmfMarineSafetyBanner[data-status="checking"]{width:auto;max-width:min(520px,calc(100vw - 24px));background:rgba(13,34,48,.9);border:1px solid #3d6a85;border-radius:999px;padding:6px 14px;box-shadow:0 3px 12px #0006;text-align:center}
+#wmfMarineSafetyBanner[data-status="checking"] strong,#wmfMarineSafetyBanner[data-status="checking"] div{display:none}
 @media(max-width:700px){#wmfMarineSafetyBanner{top:64px;font-size:12px;padding:10px 12px}}
 
 /* Weather is a separate inspection tool, never a marine safety clearance. */
@@ -560,7 +560,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
  </div>
 </div>
 
-<div id="wmfMarineSafetyBanner" data-status="checking" role="alert" aria-live="assertive">
+<div id="wmfMarineSafetyBanner" data-status="idle" role="alert" aria-live="assertive">
 <strong>⚠️ Marine safety status</strong>
 <span id="wmfMarineSafetyMessage">Checking current hurricane and marine hazard information. Fishing scores are not safety advice.</span>
 <div><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">National Hurricane Center</a> · <a href="https://www.weather.gov/marine/" target="_blank" rel="noopener">NWS Marine</a></div>
@@ -951,6 +951,7 @@ function wmfSafetyShow(status,message){
  if(inside){
   inside.textContent=`${status==="blocked"?"⚠️":"ℹ️"} ${message} Good fishing weather never guarantees safe boating.`;
   inside.style.background=status==="blocked"?"#5d1c20":"#173947";
+  inside.style.display=status==="idle"?"none":"";
  }
 }
 function wmfSafetyBlockMessage(){
@@ -974,7 +975,7 @@ async function wmfCheckMarineSafety(spot){
  }
  // Only share an in-flight check for the SAME spot; another spot's answer must never be reused.
  if(wmfSafetyRequest&&wmfSafetyRequestKey===key)return wmfSafetyRequest;
- wmfSafetyShow("checking","Checking National Hurricane Center and marine alerts. Fishing scores are not a go/no-go safety assessment.");
+ if(key!=="gulf")wmfSafetyShow("checking","Checking National Hurricane Center and marine alerts. Fishing scores are not a go/no-go safety assessment.");
  wmfSafetyRequestKey=key;
  const request=wmfSafetyRequest=(async()=>{
   await null; // let `request` be assigned before any early (no-spot) exit compares against it
@@ -985,7 +986,7 @@ async function wmfCheckMarineSafety(spot){
     const g=await wmfFetchJson("/.netlify/functions/marine-safety?scope=gulf");
     if(!Array.isArray(g?.gulfStorms))throw Error("Safety check response could not be verified");
     if(g.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${g.gulfStorms.slice(0,2).join(", ")}`),{hazard:true});
-    result={time:Date.now(),key,status:"idle",zones:[],marine:null,message:"No tropical storms in the Gulf. Pick a fishing spot to check its marine alerts."};
+    result={time:Date.now(),key,status:"idle",zones:[],marine:null,message:"Pick a fishing spot first."};
    }else{
    const r=await wmfFetchJson(`/.netlify/functions/marine-safety?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
    if(!Array.isArray(r?.hazards)||!Array.isArray(r?.gulfStorms)||!Array.isArray(r?.zones))throw Error("Safety check response could not be verified");

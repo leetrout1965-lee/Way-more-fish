@@ -489,6 +489,16 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-cal-day.far{opacity:.55}
 .wmf-cal-day.off{opacity:.25;cursor:default}
 .wmf-cal-legend{font-size:12px;color:#9fb0bf;margin-top:6px}
+.wmf-cmp-wrap{overflow-x:auto;margin-top:12px;border:1px solid #284153;border-radius:11px}
+.wmf-cmp{border-collapse:separate;border-spacing:0;min-width:640px;width:100%;font-size:13px}
+.wmf-cmp th,.wmf-cmp td{padding:7px 8px;border-bottom:1px solid #284153;text-align:center;white-space:nowrap}
+.wmf-cmp tr:last-child td{border-bottom:0}
+.wmf-cmp th:first-child,.wmf-cmp td:first-child{position:sticky;left:0;background:#132332;text-align:left;font-weight:700;z-index:1}
+.wmf-cmp thead th{background:#17364a}
+.wmf-cmp thead button{background:none;border:0;padding:0;color:inherit;font-weight:800;cursor:pointer}
+.wmf-cmp .sel{background:#1b3a50}
+.wmf-cmp .sub{display:block;font-size:11px;color:#9fb0bf;font-weight:400}
+@media(max-width:520px){.wmf-cmp{min-width:0;font-size:12px}.wmf-cmp th,.wmf-cmp td{padding:6px 5px}}
 .wmf-cal-golden{background:#3a3214;border:1px solid #d9b44a;border-radius:10px;padding:9px 11px;margin-top:8px;font-weight:700}
 .wmf-weather-card{background:#132332;border:1px solid #38566d;border-radius:11px;padding:11px;line-height:1.5}
 .wmf-weather-card strong{font-size:17px}
@@ -920,6 +930,7 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <p><button class="primary" onclick="buildOpportunityCalendar()">Find next 28 days</button></p>
 <div id="calendarStatus" class="small muted">Choose an area, then build the calendar.</div>
 <div id="calendarGrid" style="margin-top:10px"></div>
+<div id="calendarCompare"></div>
 <div id="calendarTop" style="margin-top:10px"></div>
 <div id="calendarResults" style="overflow-x:auto;margin-top:10px"></div>
 <div class="small muted" style="margin-top:8px">Confidence levels: 0–6 days = Fishing forecast • 7–13 days = Developing opportunity • 14–28 days = Planning opportunity. NOAA tide predictions are deterministic; weather confidence falls sharply beyond the NWS 7-day forecast.</div>
@@ -4278,6 +4289,7 @@ function renderCalendarDay(r){
  const box=document.getElementById("calendarDay");if(!box||!r)return;
  document.querySelectorAll(".wmf-cal-day.sel").forEach(el=>el.classList.remove("sel"));
  document.querySelector(`.wmf-cal-day[data-offset="${r.offset}"]`)?.classList.add("sel");
+ markComparisonDay(r.offset);
  const per=solunarPeriods(r.moon),gold=goldenOverlaps(r);
  const perText=per.length?per.map(p=>`<div>${p.kind}: ${calTime(p.start)} – ${calTime(p.end)}</div>`).join(""):"<div class=\"muted\">Moon times unavailable</div>";
  const tides=(r.events||[]).map(e=>`${calTime(e.time)} ${e.type==="H"?"high":"low"}`).join(" • ")||"—";
@@ -4323,6 +4335,65 @@ function renderOpportunityCalendar(rows,area,target){
  document.getElementById("calendarResults").innerHTML='<details><summary style="cursor:pointer;font-weight:700">Show all 28 days as a table</summary><table><tr><td><strong>Date</strong></td><td><strong>Score</strong></td><td><strong>Best tide timing</strong></td><td><strong>Solunar</strong></td><td><strong>Confidence</strong></td><td><strong>Why</strong></td></tr>'+rows.map(r=>`<tr><td>${r.day.toLocaleDateString([],{month:"short",day:"numeric",weekday:"short"})}</td><td><strong>${r.score}/100</strong></td><td>${r.bestText}</td><td>${solunarPeriods(r.moon).map(p=>`${p.kind} ${calTime(p.start)}`).join("<br>")||"—"}</td><td>${r.confidence}</td><td>${r.reasons.join(" • ")}<div class="small muted">${r.wxText}</div></td></tr>`).join('')+'</table></details>';
  document.getElementById("calendarStatus").textContent=`${area} • ${target} • 28-day planning calendar built from NOAA tide predictions and sun/moon timing${rows.some(r=>r.offset<=6)?", with NWS weather added to the first 7 days":""}.`;
 }
+// Day-by-day weather for the side-by-side comparison (Open-Meteo, Central time).
+// past_days=1 gives yesterday too, for the pressure trend and the water estimate.
+async function fetchDailyOutlook(s){
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,cloud_cover_mean&hourly=pressure_msl&timezone=America%2FChicago&forecast_days=7&past_days=1&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch`;
+ const {data}=await fetchJSON(u,{cacheKey:`daily-outlook:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`,ttl:30*60*1000,timeoutMs:10000});
+ const d=data.daily||{},h=data.hourly||{},out=new Map();
+ const pressureByDay={};
+ (h.time||[]).forEach((t,i)=>{const v=Number(h.pressure_msl?.[i]);if(Number.isFinite(v))(pressureByDay[t.slice(0,10)]||=[]).push(v);});
+ const mean=a=>a&&a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+ let prev=null;
+ (d.time||[]).forEach((key,i)=>{
+  const num=a=>{const v=Number(a?.[i]);return Number.isFinite(v)?v:null;};
+  const day={key,tMax:num(d.temperature_2m_max),tMin:num(d.temperature_2m_min),rain:num(d.precipitation_sum),rainPct:num(d.precipitation_probability_max),
+   wind:num(d.wind_speed_10m_max),gust:num(d.wind_gusts_10m_max),dir:degToCompass(num(d.wind_direction_10m_dominant)),cloud:num(d.cloud_cover_mean),pressure:mean(pressureByDay[key])};
+  const diff=prev&&day.pressure!=null&&prev.pressure!=null?day.pressure-prev.pressure:null;
+  day.pressureTrend=diff==null?"":diff>=2?"rising":diff<=-2?"falling":"steady";
+  day.water=predictedWater(day,prev);
+  out.set(key,day);prev=day;
+ });
+ return out;
+}
+// Rough water-clarity outlook from that day's wind and rain plus the day before
+// (same factors as the modeled clarity fallback). An estimate, not a measurement.
+function predictedWater(day,prev){
+ let sc=62;
+ const w=day.wind;
+ if(w!=null){if(w<=7)sc+=8;else if(w<=12)sc+=3;else if(w>=18)sc-=18;else if(w>=13)sc-=9;}
+ if(prev){
+  if(prev.wind!=null){if(prev.wind>=18)sc-=10;else if(prev.wind>=13)sc-=5;}
+  if(prev.rain!=null){if(prev.rain>=0.25)sc-=12;else if(prev.rain>=0.1)sc-=7;}
+ }
+ if(day.rain!=null){if(day.rain>=0.25)sc-=8;else if(day.rain>=0.1)sc-=4;}
+ return clarityLabel(Math.max(0,Math.min(100,Math.round(sc))));
+}
+function renderDailyComparison(rows,haveWeather){
+ const box=document.getElementById("calendarCompare");if(!box)return;
+ const v=(x,f)=>x==null?"—":f(x);
+ const tide=r=>r.maxRange?`${r.maxRange.toFixed(1)} ft swing`:"—";
+ const lines=[
+  ["Fishing",r=>`${"🐟".repeat(calFish(r.score))}<span class="sub">${r.score}/100</span>`],
+  ["Best window",r=>r.bestText],
+  ["Wind",r=>r.outlook?`${v(r.outlook.wind,x=>Math.round(x)+" mph")} ${r.outlook.dir||""}<span class="sub">gusts ${v(r.outlook.gust,x=>Math.round(x))}</span>`:"—"],
+  ["Pressure",r=>r.outlook?`${v(r.outlook.pressure,x=>Math.round(x)+" hPa")}<span class="sub">${r.outlook.pressureTrend||"&nbsp;"}</span>`:"—"],
+  ["Temp",r=>r.outlook?`${v(r.outlook.tMin,x=>Math.round(x))}–${v(r.outlook.tMax,x=>Math.round(x))}°F`:"—"],
+  ["Rain",r=>r.outlook?`${v(r.outlook.rainPct,x=>Math.round(x)+"%")}<span class="sub">${v(r.outlook.rain,x=>x.toFixed(2)+" in")}</span>`:"—"],
+  ["Clouds",r=>r.outlook?v(r.outlook.cloud,x=>Math.round(x)+"%"):"—"],
+  ["Tide",tide],
+  ["Water (est.)",r=>r.outlook?.water||"—"]
+ ];
+ box.innerHTML=`<div style="font-weight:700;margin-top:14px">Next 7 days side by side</div>
+ <div class="wmf-cmp-wrap"><table class="wmf-cmp"><thead><tr><th></th>${rows.map(r=>`<th data-offset="${r.offset}"><button type="button" onclick="renderCalendarDay(wmfCalendarRows[${r.offset}])">${r.day.toLocaleDateString([],{weekday:"short"})}<span class="sub">${r.day.toLocaleDateString([],{month:"numeric",day:"numeric"})}</span></button></th>`).join("")}</tr></thead>
+ <tbody>${lines.map(([label,f])=>`<tr><td>${label}</td>${rows.map(r=>`<td data-offset="${r.offset}">${f(r)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+ <div class="small muted" style="margin-top:6px">${haveWeather?"Weather from Open-Meteo for this area (Central time). Water is a rough estimate from wind and rain, not a measurement. Tap a day for its solunar times and tides.":"Weather forecast unavailable right now; fishing scores and tides still shown."}</div>`;
+ markComparisonDay(document.querySelector(".wmf-cal-day.sel")?.dataset.offset);
+}
+function markComparisonDay(offset){
+ document.querySelectorAll(".wmf-cmp .sel").forEach(el=>el.classList.remove("sel"));
+ if(offset!=null)document.querySelectorAll(`.wmf-cmp [data-offset="${offset}"]`).forEach(el=>el.classList.add("sel"));
+}
 async function buildOpportunityCalendar(){
  if(!(await wmfFishNowAllowed())){alert(wmfSafetyBlockMessage());return;}
  const area=(calendarArea&&calendarArea.value)||areaPicker.value;
@@ -4331,12 +4402,14 @@ async function buildOpportunityCalendar(){
  const areaSpots=spots.filter(s=>spotBelongsToArea(s,area));if(!areaSpots.length){document.getElementById("calendarStatus").textContent="No verified spots are available in this area yet.";return;}
  const s=areaSpots[0],start=new Date();start.setHours(12,0,0,0);const end=addDaysLocal(start,27);
  document.getElementById("calendarStatus").textContent=`Building 28-day opportunity calendar for ${area}…`;
- document.getElementById("calendarGrid").innerHTML='';document.getElementById("calendarTop").innerHTML='';document.getElementById("calendarResults").innerHTML='';
+ document.getElementById("calendarGrid").innerHTML='';document.getElementById("calendarCompare").innerHTML='';document.getElementById("calendarTop").innerHTML='';document.getElementById("calendarResults").innerHTML='';
  try{
-  const [tidePreds,weatherPeriods]=await Promise.all([fetchPlanningTides(s,start,end),fetchPlanningWeather(s)]);
+  const [tidePreds,weatherPeriods,outlook]=await Promise.all([fetchPlanningTides(s,start,end),fetchPlanningWeather(s),fetchDailyOutlook(s).catch(()=>null)]);
   if(!tidePreds.length)throw Error("NOAA returned no tide predictions");
   const rows=[];for(let i=0;i<28;i++){const d=addDaysLocal(start,i);rows.push(scorePlanningDay(d,i,s,tidePreds,weatherPeriods,target));}
+  if(outlook)for(const r of rows){r.outlook=outlook.get(dateOnlyKey(r.day))||null;}
   renderOpportunityCalendar(rows,area,target);
+  renderDailyComparison(rows.slice(0,7),!!outlook);
  }catch(e){document.getElementById("calendarStatus").textContent=`Could not build the calendar: ${e.message}. Try again later.`;}
 }
 

@@ -474,6 +474,22 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-weather-top h2{margin:0;font-size:19px}
 .wmf-weather-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 .wmf-weather-actions button{flex:1;min-width:130px;font-weight:800}
+/* Fishing calendar month grid */
+.wmf-cal-month{margin:10px 0 4px;padding:6px;border-radius:9px;background:#17364a;text-align:center;font-weight:800;letter-spacing:.06em;font-size:13px}
+.wmf-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.wmf-cal-dow{text-align:center;font-size:11px;font-weight:700;color:#9fb0bf;padding:4px 0}
+.wmf-cal-day{border:1px solid transparent;border-radius:10px;background:transparent;padding:6px 2px;text-align:center;min-height:52px;cursor:pointer;color:inherit}
+.wmf-cal-day:hover{background:#132332}
+.wmf-cal-day .n{font-weight:800;font-size:16px}
+.wmf-cal-day .f{font-size:14px;line-height:1.2;margin-top:3px;white-space:nowrap;letter-spacing:-2px}
+.wmf-cal-day .g{font-size:11px;vertical-align:super;margin-left:1px}
+@media(max-width:520px){.wmf-cal-day{padding:5px 0;min-height:46px}.wmf-cal-day .n{font-size:14px}.wmf-cal-day .f{font-size:10px;letter-spacing:-1.5px}}
+.wmf-cal-day.today .n{text-decoration:underline}
+.wmf-cal-day.sel{border-color:#8fd3ff;background:#132332}
+.wmf-cal-day.far{opacity:.55}
+.wmf-cal-day.off{opacity:.25;cursor:default}
+.wmf-cal-legend{font-size:12px;color:#9fb0bf;margin-top:6px}
+.wmf-cal-golden{background:#3a3214;border:1px solid #d9b44a;border-radius:10px;padding:9px 11px;margin-top:8px;font-weight:700}
 .wmf-weather-card{background:#132332;border:1px solid #38566d;border-radius:11px;padding:11px;line-height:1.5}
 .wmf-weather-card strong{font-size:17px}
 .wmf-weather-links{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px}
@@ -903,6 +919,7 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 </div>
 <p><button class="primary" onclick="buildOpportunityCalendar()">Find next 28 days</button></p>
 <div id="calendarStatus" class="small muted">Choose an area, then build the calendar.</div>
+<div id="calendarGrid" style="margin-top:10px"></div>
 <div id="calendarTop" style="margin-top:10px"></div>
 <div id="calendarResults" style="overflow-x:auto;margin-top:10px"></div>
 <div class="small muted" style="margin-top:8px">Confidence levels: 0–6 days = Fishing forecast • 7–13 days = Developing opportunity • 14–28 days = Planning opportunity. NOAA tide predictions are deterministic; weather confidence falls sharply beyond the NWS 7-day forecast.</div>
@@ -4154,18 +4171,24 @@ function seasonBonus(day,target){
  }
  return {bonus:b,why};
 }
+// Solunar times for the local calendar day. Major = moon overhead or underfoot
+// (found from the moon's altitude, sampled every 5 minutes); minor = moonrise/moonset.
 function lunarWindows(day,lat,lon){
  if(typeof SunCalc==="undefined")return {major:[],minor:[],illum:null};
  try{
-  const mt=SunCalc.getMoonTimes(day,lat,lon,true),ill=SunCalc.getMoonIllumination(day);
-  const minor=[];if(mt.rise)minor.push(mt.rise);if(mt.set)minor.push(mt.set);
-  const major=[];
-  if(mt.rise&&mt.set){
-   let rise=mt.rise.getTime(),set=mt.set.getTime();if(set<rise)set+=86400000;
-   const upper=new Date((rise+set)/2),lower=new Date((rise+set)/2+12*3600000);
-   major.push(upper,lower);
-  }else if(mt.rise){major.push(new Date(mt.rise.getTime()+6*3600000),new Date(mt.rise.getTime()+18*3600000));}
-  else if(mt.set){major.push(new Date(mt.set.getTime()-6*3600000),new Date(mt.set.getTime()+6*3600000));}
+  const d0=new Date(day);d0.setHours(0,0,0,0);
+  const d1=new Date(d0);d1.setDate(d1.getDate()+1);
+  const inDay=t=>t&&t>=d0&&t<d1;
+  const mt=SunCalc.getMoonTimes(d0,lat,lon);
+  const minor=[mt.rise,mt.set].filter(inDay);
+  const step=5*60000,alt=t=>SunCalc.getMoonPosition(new Date(t),lat,lon).altitude,major=[];
+  let a=alt(d0.getTime()-step),b=alt(d0.getTime());
+  for(let t=d0.getTime();t<d1.getTime();t+=step){
+   const c=alt(t+step);
+   if((b>a&&b>=c)||(b<a&&b<=c))major.push(new Date(t));
+   a=b;b=c;
+  }
+  const ill=SunCalc.getMoonIllumination(new Date(d0.getTime()+12*3600000));
   return {major,minor,illum:ill&&Number.isFinite(ill.fraction)?ill.fraction:null};
  }catch{return {major:[],minor:[],illum:null};}
 }
@@ -4221,23 +4244,94 @@ function scorePlanningDay(day,offset,s,tidePreds,weatherPeriods,target){
  score=Math.max(0,Math.min(100,Math.round(score)));
  const fmt=t=>t?t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"—";
  const bestText=bestWindow?`${fmt(bestWindow.time)} ${bestWindow.direction}`:(events[0]?`${fmt(events[0].time)} ${events[0].type==="H"?"high":"low"}`:"—");
- return {day,offset,score,reasons:[...new Set(reasons)].slice(0,5),confidence,confRank,bestText,maxRange,wxText};
+ return {day,offset,score,reasons:[...new Set(reasons)].slice(0,5),confidence,confRank,bestText,maxRange,wxText,sun,moon,events};
+}
+// Solunar periods: major = 2 hours centered on the moon overhead/underfoot,
+// minor = 1 hour centered on moonrise/moonset (the usual solunar-table convention).
+function solunarPeriods(moon){
+ const win=(t,half,kind)=>({kind,start:new Date(t.getTime()-half*60000),end:new Date(t.getTime()+half*60000)});
+ return [...(moon?.major||[]).map(t=>win(t,60,"Major")),...(moon?.minor||[]).map(t=>win(t,30,"Minor"))].sort((a,b)=>a.start-b.start);
+}
+// Golden hours: the hour after sunrise and the hour before sunset.
+function goldenOverlaps(r){
+ const sun=r.sun;if(!sun)return [];
+ const gold=[];
+ if(sun.sunrise)gold.push({label:"sunrise",start:sun.sunrise,end:new Date(sun.sunrise.getTime()+3600000)});
+ if(sun.sunset)gold.push({label:"sunset",start:new Date(sun.sunset.getTime()-3600000),end:sun.sunset});
+ const out=[];
+ for(const p of solunarPeriods(r.moon))for(const g of gold){
+  const a=Math.max(p.start,g.start),b=Math.min(p.end,g.end);
+  if(b-a>=10*60000)out.push({kind:p.kind,label:g.label,start:new Date(a),end:new Date(b)});
+ }
+ return out;
+}
+// Fish are relative to the days shown: scores bunch together, so fixed cutoffs
+// would give nearly every day the same count. Top ~30% get 3, bottom ~30% get 1.
+let wmfCalFishCut={hi:80,lo:65};
+function setCalFishCuts(rows){
+ const sc=rows.map(r=>r.score).sort((a,b)=>a-b),at=f=>sc[Math.min(sc.length-1,Math.floor(f*sc.length))];
+ wmfCalFishCut={hi:at(.7),lo:at(.3)};
+}
+function calFish(score){return score>=wmfCalFishCut.hi?3:score>=wmfCalFishCut.lo?2:1;}
+function calTime(t){return t?t.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}):"—";}
+function renderCalendarDay(r){
+ const box=document.getElementById("calendarDay");if(!box||!r)return;
+ document.querySelectorAll(".wmf-cal-day.sel").forEach(el=>el.classList.remove("sel"));
+ document.querySelector(`.wmf-cal-day[data-offset="${r.offset}"]`)?.classList.add("sel");
+ const per=solunarPeriods(r.moon),gold=goldenOverlaps(r);
+ const perText=per.length?per.map(p=>`<div>${p.kind}: ${calTime(p.start)} – ${calTime(p.end)}</div>`).join(""):"<div class=\"muted\">Moon times unavailable</div>";
+ const tides=(r.events||[]).map(e=>`${calTime(e.time)} ${e.type==="H"?"high":"low"}`).join(" • ")||"—";
+ const moonPct=Number.isFinite(r.moon?.illum)?` • Moon ${Math.round(r.moon.illum*100)}% full`:"";
+ box.innerHTML=`<div class="wmf-weather-card" style="margin-top:10px">
+  <div><strong>${r.day.toLocaleDateString([],{weekday:"long",month:"short",day:"numeric"})}</strong> <span class="muted">• ${r.confidence}</span></div>
+  <div style="font-size:22px;margin:4px 0">${"🐟".repeat(calFish(r.score))} <span style="font-size:15px;font-weight:800">${r.score}/100</span></div>
+  <div><b>Best window:</b> ${r.bestText}</div>
+  <div><b>Sunrise</b> ${calTime(r.sun?.sunrise)} • <b>Sunset</b> ${calTime(r.sun?.sunset)}${moonPct}</div>
+  <div style="margin-top:6px"><b>Solunar periods</b>${perText}</div>
+  <div style="margin-top:6px"><b>Tides:</b> ${tides}</div>
+  <div class="small muted" style="margin-top:6px">${r.reasons.join(" • ")}${r.wxText?` • ${r.wxText}`:""}</div>
+  ${gold.map(g=>`<div class="wmf-cal-golden">⭐ ${calTime(g.start)} – ${calTime(g.end)}: the ${g.label} golden hour lines up with a ${g.kind.toLowerCase()} solunar period. Wind and weather still decide whether it's fishable.</div>`).join("")}
+ </div>`;
 }
 function renderOpportunityCalendar(rows,area,target){
+ window.wmfCalendarRows=rows;setCalFishCuts(rows);
+ const byKey=new Map(rows.map(r=>[dateOnlyKey(r.day),r])),todayKey=dateOnlyKey(new Date());
+ const first=rows[0].day,last=rows[rows.length-1].day;
+ let html="";
+ for(let m=new Date(first.getFullYear(),first.getMonth(),1,12);m<=last;m=new Date(m.getFullYear(),m.getMonth()+1,1,12)){
+  html+=`<div class="wmf-cal-month">${m.toLocaleDateString([],{month:"long",year:"numeric"}).toUpperCase()}</div><div class="wmf-cal-grid">`;
+  html+=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=>`<div class="wmf-cal-dow">${d}</div>`).join("");
+  // Only the weeks that hold calendar days: skip earlier weeks of the first month and later weeks of the last.
+  const days=new Date(m.getFullYear(),m.getMonth()+1,0).getDate();
+  const sameMonth=d=>d.getFullYear()===m.getFullYear()&&d.getMonth()===m.getMonth();
+  const fromDay=sameMonth(first)?Math.max(1,first.getDate()-first.getDay()):1;
+  const toDay=sameMonth(last)?Math.min(days,last.getDate()+6-last.getDay()):days;
+  html+='<div></div>'.repeat(new Date(m.getFullYear(),m.getMonth(),fromDay,12).getDay());
+  for(let d=fromDay;d<=toDay;d++){
+   const key=dateOnlyKey(new Date(m.getFullYear(),m.getMonth(),d,12)),r=byKey.get(key);
+   if(!r){html+=`<div class="wmf-cal-day off"><div class="n">${d}</div></div>`;continue;}
+   const gold=goldenOverlaps(r).some(g=>g.kind==="Major")?'<span class="g">⭐</span>':"";
+   html+=`<button type="button" class="wmf-cal-day${key===todayKey?" today":""}${r.offset>13?" far":""}" data-offset="${r.offset}" onclick="renderCalendarDay(wmfCalendarRows[${r.offset}])" aria-label="${r.day.toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}: ${r.score} out of 100"><div class="n">${d}${gold}</div><div class="f">${"🐟".repeat(calFish(r.score))}</div></button>`;
+  }
+  html+="</div>";
+ }
+ html+='<div class="wmf-cal-legend">🐟🐟🐟 best days in this stretch • 🐟🐟 good • 🐟 fair • ⭐ sunrise or sunset golden hour lines up with a major solunar period • faded days are 2+ weeks out (planning only). Tap a day for details.</div><div id="calendarDay"></div>';
+ document.getElementById("calendarGrid").innerHTML=html;
+ renderCalendarDay(rows[0]);
  const top=[...rows].sort((a,b)=>b.score-a.score||a.offset-b.offset).slice(0,6);
  document.getElementById("calendarTop").innerHTML='<div style="font-weight:700;margin-bottom:6px">Top opportunities</div><div class="grid">'+top.map(r=>`<div style="border:1px solid #38566d;border-radius:10px;padding:10px"><div class="small muted">${r.day.toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div><div style="font-size:24px;font-weight:800">${r.score}/100</div><div><strong>${r.bestText}</strong></div><div class="small muted">${r.confidence}</div><div class="small" style="margin-top:4px">${r.reasons.slice(0,3).join(" • ")}</div></div>`).join('')+'</div>';
- document.getElementById("calendarResults").innerHTML='<table><tr><td><strong>Date</strong></td><td><strong>Score</strong></td><td><strong>Best tide timing</strong></td><td><strong>Confidence</strong></td><td><strong>Why</strong></td></tr>'+rows.map(r=>`<tr><td>${r.day.toLocaleDateString([],{month:"short",day:"numeric",weekday:"short"})}</td><td><strong>${r.score}/100</strong></td><td>${r.bestText}</td><td>${r.confidence}</td><td>${r.reasons.join(" • ")}<div class="small muted">${r.wxText}</div></td></tr>`).join('')+'</table>';
+ document.getElementById("calendarResults").innerHTML='<details><summary style="cursor:pointer;font-weight:700">Show all 28 days as a table</summary><table><tr><td><strong>Date</strong></td><td><strong>Score</strong></td><td><strong>Best tide timing</strong></td><td><strong>Solunar</strong></td><td><strong>Confidence</strong></td><td><strong>Why</strong></td></tr>'+rows.map(r=>`<tr><td>${r.day.toLocaleDateString([],{month:"short",day:"numeric",weekday:"short"})}</td><td><strong>${r.score}/100</strong></td><td>${r.bestText}</td><td>${solunarPeriods(r.moon).map(p=>`${p.kind} ${calTime(p.start)}`).join("<br>")||"—"}</td><td>${r.confidence}</td><td>${r.reasons.join(" • ")}<div class="small muted">${r.wxText}</div></td></tr>`).join('')+'</table></details>';
  document.getElementById("calendarStatus").textContent=`${area} • ${target} • 28-day planning calendar built from NOAA tide predictions and sun/moon timing${rows.some(r=>r.offset<=6)?", with NWS weather added to the first 7 days":""}.`;
 }
 async function buildOpportunityCalendar(){
- if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfFishNowAllowed())){alert(wmfSafetyBlockMessage());return;}
  const area=(calendarArea&&calendarArea.value)||areaPicker.value;
  const target=(calendarTarget&&calendarTarget.value)||"Any";
  if(!area){document.getElementById("calendarStatus").textContent="Choose an area first.";return;}
  const areaSpots=spots.filter(s=>spotBelongsToArea(s,area));if(!areaSpots.length){document.getElementById("calendarStatus").textContent="No verified spots are available in this area yet.";return;}
  const s=areaSpots[0],start=new Date();start.setHours(12,0,0,0);const end=addDaysLocal(start,27);
  document.getElementById("calendarStatus").textContent=`Building 28-day opportunity calendar for ${area}…`;
- document.getElementById("calendarTop").innerHTML='';document.getElementById("calendarResults").innerHTML='';
+ document.getElementById("calendarGrid").innerHTML='';document.getElementById("calendarTop").innerHTML='';document.getElementById("calendarResults").innerHTML='';
  try{
   const [tidePreds,weatherPeriods]=await Promise.all([fetchPlanningTides(s,start,end),fetchPlanningWeather(s)]);
   if(!tidePreds.length)throw Error("NOAA returned no tide predictions");

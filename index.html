@@ -1013,6 +1013,22 @@ async function wmfCheckMarineSafety(spot){
 function wmfRequireSafety(spot){
  return wmfCheckMarineSafety(spot||((typeof selected!=="undefined"&&selected)?selected:null));
 }
+// Fish Now ranks spots around the map view, so it doesn't need a picked spot.
+// With no spot it may run when the Gulf-wide hurricane check comes back clean;
+// each recommended spot then gets its own alert check (wmfSpotAlertsClear).
+async function wmfFishNowAllowed(){
+ if(typeof selected!=="undefined"&&selected)return wmfRequireSafety(selected);
+ await wmfCheckMarineSafety(null);
+ return wmfSafetyCache.key==="gulf"&&wmfSafetyCache.status==="idle";
+}
+// True only when this spot's NHC + NWS alert check succeeded and found nothing.
+// A failed check counts as not clear.
+async function wmfSpotAlertsClear(spot){
+ try{
+  const r=await wmfFetchJson(`/.netlify/functions/marine-safety?lat=${Number(spot.lat).toFixed(4)}&lon=${Number(spot.lon).toFixed(4)}`);
+  return Array.isArray(r?.hazards)&&Array.isArray(r?.gulfStorms)&&!r.hazards.length&&!r.gulfStorms.length;
+ }catch{return false}
+}
 const spots=[
 {name:"Cypremort Point",area:"Vermilion Bay",lat:29.71336,lon:-91.88,tide:"8765251",tideName:"Cypremort Point"},
 {name:"Tete Butte Reef",area:"Vermilion Bay",lat:29.58472,lon:-92.09444,tide:"8765551",tideName:"Southwest Pass, Vermilion Bay"},
@@ -1879,7 +1895,7 @@ function gamePlanForRankedSpot(r,rank){
  </div>`;
 }
 async function runFishNowMap(){
- if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfFishNowAllowed())){alert(wmfSafetyBlockMessage());return;}
  if(typeof closeFishingToolsMenu==="function")closeFishingToolsMenu();
  if(typeof closeFishingTool==="function")closeFishingTool();
  const b=document.getElementById("wmfFishNowBtn");
@@ -1892,6 +1908,10 @@ async function runFishNowMap(){
          if(layer&&layer._wmfRank===1&&layer.openPopup)layer.openPopup();
        });
      },180);
+   }else{
+     // The Fish Now panel is closed when started from the map, so say why nothing was pinned.
+     const why=document.getElementById("whereNowStatus")?.textContent;
+     if(why&&!/^Tap the button/.test(why))alert(why);
    }
  }finally{
    if(b){b.disabled=false;b.textContent="🎯 Fish Now";}
@@ -3578,9 +3598,9 @@ function renderWhereNowPins(top){
  if(bounds.length)map.fitBounds(bounds,{padding:[55,55],maxZoom:10});
 }
 async function findWhereNow(){
- if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfFishNowAllowed())){alert(wmfSafetyBlockMessage());return;}
  const btn=document.getElementById("whereNowBtn"),status=document.getElementById("whereNowStatus"),box=document.getElementById("whereNowResults");
- btn.disabled=true;box.innerHTML="";whereNowLayer.clearLayers();
+ btn.disabled=true;box.innerHTML="";whereNowLayer.clearLayers();latestFishNowTop=[];
 
  // Fish Now should answer "what should I fish around what I'm looking at?"
  // Start with visible spots, then add the nearest spots to the current map center if needed.
@@ -3650,10 +3670,20 @@ async function findWhereNow(){
 
  finalists.sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||distance(a.spot)-distance(b.spot));
 
+ // Never pin a spot with an active marine alert, or one whose alerts couldn't be checked.
+ status.textContent="Checking marine alerts for the best spots…";
+ const alertsClear=await Promise.all(finalists.map(r=>wmfSpotAlertsClear(r.spot)));
+ const safeFinalists=finalists.filter((r,i)=>alertsClear[i]);
+ const skipped=finalists.length-safeFinalists.length;
+ if(!safeFinalists.length){
+  status.textContent="Fish Now found no spots to recommend: the best nearby spots have active marine alerts, or their alerts couldn't be checked. Check NWS marine warnings before going out.";
+  btn.disabled=false;return;
+ }
+
  // Keep some geographic variety without forcing one-per-area statewide.
  const top=[];
  const usedNames=new Set();
- for(const r of finalists){
+ for(const r of safeFinalists){
   if(usedNames.has(r.spot.name))continue;
   top.push(r);usedNames.add(r.spot.name);
   if(top.length===3)break;
@@ -3661,7 +3691,7 @@ async function findWhereNow(){
 
  renderWhereNowPins(top);
 
- status.textContent=`Fish Now checked ${ranked.length} nearby spots. Top 3 are pinned — tap a number for the Game Plan.`;
+ status.textContent=`Fish Now checked ${ranked.length} nearby spots. Top ${top.length} ${top.length===1?"is":"are"} pinned — tap a number for the Game Plan.${skipped?` Skipped ${skipped} with an active marine alert or no alert check.`:""}`;
 
  box.innerHTML='<table><thead><tr><td><strong>Rank</strong></td><td><strong>Spot / area</strong></td><td><strong>Now</strong></td><td><strong>Water</strong></td><td><strong>Why</strong></td></tr></thead><tbody>'+
  top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,4).join(" • ")||"current conditions fit"}</td></tr>`).join("")+

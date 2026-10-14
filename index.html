@@ -1972,7 +1972,7 @@ function openForecastChooser(){
  const time=document.getElementById("wmfForecastTime");
  if(date&&!date.value){
   date.min=forecastLocalInputValue(now).date;
-  const max=new Date(now.getTime()+7*86400000);
+  const max=new Date(now.getTime()+FORECAST_MAX_DAYS*86400000);
   date.max=forecastLocalInputValue(max).date;
   date.value=vals.date;
  }
@@ -2000,8 +2000,9 @@ function updateForecastChosenPreview(){
  const target=selectedForecastTarget();
  if(!target){el.textContent="";return;}
  const past=target.getTime()<Date.now()-60000;
- el.textContent=`You selected: ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}${past?" — this time has already passed":""}`;
- el.style.color=past?"#ffb4a8":"";
+ const range=past?null:forecastRange(target);
+ el.textContent=`You selected: ${target.toLocaleString([],{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}${past?" — this time has already passed":target.getTime()>Date.now()+FORECAST_MAX_DAYS*86400000?` — more than ${FORECAST_MAX_DAYS} days out; use the Fishing Calendar`:range.level==="good"?"":` • Forecast reliability: ${range.label}`}`;
+ el.style.color=past||target.getTime()>Date.now()+FORECAST_MAX_DAYS*86400000?"#ffb4a8":"";
 }
 function nearestForecastPeriod(periods,target){
  if(!periods||!periods.length)return null;
@@ -2031,7 +2032,7 @@ function forecastPressureTrend(periods,target){
 }
 function forecastScoreForSpot(data,target){
  const p=nearestForecastPeriod(data.hourlyPeriods,target);
- if(!p)return null;
+ if(!p||Math.abs(new Date(p.startTime)-target)>90*60000)return null;
  const pressureTrend=forecastPressureTrend(data.hourlyPeriods,target);
  const scored=hourWindowScoreFor({
   hourlyPeriods:data.hourlyPeriods,
@@ -2045,8 +2046,19 @@ function forecastScoreForSpot(data,target){
  score=Math.max(0,Math.min(100,Math.round(score)));
  return {score,reasons:[...new Set(reasons)].slice(0,5),period:p,pressureTrend};
 }
+// Spot Forecast reaches 16 days (Open-Meteo's limit). Tides and moon are exact
+// that far out; weather is not, so each range says how much to trust it.
+const FORECAST_MAX_DAYS=16;
+function forecastRange(target){
+ const days=(target.getTime()-Date.now())/86400000;
+ if(days<=3)return {level:"good",label:"Good",note:""};
+ if(days<=7)return {level:"fair",label:"Fair",note:"Weather this far out can still shift. Check again closer to the day."};
+ return {level:"rough",label:"Rough estimate",note:"Weather more than a week out is unreliable. Tides and moon times are exact; wind and rain are a rough guess. Check again closer to the day."};
+}
 async function buildForecastSpotData(s,target){
- const w=await fetchOpenMeteoForSpot(s);
+ const range=forecastRange(target);
+ // The usual 7-day download covers about 6.5 days from now; past that, get all 16.
+ const w=await fetchOpenMeteoForSpot(s,target.getTime()-Date.now()<6.5*86400000?7:FORECAST_MAX_DAYS);
  const t=await fetchTidesForSpotAt(s,target);
  const score=forecastScoreForSpot({spot:s,hourlyPeriods:w.hourlyPeriods,tides:t.tides},target);
  if(!score)throw Error("No hourly forecast for selected time");
@@ -2055,7 +2067,8 @@ async function buildForecastSpotData(s,target){
   forecast:score,
   hourlyPeriods:w.hourlyPeriods,
   tides:t.tides,
-  confidence:t.tides.length?"High":"Medium",
+  range,
+  confidence:range.level==="good"?(t.tides.length?"High":"Medium"):range.label+(t.tides.length?"":" (no tide data)"),
   weatherProvider:w.provider||"Open-Meteo"
  };
 }
@@ -2079,6 +2092,7 @@ function forecastGamePlanHtml(r,rank,target){
    <div class="gp-row"><span class="gp-label">How:</span> ${setup}</div>
    <div class="gp-row"><span class="gp-label">Start with:</span> ${fishNowStartLure({spot:r.spot})}</div>
    <div class="gp-row"><span class="gp-label">Confidence:</span> ${r.confidence}</div>
+   ${r.range?.note?`<div class="small" style="margin-top:7px;padding:7px 9px;border-radius:8px;background:${r.range.level==="rough"?"#3a3214":"#173947"};border:1px solid ${r.range.level==="rough"?"#d9b44a":"#3d6a85"}">${r.range.level==="rough"?"⚠️ ":""}${r.range.note}</div>`:""}
    <div class="small muted" style="margin-top:7px">Future water clarity is not guessed.</div>
  </div>`;
 }
@@ -2108,14 +2122,14 @@ async function runForecastForSelectedSpot(){
   return;
  }
 
- const now=Date.now(),max=now+7*86400000;
+ const now=Date.now(),max=now+FORECAST_MAX_DAYS*86400000;
  if(target.getTime()<now-15*60000){
   status.textContent=`${target.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"})} on ${target.toLocaleDateString([],{month:"short",day:"numeric"})} has already passed. Choose a later time (for example PM) or choose tomorrow.`;
   updateForecastChosenPreview();
   return;
  }
  if(target.getTime()>max){
-  status.textContent="Choose a time within the next 7 days.";
+  status.textContent=`Choose a time within the next ${FORECAST_MAX_DAYS} days. For later dates, the Fishing Calendar plans 28 days ahead from tides and moon.`;
   return;
  }
 
@@ -3505,9 +3519,9 @@ function fmtTomorrowWindow(win){if(!win)return "No 2-hour window";return `${win.
 function weatherCodeText(code){
  const c=Number(code);if(c===0)return "Clear";if([1,2,3].includes(c))return "Partly cloudy";if([45,48].includes(c))return "Fog";if([51,53,55,56,57].includes(c))return "Drizzle";if([61,63,65,66,67].includes(c))return c>=65?"Heavy rain":"Rain";if([80,81,82].includes(c))return c===82?"Heavy showers":"Showers";if([95,96,99].includes(c))return "Thunderstorms";return "Forecast";
 }
-async function fetchOpenMeteoForSpot(s){
- const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure&timezone=America%2FChicago&forecast_days=7&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&cell_selection=sea`;
- const cacheKey=`openmeteo:${s.lat.toFixed(3)},${s.lon.toFixed(3)}`;const fresh=cacheRead(cacheKey,TTL.weather);let j=null,source="live";
+async function fetchOpenMeteoForSpot(s,days=7){
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${s.lat.toFixed(4)}&longitude=${s.lon.toFixed(4)}&hourly=temperature_2m,precipitation,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure&timezone=America%2FChicago&forecast_days=${days}&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&cell_selection=sea`;
+ const cacheKey=`openmeteo:${s.lat.toFixed(3)},${s.lon.toFixed(3)}${days===7?"":`:${days}d`}`;const fresh=cacheRead(cacheKey,TTL.weather);let j=null,source="live";
  if(fresh){j=fresh;source="cache";}else{
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
   try{const r=await fetch(u,{signal:controller.signal});if(!r.ok)throw Error(`HTTP ${r.status}`);j=await r.json();if(!j||j.error)throw Error((j&&j.reason)||"Open-Meteo API error");cacheWrite(cacheKey,j);}catch(e){const stale=cacheReadStale(cacheKey);if(stale){j=stale;source="stale";}else throw Error(e.name==="AbortError"?"Open-Meteo request timed out":e.message);}finally{clearTimeout(timer)}

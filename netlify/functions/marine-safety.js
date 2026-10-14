@@ -54,7 +54,12 @@ async function getJson(url) {
   const timer = setTimeout(() => controller.abort(), 7000);
   try {
     const response = await fetch(url, {signal: controller.signal, headers: HEADERS});
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      const err = new Error(`HTTP ${response.status}`);
+      err.status = response.status;
+      try { err.detail = (await response.json()).detail || ""; } catch (e) { err.detail = ""; }
+      throw err;
+    }
     return await response.json();
   } finally {
     clearTimeout(timer);
@@ -112,7 +117,12 @@ exports.handler = async function(event) {
     getJson(`https://api.weather.gov/alerts/active?zone=${zones.map(z => z.id).join(",")}`),
     getJson(`https://api.weather.gov/zones/coastal/${zones[0].id}/forecast`)
   ]);
-  const failed = [["National Hurricane Center", nhc], ["NWS alerts for this spot", pointAlerts], ["NWS marine zone alerts", zoneAlerts]]
+  // A spot far enough offshore is outside the area NWS answers point lookups for ("out of bounds").
+  // Its marine zone alerts still cover that water, so only in that case the zone check stands in for the point check.
+  const pointOutsideNws = pointAlerts.status === "rejected" && pointAlerts.reason?.status === 400 &&
+    /out of bounds/i.test(pointAlerts.reason?.detail || "") && zoneAlerts.status === "fulfilled" && zones.length > 0;
+  const pointFeatures = pointOutsideNws ? [] : pointAlerts.value?.features;
+  const failed = [["National Hurricane Center", nhc], ...(pointOutsideNws ? [] : [["NWS alerts for this spot", pointAlerts]]), ["NWS marine zone alerts", zoneAlerts]]
     .filter(([, r]) => r.status === "rejected").map(([name, r]) => `${name} (${r.reason?.name === "AbortError" ? "timed out" : r.reason?.message || "failed"})`);
   let storms = [];
   if (nhc.status === "fulfilled") {
@@ -122,7 +132,7 @@ exports.handler = async function(event) {
 
   // Same alert can come back from both lookups; keep one copy per event.
   const seen = new Set();
-  const hazards = [...hazardsFrom(zoneAlerts.value.features, "marine zone"), ...hazardsFrom(pointAlerts.value.features, "spot")]
+  const hazards = [...hazardsFrom(zoneAlerts.value.features, "marine zone"), ...hazardsFrom(pointFeatures, "spot")]
     .filter(h => !seen.has(h.event) && seen.add(h.event));
 
   let marineForecast = null;
@@ -138,6 +148,6 @@ exports.handler = async function(event) {
     gulfStorms: storms,
     hazards,
     marineForecast,
-    sources: ["National Hurricane Center CurrentStorms.json", "api.weather.gov active alerts (spot + marine zone)", "api.weather.gov marine zone forecast"]
+    sources: ["National Hurricane Center CurrentStorms.json", pointOutsideNws ? "api.weather.gov active alerts (marine zone; spot is offshore of NWS point coverage)" : "api.weather.gov active alerts (spot + marine zone)", "api.weather.gov marine zone forecast"]
   }, "private, max-age=120");
 };

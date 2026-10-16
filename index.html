@@ -95,7 +95,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-tools-control{display:none}
 .wmf-quick-status{display:none}
 
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   body{padding-bottom:0}
   #map{height:62vh;min-height:420px}
   .wrap{padding-top:8px}
@@ -173,7 +173,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-spots-control{display:none}
 .wmf-spot-sheet{display:none}
 
-@media (max-width:1400px), (hover:none) and (pointer:coarse){
+@media all{
   html,body{width:100%;height:100%;overflow:hidden}
   body{background:#0b1520}
   header,#offlineBanner,#wmfPickerPanel,#wmfMapHelpBar,.wrap{display:none!important}
@@ -220,7 +220,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 }
 
 
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   #wmfToolSheetContent #spotGpsBlock{display:none!important}
   #wmfToolSheetContent #scoreBreakdown{font-size:12px}
   #wmfToolSheetContent details{margin-top:8px}
@@ -229,7 +229,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 
 
 
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   .leaflet-bottom.leaflet-right{
     display:flex;
     flex-direction:column-reverse;
@@ -251,7 +251,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 }
 
 
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   .wmf-quick-status.wmf-no-spot{display:none!important}
 }
 
@@ -270,7 +270,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 .wmf-game-plan .gp-score{font-size:24px;font-weight:900;margin:2px 0 6px}
 .wmf-game-plan .gp-row{margin:5px 0;line-height:1.3}
 .wmf-game-plan .gp-label{font-weight:800}
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
  .wmf-fish-now-control{display:block}
  .wmf-fish-now-control button{
    border:0;border-radius:12px;background:#17834a;color:#fff;
@@ -289,7 +289,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 
 .wmf-forecast-control{display:none}
 .wmf-forecast-sheet{display:none}
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
  .wmf-forecast-control{display:block}
  .wmf-forecast-control button{
    border:0;border-radius:12px;background:#5d4aa8;color:#fff;
@@ -314,7 +314,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 }
 
 
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   .wmf-forecast-control{display:block!important}
   .wmf-forecast-control button{
     min-height:42px;border-radius:12px
@@ -323,7 +323,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 
 
 .wmf-spot-quick-list{display:none}
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   #wmfSpotSheetContent{display:none!important}
   .wmf-spot-quick-list{display:block;padding:10px 12px 14px}
   .wmf-spot-area-row{display:flex;gap:8px;align-items:center;margin-bottom:10px}
@@ -341,7 +341,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 
 .wmf-more-control{display:none}
 .wmf-more-menu{display:none}
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   .wmf-more-control{display:block}
   .wmf-more-control button{
     min-height:42px;border:0;border-radius:12px;background:#0b668d;color:#fff;
@@ -366,7 +366,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 }
 
 
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   .leaflet-control-layers:not(.leaflet-control-layers-expanded){
     border:0!important;background:transparent!important;box-shadow:none!important;
   }
@@ -389,7 +389,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 
 
 .wmf-water-check-sheet{display:none}
-@media (max-width:1600px), (hover:none) and (pointer:coarse){
+@media all{
   .wmf-water-check-sheet{
     position:fixed;inset:0;z-index:5460;background:rgba(3,12,19,.72);
     padding:12px;align-items:flex-end;justify-content:center
@@ -463,7 +463,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
 
 /* Weather is a separate inspection tool, never a marine safety clearance. */
 .wmf-weather-control{display:none}
-@media(max-width:1600px),(hover:none) and (pointer:coarse){
+@media all{
  .wmf-weather-control{display:block}
  .wmf-weather-control button{min-height:42px;border:0;border-radius:12px;background:#1c567c;color:white;font-size:15px;font-weight:850;padding:10px 13px;box-shadow:0 3px 10px #0008}
 }
@@ -682,7 +682,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
       <label for="wmfForecastTime">Time</label>
       <input id="wmfForecastTime" type="time" step="900">
       <div id="wmfForecastChosenPreview" class="small" style="font-weight:800;margin-top:2px"></div>
-      <div id="wmfForecastSpotName" style="font-weight:800;margin-top:2px">Choose a fishing spot first.</div><div class="small muted" style="margin-top:8px">Choose any time within the next 7 days. The forecast uses predicted wind, weather, tide movement and known structure for the selected spot. Future water clarity is not guessed.</div>
+      <div id="wmfForecastSpotName" style="font-weight:800;margin-top:2px">Choose a fishing spot first.</div><div class="small muted" style="margin-top:8px">Choose any time up to 16 days out (the further out, the rougher the estimate). The forecast uses predicted wind, weather, tide movement and known structure for the selected spot. Future water clarity is not guessed.</div>
       <button id="wmfForecastRunBtn" class="primary" type="button" style="margin-top:12px;width:100%" onclick="runForecastForSelectedSpot()">Show Spot Forecast</button>
       <div id="wmfForecastStatus" class="small muted" style="margin-top:10px">Choose a spot, date and time.</div>
     </div>
@@ -2363,7 +2363,7 @@ ccaReefs.forEach((r,i)=>{
  ccaReefLayer.addLayer(m);
 });
 ccaReefLayer.addTo(map);
-const compactLayerControl=window.matchMedia&&window.matchMedia("(max-width:1400px), (hover:none) and (pointer:coarse)").matches;
+const compactLayerControl=window.matchMedia&&window.matchMedia("all").matches;
 const layerControl=L.control.layers(
  baseMaps,
  {"CCA Artificial Reefs":ccaReefLayer,"Fishing Structure":bottomStructureLayer},
@@ -2571,7 +2571,7 @@ const whereNowLayer=L.layerGroup().addTo(map);
 const spotMarkers=new Map();
 function spotMarkerSize(zoom,isSelected=false){
  // Keep pins readable without covering the chart on phones.
- const mobile=window.matchMedia&&window.matchMedia("(max-width:1400px), (hover:none) and (pointer:coarse)").matches;
+ const mobile=window.matchMedia&&window.matchMedia("all").matches;
  let size=zoom<=8?14:zoom===9?18:zoom===10?24:mobile?30:38;
  if(zoom>=13)size=mobile?32:42;
  if(isSelected)size=Math.min(mobile?40:50,size+(mobile?6:8));
@@ -4673,6 +4673,366 @@ async function wmfToggleRadar(){
 }
 document.getElementById("wmfWeatherSheet")?.addEventListener("click",e=>{if(e.target===e.currentTarget)wmfCloseWeather();});
 
+</script>
+<!-- Map-first navigation: bottom bar (Spots / Fish Now / Plan / More) and a spot card on tap.
+     Same map-first layout at every screen width. Old menus stay reachable from More. -->
+<style>
+.wmf-bar,.wmf-card,.wmf-hub{display:none}
+@media all{
+ body.wmf-ux .wmf-fish-now-control,body.wmf-ux .wmf-forecast-control,body.wmf-ux .wmf-weather-control,
+ body.wmf-ux .wmf-more-control,body.wmf-ux .wmf-quick-status{display:none!important}
+ body.wmf-ux .leaflet-bottom.leaflet-right,body.wmf-ux .leaflet-bottom.leaflet-left{margin-bottom:calc(76px + env(safe-area-inset-bottom))!important}
+ body.wmf-ux.wmf-card-open .leaflet-bottom{display:none}
+ body.wmf-ux .wmf-radar-bar{bottom:calc(84px + env(safe-area-inset-bottom))}
+ body.wmf-ux.wmf-card-open .wmf-radar-bar{display:none}
+ body.wmf-ux .wmf-welcome-toast{bottom:calc(86px + env(safe-area-inset-bottom))}
+
+ .wmf-bar{display:grid;grid-template-columns:repeat(4,minmax(0,180px));justify-content:center;column-gap:8px;position:fixed;left:0;right:0;bottom:0;z-index:1200;
+  background:#0b1520;border-top:1px solid #284153;padding:6px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));
+  box-shadow:0 -4px 18px rgba(0,0,0,.45)}
+ .wmf-bar button{border:0;background:transparent;color:#cfe0ea;font-weight:800;font-size:13px;min-height:56px;border-radius:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:4px 2px}
+ .wmf-bar button .i{font-size:23px;line-height:1}
+ .wmf-bar button.on{background:#17364a;color:#fff}
+ .wmf-bar button.fish.on{background:#17834a}
+ .wmf-bar button:disabled{opacity:.7}
+
+ .wmf-card{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));z-index:1150;
+  width:min(560px,calc(100vw - 16px));box-sizing:border-box;max-height:calc(100dvh - 170px);overflow-y:auto;-webkit-overflow-scrolling:touch;
+  background:#0b1520;color:#eef6fb;border:1px solid #38566d;border-radius:18px;box-shadow:0 10px 36px rgba(0,0,0,.6);padding:12px 14px 14px}
+ .wmf-card.open{display:block}
+ .wmf-card-top{display:flex;align-items:flex-start;gap:10px}
+ .wmf-card-name{flex:1;min-width:0}
+ .wmf-card-name strong{display:block;font-size:19px;line-height:1.2}
+ .wmf-card-name span{font-size:12px;color:#9fb0bf}
+ .wmf-card-score{text-align:center;min-width:70px;border-radius:12px;padding:5px 6px;background:#132332;border:1px solid #38566d}
+ .wmf-card-score b{display:block;font-size:24px;line-height:1.1}
+ .wmf-card-score small{font-size:11px;font-weight:700;color:#cfe0ea}
+ .wmf-card-score.good{background:#17482c;border-color:#5fc48a}
+ .wmf-card-score.mid{background:#4a3c12;border-color:#d9b44a}
+ .wmf-card-score.low{background:#3a2326;border-color:#a8656a}
+ .wmf-card-x{border:0;background:#132332;color:#cfe0ea;width:36px;height:36px;border-radius:50%;font-size:16px;flex:none}
+ .wmf-card-best{margin-top:10px;padding:9px 11px;border-radius:12px;background:#17364a;font-weight:800;line-height:1.35}
+ .wmf-card-best small{display:block;font-weight:600;color:#bad0dc;margin-top:2px}
+ .wmf-card-alert{margin-top:10px;padding:9px 11px;border-radius:12px;background:#5d1c20;border:1px solid #e99b90;font-weight:800}
+ .wmf-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+ .wmf-card-grid div{background:#132332;border-radius:10px;padding:7px 9px;min-width:0}
+ .wmf-card-grid small{display:block;font-size:11px;color:#9fb0bf;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+ .wmf-card-grid b{display:block;font-size:14px;margin-top:2px;overflow-wrap:anywhere}
+ .wmf-card-throw{margin-top:8px;padding:8px 10px;border-radius:10px;background:#132332}
+ .wmf-card-throw small{display:block;font-size:11px;color:#9fb0bf;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+ .wmf-card details{margin-top:8px;background:#132332;border-radius:10px;padding:8px 10px}
+ .wmf-card summary{font-weight:800;cursor:pointer}
+ .wmf-card details p{margin:7px 0 0;font-size:13px;line-height:1.4;color:#d6e4ec}
+ .wmf-card-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
+ .wmf-card-toggle{display:block;width:100%;margin-top:8px;min-height:46px;border-radius:11px;border:1px solid #0b668d;background:#0b668d;color:#fff;font-weight:800;font-size:15px}
+ .wmf-card-more{display:none}
+ .wmf-card.expanded .wmf-card-more{display:grid;gap:8px;margin-top:10px}
+ .wmf-card-more>section.card{margin:0;border-radius:12px;display:block}
+ .wmf-card-more #spotTitle{display:none}
+ .wmf-card.expanded{max-height:calc(100dvh - 96px)}
+ .wmf-card-actions button{min-height:46px;padding:6px 4px;border-radius:11px;border:1px solid #38566d;background:#132332;color:#eef6fb;font-weight:800;font-size:14px}
+ .wmf-card-actions button.primary{background:#0b668d;border-color:#0b668d}
+ .wmf-card .loading{color:#9fb0bf;font-style:italic}
+
+ .wmf-hub{position:fixed;inset:0;z-index:5150;background:rgba(3,12,19,.6);align-items:flex-end;justify-content:center;padding:12px 12px calc(80px + env(safe-area-inset-bottom))}
+ .wmf-hub.open{display:flex}
+ .wmf-hub-panel{width:min(560px,100%);max-height:calc(100dvh - 120px);overflow-y:auto;background:#0f1f2d;border:1px solid #38566d;border-radius:18px;padding:12px 12px 14px;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+ .wmf-hub-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+ .wmf-hub-head h2{margin:0;font-size:20px}
+ .wmf-hub-head button{border:0;background:#132332;color:#cfe0ea;width:36px;height:36px;border-radius:50%;font-size:16px}
+ .wmf-hub h4{margin:12px 0 6px;color:#9fb0bf;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+ .wmf-hub-list{display:grid;gap:7px}
+ .wmf-hub-list button{display:flex;align-items:center;gap:12px;text-align:left;width:100%;min-height:56px;padding:9px 12px;border-radius:12px;
+  background:#132332;border:1px solid #38566d;color:#eef6fb}
+ .wmf-hub-list button .i{font-size:24px;flex:none;width:30px;text-align:center}
+ .wmf-hub-list button b{display:block;font-size:15px}
+ .wmf-hub-list button small{display:block;font-size:12px;color:#9fb0bf;margin-top:2px;font-weight:500}
+ .wmf-hub-list button.big{background:#17834a;border-color:#17834a;min-height:68px}
+ .wmf-hub-list button.big small{color:#dff5e7}
+ .wmf-hub-note{font-size:12px;color:#9fb0bf;margin-top:10px;line-height:1.35}
+}
+</style>
+
+<div id="wmfCard" class="wmf-card" role="dialog" aria-label="Spot details">
+ <div id="wmfCardMain"></div>
+ <div id="wmfCardMore" class="wmf-card-more"></div>
+ <div class="wmf-card-actions">
+  <button type="button" onclick="wmfCardDo('forecast')">📅 Check another day</button>
+  <button type="button" onclick="wmfCardDo('maps')">🧭 Directions</button>
+  <button type="button" onclick="wmfCardDo('report')">📝 Log a report</button>
+ </div>
+</div>
+
+<div id="wmfHub" class="wmf-hub" aria-hidden="true">
+ <div class="wmf-hub-panel">
+  <div class="wmf-hub-head"><h2 id="wmfHubTitle"></h2><button type="button" onclick="wmfCloseHub()" aria-label="Close">✕</button></div>
+  <div id="wmfHubBody"></div>
+ </div>
+</div>
+
+<nav id="wmfBar" class="wmf-bar" aria-label="Main">
+ <button type="button" data-tab="spots" onclick="wmfTab('spots')"><span class="i">🎣</span>Spots</button>
+ <button type="button" data-tab="fish" class="fish" onclick="wmfTab('fish')"><span class="i">🎯</span>Fish Now</button>
+ <button type="button" data-tab="plan" onclick="wmfTab('plan')"><span class="i">📅</span>Plan</button>
+ <button type="button" data-tab="more" onclick="wmfTab('more')"><span class="i">☰</span>More</button>
+</nav>
+
+<script>
+document.body.classList.add("wmf-ux");
+(function(){
+ const t=document.getElementById("wmfWelcomeToast");
+ if(t)t.innerHTML="Tap any spot on the map, or hit <strong>🎯 Fish Now</strong>.";
+})();
+
+function wmfEsc(v){return String(v==null?"":v).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function wmfTxt(id){const e=document.getElementById(id);const v=e&&e.textContent?e.textContent.trim():"";return v&&v!=="—"&&v!=="—%"?v:"";}
+
+/* ---------- Hub sheets (Fish Now / Plan / More) ---------- */
+const WMF_HUBS={
+ fish:{title:"🎯 Fish Now",groups:[
+  {items:[
+   {big:1,i:"🎯",t:"Best spots right now",s:"Scans the coast and pins the top 3 on the map",go:()=>wmfRunFishNow()},
+  ]},
+  {h:"Other ways to look",items:[
+   {i:"📍",t:"Best spot near me",s:"Uses your location",go:()=>openFishingTool("Best Fishing Spot Near Me")},
+   {i:"🌅",t:"Tomorrow morning's top 3",s:"Coast-wide scan for tomorrow",go:()=>openFishingTool("Tomorrow's Top 3 Fishing Spots")},
+   {i:"💧",t:"Cleanest water",s:"Clearest fishable water in an area",go:()=>openFishingTool("Cleanest Fishable Water")},
+  ]},
+ ]},
+ plan:{title:"📅 Plan a Trip",groups:[
+  {items:[
+   {i:"📅",t:"Fishing Calendar",s:"Next 28 days, best days, moon times, 7-day side by side",go:()=>openFishingTool("Fishing Opportunity Calendar")},
+   {i:"🕐",t:"Spot Forecast",s:"Pick a spot, day and time, up to 16 days out",go:()=>openForecastChooser()},
+   {i:"⏱",t:"Best time in the next 12 hours",s:"For the spot you picked",need:1,go:()=>openFishingTool("Best Upcoming Window")},
+   {i:"🌊",t:"Water recovery after a blow",s:"How soon muddy water should clear",need:1,go:()=>openFishingTool("Recovery Outlook")},
+  ]},
+  {h:"Weather",items:[
+   {i:"🌦",t:"Weather & radar",s:"Forecast, rain radar loop, marine forecast",go:()=>wmfOpenWeather()},
+  ]},
+ ]},
+ more:{title:"☰ More",groups:[
+  {h:"Your trips",items:[
+   {i:"📝",t:"Log a quick report",s:"Water clarity, bait, bite",need:1,go:()=>openFishingTool("One-tap fishing report")},
+   {i:"📓",t:"Trip journal",go:()=>openFishingTool("Trip journal")},
+   {i:"⚖️",t:"Compare spots",s:"Up to 4 side by side",go:()=>openFishingTool("Compare spots")},
+  ]},
+  {h:"Info",items:[
+   {i:"📜",t:"Louisiana regulations",go:()=>openFishingTool("Louisiana regulations")},
+   {i:"🪸",t:"CCA Louisiana & artificial reefs",go:()=>openFishingTool("CCA Louisiana & Artificial Reefs")},
+   {i:"📡",t:"Data sources",s:"Where each reading comes from",go:()=>openFishingTool("Data quality")},
+   {i:"❓",t:"How Live Conditions works",go:()=>openLiveConditionsHelp()},
+  ]},
+  {h:"Everything",items:[
+   {i:"🧰",t:"All fishing tools",s:"The full old list of 20 tools",go:()=>openFishingToolsMenu()},
+  ]},
+ ]},
+};
+let wmfHubOpen=null;
+function wmfTab(tab){
+ if(tab==="spots"){wmfCloseHub();wmfCloseCard();openSpotSelector();return;}
+ if(wmfHubOpen===tab){wmfCloseHub();return;}
+ wmfOpenHub(tab);
+}
+function wmfOpenHub(tab){
+ const hub=WMF_HUBS[tab];if(!hub)return;
+ document.getElementById("wmfHubTitle").textContent=hub.title;
+ const body=document.getElementById("wmfHubBody");body.replaceChildren();
+ hub.groups.forEach(g=>{
+  if(g.h){const h=document.createElement("h4");h.textContent=g.h;body.appendChild(h);}
+  const list=document.createElement("div");list.className="wmf-hub-list";
+  g.items.forEach(it=>{
+   const b=document.createElement("button");b.type="button";if(it.big)b.className="big";
+   const sub=it.need&&!selected?"Pick a spot first":it.s;
+   b.innerHTML=`<span class="i">${it.i}</span><span><b>${wmfEsc(it.t)}</b>${sub?`<small>${wmfEsc(sub)}</small>`:""}</span>`;
+   b.onclick=()=>{wmfCloseHub();if(it.need&&!selected){openSpotSelector();return;}it.go();};
+   list.appendChild(b);
+  });
+  body.appendChild(list);
+ });
+ if(tab==="fish"){const n=document.createElement("div");n.className="wmf-hub-note";n.textContent="Fish Now only suggests spots without a marine warning. It's a conditions guide, not a catch guarantee.";body.appendChild(n);}
+ const el=document.getElementById("wmfHub");el.classList.add("open");el.setAttribute("aria-hidden","false");
+ wmfHubOpen=tab;wmfMarkTab(tab);
+}
+function wmfCloseHub(){
+ const el=document.getElementById("wmfHub");el.classList.remove("open");el.setAttribute("aria-hidden","true");
+ wmfHubOpen=null;wmfMarkTab(null);
+}
+function wmfMarkTab(tab){document.querySelectorAll("#wmfBar button").forEach(b=>b.classList.toggle("on",b.dataset.tab===tab));}
+document.getElementById("wmfHub").addEventListener("click",e=>{if(e.target===e.currentTarget)wmfCloseHub();});
+
+async function wmfRunFishNow(){
+ wmfCloseCard();
+ const b=document.querySelector('#wmfBar [data-tab="fish"]');
+ if(b){b.disabled=true;b.innerHTML='<span class="i">⏳</span>Scanning…';}
+ try{await runFishNowMap();}
+ finally{if(b){b.disabled=false;b.innerHTML='<span class="i">🎯</span>Fish Now';}}
+}
+
+/* ---------- Spot card ---------- */
+let wmfCardSpot=null;
+function wmfFmtT(d){return d.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"});}
+function wmfSolunarLine(s){
+ if(typeof lunarWindows!=="function")return "";
+ const now=new Date(),out=[];
+ for(let k=0;k<2&&out.length<2;k++){
+  const day=new Date(now);day.setDate(day.getDate()+k);
+  const m=lunarWindows(day,s.lat,s.lon);
+  const wins=[...m.major.map(t=>({t,half:60,kind:"Major"})),...m.minor.map(t=>({t,half:30,kind:"Minor"}))]
+   .map(w=>({...w,a:new Date(w.t.getTime()-w.half*60000),b:new Date(w.t.getTime()+w.half*60000)}))
+   .filter(w=>w.b>now).sort((x,y)=>x.a-y.a);
+  for(const w of wins){if(out.length<2)out.push(`${w.kind} ${k?"tmrw ":""}${wmfFmtT(w.a)}–${wmfFmtT(w.b)}`);}
+ }
+ return out.join(" · ");
+}
+function wmfSafetyLine(){
+ const b=document.getElementById("wmfMarineSafetyBanner");
+ const st=b&&b.dataset.status;
+ if(!st||["clear","idle","checking"].includes(st))return "";
+ return (b.querySelector("strong")?.textContent||"Marine warning in effect").trim();
+}
+function wmfScoreClass(n){return n>=75?"good":n>=60?"mid":"low";}
+function wmfRenderCard(loading){
+ const s=wmfCardSpot,el=document.getElementById("wmfCardMain");if(!s||!el)return;
+ const scoreTxt=wmfTxt("score"),n=parseInt(scoreTxt,10),hasScore=!loading&&Number.isFinite(n);
+ const rating=wmfTxt("rating");
+ const best=wmfTxt("bestWindow"),bestScore=wmfTxt("bestWindowScore");
+ const wind=wmfTxt("wind"),tide=wmfTxt("tideMove"),next=wmfTxt("nextTide"),water=wmfTxt("autoClarityStatus");
+ const press=wmfTxt("pressure"),trend=wmfTxt("pressureTrend");
+ const lure=wmfTxt("throwLure"),color=wmfTxt("throwColor"),weight=wmfTxt("throwWeight");
+ const how=(wmfTxt("structureHow")||"").replace(/^How to fish it:\s*/,""),why=wmfTxt("why"),conf=wmfTxt("confidence");
+ const alertTxt=wmfSafetyLine(),sol=wmfSolunarLine(s);
+ const L_=v=>loading?'<span class="loading">Loading…</span>':wmfEsc(v||"Unavailable");
+ el.innerHTML=`
+  <div class="wmf-card-top">
+   <div class="wmf-card-name"><strong>${wmfEsc(s.name)}</strong><span>${wmfEsc(s.area||"")}</span></div>
+   <div class="wmf-card-score ${hasScore?wmfScoreClass(n):""}"><b>${hasScore?n:"—"}</b><small>${hasScore?wmfEsc(rating.split(/[—•(]/)[0].trim()||"/100"):loading?"loading":"/100"}</small></div>
+   <button class="wmf-card-x" type="button" onclick="wmfCloseCard()" aria-label="Close">✕</button>
+  </div>
+  ${alertTxt?`<div class="wmf-card-alert">⚠️ ${wmfEsc(alertTxt)}</div>`:""}
+  <div class="wmf-card-best">⏱ Best time: ${L_(best?`${best}${bestScore?` (${bestScore.replace("%","")}/100)`:""}`:"")}
+   ${sol?`<small>🌙 ${wmfEsc(sol)}</small>`:""}</div>
+  <div class="wmf-card-grid">
+   <div><small>Wind</small><b>${L_(wind)}</b></div>
+   <div><small>Tide</small><b>${L_(tide)}</b></div>
+   <div><small>Water</small><b>${L_(water)}</b></div>
+   <div><small>Pressure</small><b>${L_(press?`${press}${trend?`, ${trend}`:""}`:"")}</b></div>
+  </div>
+  ${!loading&&lure?`<div class="wmf-card-throw"><small>What to throw</small><b>${wmfEsc(lure)}</b>${color||weight?`<div class="small muted">${wmfEsc([color,weight].filter(Boolean).join(" · "))}</div>`:""}</div>`:""}
+  ${!loading?`<button type="button" class="wmf-card-toggle" onclick="wmfToggleDetails()">${wmfCardExpanded?"▴ Hide details":"📊 All details ▾"}</button>`:""}`;
+}
+function wmfOpenCard(s){
+ wmfCardSpot=s;wmfRenderCard(true);
+ document.getElementById("wmfCard").classList.add("open");document.body.classList.add("wmf-card-open");
+ try{map.closePopup();}catch(e){}
+ wmfCloseHub();
+}
+// Keep the tapped spot visible in the strip of map above the card.
+function wmfPanAboveCard(s){
+ const card=document.getElementById("wmfCard");if(!card||!card.classList.contains("open"))return;
+ try{
+  const z=Math.max(map.getZoom(),13),size=map.getSize();
+  const targetY=Math.max(90,card.getBoundingClientRect().top/2);
+  const c=map.project([s.lat,s.lon],z).add([0,size.y/2-targetY]);
+  map.setView(map.unproject(c,z),z,{animate:true});
+ }catch(e){}
+}
+// "All details" expands the card in place by borrowing the page's own detail sections (they keep updating live),
+// and puts them back when the card collapses or closes.
+const WMF_CARD_SECTIONS=["Current Conditions","Best Upcoming Window","Tide","Weather","Water conditions","Observed vs predicted water",
+ "What to throw now","Depth & structure","Recent Conditions Memory","Recovery Outlook","What you see on the water","Source freshness"];
+let wmfCardExpanded=false,wmfCardBorrowed=[];
+function wmfToggleDetails(){wmfCardExpanded?wmfCollapseDetails():wmfExpandDetails();}
+function wmfExpandDetails(){
+ const host=document.getElementById("wmfCardMore");if(!host)return;
+ wmfCollapseDetails();
+ WMF_CARD_SECTIONS.forEach(t=>{
+  const sec=findToolSection(t);if(!sec)return;
+  wmfCardBorrowed.push({sec,parent:sec.parentNode,next:sec.nextSibling});
+  host.appendChild(sec);
+ });
+ wmfCardExpanded=true;document.getElementById("wmfCard").classList.add("expanded");wmfRenderCard(false);
+}
+function wmfCollapseDetails(){
+ for(const b of wmfCardBorrowed.reverse()){
+  if(b.next&&b.next.parentNode===b.parent)b.parent.insertBefore(b.sec,b.next);else b.parent.appendChild(b.sec);
+ }
+ wmfCardBorrowed=[];
+ if(wmfCardExpanded){wmfCardExpanded=false;document.getElementById("wmfCard").classList.remove("expanded");if(wmfCardSpot)wmfRenderCard(false);}
+}
+(function(){
+ // Tools open the same sections in their own sheet, so hand them back first.
+ const origTool=openFishingTool;
+ openFishingTool=function(){wmfCollapseDetails();return origTool.apply(this,arguments);};
+})();
+function wmfCloseCard(){
+ wmfCollapseDetails();
+ document.getElementById("wmfCard")?.classList.remove("open");document.body.classList.remove("wmf-card-open");
+}
+function wmfCardDo(a){
+ if(a==="forecast")openForecastChooser();
+ else if(a==="maps"){/iPad|iPhone|Mac/.test(navigator.userAgent)?openSpotInAppleMaps():openSpotInGoogleMaps();}
+ else if(a==="report")openFishingTool("One-tap fishing report");
+}
+
+// Hook the existing spot flow: the card opens on tap, shows "Loading…", then fills when the score is ready.
+(function(){
+ const origSelect=selectSpot,origCalc=calcScore;
+ selectSpot=async function(s){
+  if(wmfBackToForecast){
+   wmfBackToForecast=false;
+   const pending=origSelect.apply(this,arguments);
+   openForecastChooser();
+   return pending;
+  }
+  wmfOpenCard(s);
+  const pending=origSelect.apply(this,arguments); // centers the map on the spot before its first await
+  setTimeout(()=>{if(wmfCardSpot===s)wmfPanAboveCard(s);},450); // after Leaflet's zoom animation settles
+  const r=await pending;
+  if(wmfCardSpot===s)wmfRenderCard(false);
+  return r;
+ };
+ calcScore=function(){
+  const r=origCalc.apply(this,arguments);
+  if(wmfCardSpot&&wmfCardSpot===selected&&document.getElementById("wmfCard").classList.contains("open"))setTimeout(()=>wmfRenderCard(false),0);
+  return r;
+ };
+})();
+
+// Spot Forecast: a "Change spot" button, and picking a spot from there comes back to the forecast
+// with the chosen date and time kept.
+let wmfBackToForecast=false;
+function wmfForecastChangeSpot(){
+ wmfBackToForecast=true;
+ closeForecastChooser();
+ openSpotSelector();
+}
+(function(){
+ const origOpen=openForecastChooser,origCloseSel=closeSpotSelector;
+ openForecastChooser=function(){
+  if(!selected)wmfBackToForecast=true; // the original opens the spot list instead
+  const r=origOpen.apply(this,arguments);
+  const name=document.getElementById("wmfForecastSpotName");
+  if(name&&!document.getElementById("wmfForecastChangeBtn")){
+   const row=document.createElement("div");row.style.cssText="display:flex;align-items:center;justify-content:space-between;gap:10px";
+   name.parentNode.insertBefore(row,name);row.appendChild(name);
+   const b=document.createElement("button");b.type="button";b.id="wmfForecastChangeBtn";b.textContent="🎣 Change spot";
+   b.style.cssText="flex:none;min-height:40px;font-weight:800";b.onclick=wmfForecastChangeSpot;row.appendChild(b);
+  }
+  return r;
+ };
+ // Picking a spot closes the list and then selects it; only clear the flag if no pick follows (✕ or backdrop).
+ closeSpotSelector=function(){const r=origCloseSel.apply(this,arguments);setTimeout(()=>{if(!document.getElementById("wmfSpotSheet")?.classList.contains("open"))wmfBackToForecast=false;},0);return r;};
+})();
+
+// Rain radar is also a switch in the map's Layers list.
+(function(){
+ if(typeof layerControl==="undefined"||typeof wmfToggleRadar!=="function")return;
+ const radarSwitch=L.layerGroup();
+ layerControl.addOverlay(radarSwitch,"🌧 Rain radar");
+ map.on("overlayadd",e=>{if(e.layer===radarSwitch&&!wmfRadarVisible)wmfToggleRadar();});
+ map.on("overlayremove",e=>{if(e.layer===radarSwitch&&wmfRadarVisible)wmfToggleRadar();});
+})();
 </script>
 <script src="/satellite-water.js?v=7"></script>
 

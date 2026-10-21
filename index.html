@@ -810,8 +810,6 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
   <div class="row"><span>GPS fishing reference</span><strong id="spotCoords">—</strong></div>
   <div style="display:flex;gap:7px;flex-wrap:wrap">
     <button id="copyGpsBtn" onclick="copySpotGps()" disabled>Copy GPS</button>
-    <button id="appleMapsBtn" onclick="openSpotInAppleMaps()" disabled>Apple Maps</button>
-    <button id="googleMapsBtn" onclick="openSpotInGoogleMaps()" disabled>Google Maps</button>
   </div>
   <div id="spotGpsNote" class="small muted" style="margin-top:6px">Fishing-reference coordinates only — not a safe-navigation waypoint. “Near Me” uses straight-line distance, not boat-route distance.</div>
 </div>
@@ -3044,11 +3042,11 @@ function updateSpotGps(s){
  const note=document.getElementById("spotGpsNote");
  if(note)note.textContent=spotCoordinateClass(s)+" • "+(s.sourceNote?`${s.sourceNote} • `:"")+"Fishing-reference coordinates only — verify local access, hazards and navigation before using on the water.";
 }
-function copySpotGps(){
+function copySpotGps(btn){
  if(!selected)return;
  const value=`${Number(selected.lat).toFixed(5)}, ${Number(selected.lon).toFixed(5)}`;
  if(navigator.clipboard&&navigator.clipboard.writeText){
-  navigator.clipboard.writeText(value).then(()=>{const b=document.getElementById("copyGpsBtn");if(b){const old=b.textContent;b.textContent="Copied";setTimeout(()=>b.textContent=old,1200);}}).catch(()=>{});
+  navigator.clipboard.writeText(value).then(()=>{const b=btn||document.getElementById("copyGpsBtn");if(b){const old=b.textContent;b.textContent="Copied";setTimeout(()=>b.textContent=old,1200);}}).catch(()=>{});
  }
 }
 function openSpotInAppleMaps(){
@@ -4869,7 +4867,7 @@ document.getElementById("wmfWeatherSheet")?.addEventListener("click",e=>{if(e.ta
  <div id="wmfCardMore" class="wmf-card-more"></div>
  <div class="wmf-card-actions">
   <button type="button" onclick="wmfCardDo('forecast')">📅 Check another day</button>
-  <button type="button" onclick="wmfCardDo('maps')">🧭 Directions</button>
+  <button type="button" onclick="copySpotGps(this)">📋 Copy coordinates</button>
   <button type="button" onclick="wmfCardDo('report')">📝 Log a report</button>
  </div>
 </div>
@@ -5082,7 +5080,6 @@ function wmfCloseCard(){
 }
 function wmfCardDo(a){
  if(a==="forecast")openForecastChooser();
- else if(a==="maps"){/iPad|iPhone|Mac/.test(navigator.userAgent)?openSpotInAppleMaps():openSpotInGoogleMaps();}
  else if(a==="report")openFishingTool("One-tap fishing report");
 }
 

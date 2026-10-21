@@ -1,4 +1,4 @@
-/* Way More Fish — Satellite Water v7 (v7: 24-48 hr "yesterday" pictures shown with a lighter ring; v6: styled legend, rings, status in legend)
+/* Way More Fish — Satellite Water v8 (v8: legend shrinks to a one-line key on zoom/drag, tap to open; v7: 24-48 hr "yesterday" pictures shown with a lighter ring; v6: styled legend, rings, status in legend)
    Supports every listed fishing area and every spot.
    Loads samples only for the selected area.
    HARD RULE: imagery older than 48 hours is rejected. 24-48 hours is shown as "yesterday" with a lighter ring.
@@ -20,7 +20,11 @@
     '.satwater-legend{background:rgba(9,24,35,.92);color:#eef6fb;border:1px solid #38566d;border-radius:10px;' +
     'padding:8px 10px;font-size:12px;line-height:1.5;max-width:230px;box-shadow:0 2px 8px rgba(0,0,0,.35)}' +
     '.satwater-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}' +
-    '#satwaterStatus{margin-top:6px;padding-top:6px;border-top:1px solid #38566d;color:#ffd9a0}';
+    '#satwaterStatus{margin-top:6px;padding-top:6px;border-top:1px solid #38566d;color:#ffd9a0}' +
+    // Shrinks to a one-line key when the map is zoomed or dragged; tap to open it again.
+    '.satwater-legend{cursor:pointer}.satwater-mini{display:none;white-space:nowrap}' +
+    '.satwater-legend.mini .satwater-full{display:none}.satwater-legend.mini .satwater-mini{display:block}' +
+    '.satwater-legend.mini{padding:6px 10px}.satwater-mini .satwater-dot{margin-right:3px}';
   document.head.appendChild(css);
 
   function bucket(score){
@@ -90,19 +94,31 @@
     legend.onAdd = function(){
       const d = L.DomUtil.create('div','satwater-legend');
       d.innerHTML =
-        '<strong>Satellite Water</strong>' +
+        '<div class="satwater-mini"><strong>Satellite Water</strong> ' +
+        '<span class="satwater-dot" style="background:#36c275"></span><span class="satwater-dot" style="background:#e5b84b"></span>' +
+        '<span class="satwater-dot" style="background:#a66a3f"></span><span class="satwater-dot" style="background:#7f8c98"></span> Key ▸</div>' +
+        '<div class="satwater-full"><strong>Satellite Water</strong> <span style="float:right;color:#9fb0bf">▾ tap to hide</span>' +
         '<div><span class="satwater-dot" style="background:#36c275"></span>Relatively clearer</div>' +
         '<div><span class="satwater-dot" style="background:#e5b84b"></span>Mixed / moderate</div>' +
         '<div><span class="satwater-dot" style="background:#a66a3f"></span>Relatively murkier</div>' +
         '<div><span class="satwater-dot" style="background:#7f8c98"></span>Unavailable</div>' +
         '<div><span class="satwater-dot" style="background:transparent;border:2px dashed #eef6fb;box-sizing:border-box"></span>Lighter ring = yesterday\'s picture</div>' +
         '<div style="margin-top:5px;color:#9fb0bf">Fresh ≤12 hr • usable ≤24 hr • yesterday ≤48 hr (counts less) • older than 48 hr is rejected.</div>' +
-        '<div id="satwaterStatus"></div>';
+        '<div id="satwaterStatus"></div></div>';
+      L.DomEvent.disableClickPropagation(d);
+      L.DomEvent.disableScrollPropagation(d);
+      d.addEventListener('click', function(){ d.classList.toggle('mini'); });
       setTimeout(function(){ const st = document.getElementById('satwaterStatus'); if(st) st.textContent = lastStatus; }, 0);
       return d;
     };
     legend.addTo(map);
   }
+
+  function shrinkLegend(){
+    const el = legend && legend.getContainer && legend.getContainer();
+    if(el) el.classList.add('mini');
+  }
+  map.on('zoomstart dragstart', shrinkLegend);
 
   function hideLegend(){
     if(legend){ map.removeControl(legend); legend = null; }

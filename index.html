@@ -411,6 +411,31 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
   .wmf-water-check-body button{min-height:44px}
 }
 
+.wmf-knots-sheet{display:none}
+@media all{
+  .wmf-knots-sheet{
+    position:fixed;inset:0;z-index:5460;background:rgba(3,12,19,.72);
+    padding:12px;align-items:flex-end;justify-content:center
+  }
+  .wmf-knots-sheet.open{display:flex}
+  .wmf-knots-panel{
+    width:min(640px,100%);max-height:75vh;max-height:75dvh;display:flex;flex-direction:column;
+    background:#0b1520;border:1px solid #38566d;
+    border-radius:18px 18px 10px 10px;box-shadow:0 18px 50px rgba(0,0,0,.58)
+  }
+  .wmf-knots-body{padding:12px 14px calc(16px + env(safe-area-inset-bottom));display:grid;gap:10px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .wmf-knot{background:#132332;border:1px solid #38566d;border-radius:12px}
+  .wmf-knot summary{list-style:none;cursor:pointer;padding:12px;min-height:44px}
+  .wmf-knot summary::-webkit-details-marker{display:none}
+  .wmf-knot summary strong{font-size:17px}
+  .wmf-knot summary span{display:block;color:#b8cad6;font-size:14px;margin-top:2px}
+  .wmf-knot[open] summary{border-bottom:1px solid #284153}
+  .wmf-knot-detail{padding:10px 12px 12px;display:grid;gap:10px}
+  .wmf-knot-detail ol{margin:0;padding-left:22px;display:grid;gap:8px;font-size:16px;line-height:1.45}
+  .wmf-knot-video{display:block;text-align:center;min-height:44px;line-height:44px;border-radius:10px;
+    background:#0b668d;color:#fff;font-weight:800;text-decoration:none}
+}
+
 
 .wmf-water-preview-wrap{margin-top:10px}
 .wmf-water-preview-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
@@ -697,6 +722,17 @@ Offline / weak signal — showing the most recently cached app and any previousl
     <button type="button" onclick="closeMoreMenu();openWaterCheck()">💧 Water Check</button>
     <button type="button" onclick="closeMoreMenu();openFishingTool('Current Conditions')">📊 Current Conditions</button>
     <button type="button" onclick="closeMoreMenu();openFishingToolsMenu()">☰ Fishing Tools</button>
+    <button type="button" onclick="closeMoreMenu();openKnots()">🪢 Knots &amp; Rigs</button>
+  </div>
+</div>
+
+<div id="wmfKnotsSheet" class="wmf-knots-sheet" aria-hidden="true" onclick="if(event.target===this)closeKnots()">
+  <div class="wmf-knots-panel">
+    <div class="wmf-water-check-head">
+      <strong>Knots &amp; Rigs</strong>
+      <button type="button" onclick="closeKnots()" aria-label="Close knots and rigs">✕</button>
+    </div>
+    <div id="wmfKnotsBody" class="wmf-knots-body"></div>
   </div>
 </div>
 
@@ -1780,6 +1816,65 @@ function openMoreMenu(){
 function closeMoreMenu(){
  const m=document.getElementById("wmfMoreMenu");
  if(m){m.classList.remove("open");m.setAttribute("aria-hidden","true");}
+}
+
+// Lee's favorite knots. Steps are text only so they work offline on the water;
+// the video button needs signal.
+const WMF_KNOTS=[
+ {name:"Alberto Knot",use:"Braid to a fluorocarbon or monofilament leader.",
+  about:"Slim and strong, so it slides through rod guides. A go-to for joining braid to a leader.",
+  steps:[
+   "Fold the end of the leader back to make a loop, with about 6 inches of tag end.",
+   "Pass about 12 inches of braid through the loop.",
+   "Wrap the braid 7 times around both strands of the leader loop, working away from the end of the loop.",
+   "Wrap the braid 7 more times back over those wraps, toward the end of the loop.",
+   "Pass the braid tag back out through the loop on the same side it went in.",
+   "Wet the knot. Pull the braid and leader standing lines slowly so the wraps seat evenly, then pull tight.",
+   "Trim both tag ends close."]},
+ {name:"GT Knot",use:"A strong, streamlined leader connection.",
+  about:"Very strong when tied correctly. Take your time on the wraps and pull it down slowly.",
+  steps:[
+   "Tie a loose figure-8 in the leader, about 6 inches from the end. Do not tighten it.",
+   "Pass about 2 feet of braid through the figure-8, following the same path as the leader.",
+   "Wrap the braid around the leader tag end about 15 times, then bring it back through the figure-8.",
+   "Pull the leader to close the figure-8 down on the braid.",
+   "Lock it with 6 to 8 half hitches of braid around the leader, alternating sides.",
+   "Wet the knot, pull everything tight, and trim the tag ends."]},
+ {name:"Albright Knot",use:"Joining lines of different types or diameters.",
+  about:"Versatile and easy to remember. Works for braid, mono, or fluoro to a heavier leader.",
+  steps:[
+   "Fold the end of the heavier line back to make a loop about 3 inches long.",
+   "Pass about 10 inches of the lighter line through the loop.",
+   "Hold everything together and wrap the lighter line 10 to 12 times around itself and both strands of the loop, working toward the end of the loop.",
+   "Pass the tag end of the lighter line back out through the loop on the same side it went in.",
+   "Wet the knot. Slide the wraps toward the end of the loop without pulling them off.",
+   "Pull both standing lines tight, then trim the tag ends."]}
+];
+function renderKnots(){
+ const b=document.getElementById("wmfKnotsBody");
+ if(!b||b.dataset.ready)return;
+ b.innerHTML=`<div class="small muted">Lee's 3 favorite knots. Tap a knot for steps. More knots and rigs coming soon.</div>`+
+  WMF_KNOTS.map(k=>`<details class="wmf-knot">
+   <summary><strong>${k.name}</strong><span>${k.use}</span></summary>
+   <div class="wmf-knot-detail">
+    <div>${k.about}</div>
+    <ol>${k.steps.map(t=>`<li>${t}</li>`).join("")}</ol>
+    <a class="wmf-knot-video" target="_blank" rel="noopener" href="https://www.youtube.com/results?search_query=${encodeURIComponent(k.name+" fishing")}">▶ Watch how to tie it</a>
+   </div>
+  </details>`).join("");
+ b.dataset.ready="1";
+}
+function openKnots(){
+ closeFishingTool?.();
+ closeFishingToolsMenu?.();
+ closeWaterCheck?.();
+ renderKnots();
+ const s=document.getElementById("wmfKnotsSheet");
+ if(s){s.classList.add("open");s.setAttribute("aria-hidden","false");}
+}
+function closeKnots(){
+ const s=document.getElementById("wmfKnotsSheet");
+ if(s){s.classList.remove("open");s.setAttribute("aria-hidden","true");}
 }
 
 function openFishingToolsMenu(){

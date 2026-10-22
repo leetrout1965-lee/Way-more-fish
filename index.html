@@ -1021,11 +1021,20 @@ function wmfSafetyShow(status,message){
 function wmfSafetyBlockMessage(){
  return wmfSafetyCache.message||"Marine hazards have not been ruled out. Do not rely on fishing scores.";
 }
-async function wmfFetchJson(url){
+// A phone dropping its connection mid-request (Safari says "Load failed") gets one retry.
+async function wmfFetchJson(url,retries=1){
  const controller=new AbortController();
  const timer=setTimeout(()=>controller.abort(),7500);
  try{
-  const response=await fetch(url,{cache:"no-store",signal:controller.signal,headers:{"Accept":"application/geo+json, application/json"}});
+  let response;
+  try{
+   response=await fetch(url,{cache:"no-store",signal:controller.signal,headers:{"Accept":"application/geo+json, application/json"}});
+  }catch(error){
+   if(!retries||error?.name==="AbortError")throw error;
+   clearTimeout(timer);
+   await new Promise(r=>setTimeout(r,1500));
+   return wmfFetchJson(url,retries-1);
+  }
   if(!response.ok)throw Error("Safety data service unavailable");
   return await response.json();
  }finally{clearTimeout(timer)}
@@ -1033,7 +1042,8 @@ async function wmfFetchJson(url){
 async function wmfCheckMarineSafety(spot){
  const lat=Number(spot?.lat),lon=Number(spot?.lon);
  const key=Number.isFinite(lat)&&Number.isFinite(lon)?`${lat.toFixed(3)},${lon.toFixed(3)}`:"gulf";
- if(wmfSafetyCache.key===key&&Date.now()-wmfSafetyCache.time<10*60*1000){
+ // Failed checks are not reused: the next check asks again instead of staying red for 10 minutes.
+ if(wmfSafetyCache.key===key&&!wmfSafetyCache.failed&&Date.now()-wmfSafetyCache.time<10*60*1000){
   wmfSafetyShow(wmfSafetyCache.status,wmfSafetyCache.message);
   return wmfSafetyCache.status==="clear";
  }
@@ -1062,7 +1072,7 @@ async function wmfCheckMarineSafety(spot){
    }
   }catch(error){
    const msg=String(error?.message||"Safety data unavailable").replace(/\.+$/,"");
-   result={time:Date.now(),key,status:"blocked",zones:error.zones||[],marine:error.marine||null,message:`${error.hazard?"MARINE HAZARD":"SAFETY STATUS UNAVAILABLE"}: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`};
+   result={time:Date.now(),key,status:"blocked",failed:!error.hazard,zones:error.zones||[],marine:error.marine||null,message:`${error.hazard?"MARINE HAZARD":"SAFETY STATUS UNAVAILABLE"}: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`};
   }
   // A slower check for a spot the user already left must not overwrite the current spot's status.
   if(wmfSafetyRequest===request){
@@ -4572,6 +4582,12 @@ function updateConnectivityBanner(){
  b.style.display=navigator.onLine?"none":"block";
 }
 window.addEventListener("online",updateConnectivityBanner);
+// After a failed safety check, try again when the connection or the app comes back.
+function wmfRetryFailedSafety(){
+ if(wmfSafetyCache.failed&&document.visibilityState!=="hidden")wmfCheckMarineSafety(typeof selected!=="undefined"?selected:null);
+}
+window.addEventListener("online",wmfRetryFailedSafety);
+document.addEventListener("visibilitychange",wmfRetryFailedSafety);
 window.addEventListener("offline",updateConnectivityBanner);
 setPrienDepthGuideVisible("");
 updateConnectivityBanner();

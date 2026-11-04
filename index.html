@@ -480,7 +480,7 @@ button{background:#17364a}.primary{background:#0b668d}.muted{color:#9fb0bf}.smal
  font-size:12px;line-height:1.3}
 #wmfMarineSafetyBanner strong{display:block;font-size:13px;margin-bottom:2px}
 #wmfMarineSafetyBanner a{color:#fff;text-decoration:underline;font-weight:800}
-#wmfMarineSafetyBanner[data-status="clear"],#wmfMarineSafetyBanner[data-status="idle"]{display:none}
+#wmfMarineSafetyBanner[data-status="clear"],#wmfMarineSafetyBanner[data-status="idle"],#wmfMarineSafetyBanner[data-status="unavailable"]{display:none}
 /* Still checking a spot: a quiet note, not the red hazard alarm. No spot and no Gulf storm shows nothing. */
 #wmfMarineSafetyBanner[data-status="checking"]{width:auto;max-width:min(520px,calc(100vw - 24px));background:rgba(13,34,48,.9);border:1px solid #3d6a85;border-radius:999px;padding:6px 14px;box-shadow:0 3px 12px #0006;text-align:center}
 #wmfMarineSafetyBanner[data-status="checking"] strong,#wmfMarineSafetyBanner[data-status="checking"] div{display:none}
@@ -1015,7 +1015,7 @@ function wmfSafetyShow(status,message){
  if(inside){
   inside.textContent=`${status==="blocked"?"⚠️":"ℹ️"} ${message} Good fishing weather never guarantees safe boating.`;
   inside.style.background=status==="blocked"?"#5d1c20":"#173947";
-  inside.style.display=status==="idle"?"none":"";
+  inside.style.display=status==="idle"||(status==="unavailable"&&wmfSafetyCache.key==="gulf")?"none":"";
  }
 }
 function wmfSafetyBlockMessage(){
@@ -1071,8 +1071,12 @@ async function wmfCheckMarineSafety(spot){
    result={time:Date.now(),key,status:"clear",zones,marine,message:`No matching alerts found in the checked official feeds${zoneText}. This does NOT certify safe boating conditions.`};
    }
   }catch(error){
+   // Only a real storm or hazard is red. A check that couldn't reach the service stays quiet
+   // (no banner), but still doesn't count as all-clear for the fishing tools.
    const msg=String(error?.message||"Safety data unavailable").replace(/\.+$/,"");
-   result={time:Date.now(),key,status:"blocked",failed:!error.hazard,zones:error.zones||[],marine:error.marine||null,message:`${error.hazard?"MARINE HAZARD":"SAFETY STATUS UNAVAILABLE"}: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`};
+   result=error.hazard
+    ?{time:Date.now(),key,status:"blocked",failed:false,zones:error.zones||[],marine:error.marine||null,message:`MARINE HAZARD: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`}
+    :{time:Date.now(),key,status:"unavailable",failed:true,zones:[],marine:null,message:"Storm and marine alerts couldn't be checked just now, so fishing recommendations are paused. Try again in a minute, or check NHC and NWS marine alerts."};
   }
   // A slower check for a spot the user already left must not overwrite the current spot's status.
   if(wmfSafetyRequest===request){

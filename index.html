@@ -5017,7 +5017,7 @@ function wmfSolunarLine(s){
 function wmfSafetyLine(){
  const b=document.getElementById("wmfMarineSafetyBanner");
  const st=b&&b.dataset.status;
- if(!st||["clear","idle","checking"].includes(st))return "";
+ if(!st||["clear","idle","checking","unavailable"].includes(st))return "";
  return (b.querySelector("strong")?.textContent||"Marine warning in effect").trim();
 }
 function wmfScoreClass(n){return n>=75?"good":n>=60?"mid":"low";}

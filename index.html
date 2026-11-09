@@ -1240,6 +1240,7 @@ const spots=[
 {name:"Pencil Canal / Little Lake",area:"Delacroix / Hopedale / Shell Beach",lat:29.7013367,lon:-89.7891700,tide:"8761305",tideName:"Shell Beach"},
 {name:"Lake Coquille / Bernard-Pisana Mouth",area:"Delacroix / Hopedale / Shell Beach",lat:29.7488367,lon:-89.5847833,tide:"8761305",tideName:"Shell Beach"},
 {name:"Shell Beach / Bayou Yscloskey",area:"Delacroix / Hopedale / Shell Beach",lat:29.8681,lon:-89.6732,tide:"8761305",tideName:"Shell Beach"},
+{name:"MRGO Long Rocks",area:"Delacroix / Hopedale / Shell Beach",lat:29.685900,lon:-89.399833,tide:"8761305",tideName:"Shell Beach",sourceNote:"Approximate fishing reference between the two MRGO rock jetty lines (Louisiana Fishing Blog area; checked on satellite imagery Nov 2026). Not a navigation waypoint.",launches:["hopedale-marina","campos-marina"]},
 
 {name:"Lake Salvador",area:"Lafitte / Barataria",lat:29.7713889,lon:-90.1933333,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
 {name:"Bayou Perot / Point Legard",area:"Lafitte / Barataria",lat:29.5657778,lon:-90.1655556,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
@@ -1283,6 +1284,18 @@ const spots=[
 {name:"Eugene Island North",area:"Four League Bay / Atchafalaya",lat:29.3675,lon:-91.3839,tide:"8763843",tideName:"Fourleague Bay"},
 {name:"Four League Bay East Shore",area:"Four League Bay / Atchafalaya",lat:29.32227,lon:-91.17869,tide:"8763843",tideName:"Fourleague Bay"},
 ]
+// Boat launches. One shared list; a spot lists the launch ids to show, nearest by road first.
+// Fees, hours and parking stay "unknown" until confirmed; never guessed.
+const boatLaunches={
+ "hopedale-marina":{name:"Hopedale Marina",lat:29.81886,lon:-89.61166,address:"7600 Hopedale Hwy, Hopedale, LA 70085",phone:"(504) 676-3474",
+  accessType:"Privately run marina, open to the public",launchFee:"unknown",parking:"unknown",hours:"Open year-round; call for hours",restrictions:"unknown",
+  verificationStatus:"Location checked on satellite imagery; open per May 2026 angler reports (formerly Breton Sound Marina)",verifiedDate:"2026-11-09",
+  sourceURL:"https://www.explorelouisiana.com/boating/hopedale-marina"},
+ "campos-marina":{name:"Campo's Marina",lat:29.85393,lon:-89.67916,address:"1300 Yscloskey Hwy, Shell Beach, LA 70085",phone:"(504) 239-6377",
+  accessType:"Privately run marina (listed as semi-private); call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-09",
+  sourceURL:"https://www.howsyourriver.com/access_sites/campos-marina"}
+};
 // Live salinity sources. Each spot uses the nearest practical monitoring station, not an exact on-spot reading.
 const salinitySources={
  "Vermilion Bay":{provider:"USGS",site:"07387040",backupSite:"073813498",backupName:"Caillou Bay SW of Cocodrie",name:"Vermilion Bay near Cypremort Point",note:"Regional proxy for Vermilion Bay spots; backup is a broad coastal proxy"},
@@ -1341,6 +1354,7 @@ const structureDetails={
  "Lambert Bayou Mouth":{type:"Bayou mouth / east-bank shoreline current seam",depth:"Bayou mouth into shallow east-bank lake water",how:"Fish the mouth and adjacent east-bank shoreline when current pulls bait from the marsh. The Grand-to-Lambert shoreline is a documented redfish stretch on moving water."},
  "Lake Lery":{type:"Open lake + marsh drains",depth:"Shallow lake edges and drain mouths",how:"Fish points and drains on moving water; look for bait pushed along windward shorelines."},
  "Lake Coquille / Bernard-Pisana Mouth":{type:"Bayou mouths + broad flat",depth:"Mouth edges and adjacent flat",how:"Work current seams where the bayous empty into the lake, especially when bait is present."},
+ "MRGO Long Rocks":{type:"MRGO rock jetties (the Long Rocks)",depth:"Rock-line edges and the channel between the two jetties",how:"Speckled trout are the main target. Work moving current along the rocks on the trolling motor instead of anchoring, and swim jigs back out of the rocks. Submerged rocks and snags sit off the visible line, shorelines here keep changing, and the shallow access canals (like the Spoil Canal) can strand boats; this is a fishing reference, not a navigation waypoint."},
  "Bayou Dosgris Deep Hole":{type:"Bayou deep hole",depth:"Approx. 10 ft hole and edges",how:"Fish the lip and bottom transition; slower presentations often work when current is weak."},
  "Port Fourchon / Belle Pass":{type:"Pass / jetties / channel edge",depth:"Deep pass edges and nearby flats",how:"Target current breaks and eddies; avoid the main navigation lane and heavy commercial traffic."},
  "Caminada Pass":{type:"Tidal pass",depth:"Channel edge and shoal transitions",how:"Fish seams and eddies where bait is swept through the pass; current can be strong."},
@@ -4862,6 +4876,14 @@ document.getElementById("wmfWeatherSheet")?.addEventListener("click",e=>{if(e.ta
  .wmf-card-actions button{min-height:46px;padding:6px 4px;border-radius:11px;border:1px solid #38566d;background:#132332;color:#eef6fb;font-weight:800;font-size:14px}
  .wmf-card-actions button.primary{background:#0b668d;border-color:#0b668d}
  .wmf-card .loading{color:#9fb0bf;font-style:italic}
+ .wmf-card-launch{margin-top:8px;padding:8px 10px;border-radius:10px;background:#132332}
+ .wmf-card-launch small{display:block;font-size:11px;color:#9fb0bf;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+ .wmf-card-launch .row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+ .wmf-card-launch .row button{min-height:44px;padding:4px;border-radius:10px;border:1px solid #38566d;background:#0f1f2d;color:#eef6fb;font-weight:800;font-size:13px}
+ .wmf-card-launch .alt{margin-top:8px;padding-top:8px;border-top:1px solid #24394a}
+ .wmf-card-launch .src{font-size:11px;color:#9fb0bf;margin-top:6px;line-height:1.35}
+ .wmf-card-launch .src a{color:#9fd3ee}
+ .wmf-launch-pin{width:26px;height:26px;border-radius:7px;background:#fff;border:2px solid #0b668d;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 4px #0007}
 
  .wmf-hub{position:fixed;inset:0;z-index:5150;background:rgba(3,12,19,.6);align-items:flex-end;justify-content:center;padding:12px 12px calc(80px + env(safe-area-inset-bottom))}
  .wmf-hub.open{display:flex}
@@ -5048,6 +5070,7 @@ function wmfRenderCard(loading){
    <div><small>Pressure</small><b>${L_(press?`${press}${trend?`, ${trend}`:""}`:"")}</b></div>
   </div>
   ${!loading&&lure?`<div class="wmf-card-throw"><small>What to throw</small><b>${wmfEsc(lure)}</b>${color||weight?`<div class="small muted">${wmfEsc([color,weight].filter(Boolean).join(" · "))}</div>`:""}</div>`:""}
+  ${wmfLaunchHtml(s)}
   ${!loading?`<button type="button" class="wmf-card-toggle" onclick="wmfToggleDetails()">${wmfCardExpanded?"▴ Hide details":"📊 All details ▾"}</button>`:""}`;
 }
 function wmfOpenCard(s){
@@ -5152,6 +5175,47 @@ function wmfForecastChangeSpot(){
  // Picking a spot closes the list and then selects it; only clear the flag if no pick follows (✕ or backdrop).
  closeSpotSelector=function(){const r=origCloseSel.apply(this,arguments);setTimeout(()=>{if(!document.getElementById("wmfSpotSheet")?.classList.contains("open"))wmfBackToForecast=false;},0);return r;};
 })();
+
+// Boat launches: card section, map layer (off until turned on) and driving directions.
+const wmfLaunchLayer=L.layerGroup(),wmfLaunchMarkers={};
+Object.entries(boatLaunches).forEach(([id,l])=>{
+ const icon=L.divIcon({className:"",html:'<div class="wmf-launch-pin">🚤</div>',iconSize:[26,26],iconAnchor:[13,13]});
+ wmfLaunchMarkers[id]=L.marker([l.lat,l.lon],{icon,title:l.name}).bindPopup(
+  `<strong>🚤 ${wmfEsc(l.name)}</strong><br>${wmfEsc(l.accessType)}<br>${wmfEsc(l.address)}<br>`+
+  `<button onclick="wmfLaunchDirections('${id}','apple')" style="margin-top:6px">Apple Maps</button> `+
+  `<button onclick="wmfLaunchDirections('${id}','google')" style="margin-top:6px">Google Maps</button>`
+ ).addTo(wmfLaunchLayer);
+});
+if(typeof layerControl!=="undefined")layerControl.addOverlay(wmfLaunchLayer,"🚤 Boat launches");
+function wmfLaunchDirections(id,app){
+ const l=boatLaunches[id];if(!l)return;
+ const url=app==="apple"
+  ?`https://maps.apple.com/?daddr=${l.lat},${l.lon}&q=${encodeURIComponent(l.name)}`
+  :`https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lon}`;
+ window.open(url,"_blank","noopener");
+}
+function wmfShowLaunch(id){
+ const l=boatLaunches[id];if(!l)return;
+ if(!map.hasLayer(wmfLaunchLayer))wmfLaunchLayer.addTo(map);
+ wmfCloseCard();
+ map.setView([l.lat,l.lon],14);
+ wmfLaunchMarkers[id].openPopup();
+}
+function wmfLaunchHtml(s){
+ const ids=(s&&s.launches||[]).filter(id=>boatLaunches[id]);
+ if(!ids.length)return "";
+ const one=(id,label)=>{
+  const l=boatLaunches[id],known=v=>v&&v!=="unknown";
+  const facts=[l.accessType,known(l.launchFee)?`Fee: ${l.launchFee}`:"Fee: unknown",known(l.hours)?l.hours:"",l.phone].filter(Boolean);
+  return `<small>${label}</small><b>🚤 ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
+   <div class="row"><button type="button" onclick="wmfLaunchDirections('${id}','apple')">Apple Maps</button>
+   <button type="button" onclick="wmfLaunchDirections('${id}','google')">Google Maps</button>
+   <button type="button" onclick="wmfShowLaunch('${id}')">On map</button></div>
+   <div class="src">${wmfEsc(l.verificationStatus)} (${wmfEsc(l.verifiedDate)}). <a href="${wmfEsc(l.sourceURL)}" target="_blank" rel="noopener">Source</a></div>`;
+ };
+ return `<div class="wmf-card-launch">${one(ids[0],"Nearest boat launch")}${ids[1]?`<div class="alt">${one(ids[1],"Other launch")}</div>`:""}
+  <div class="src">Driving directions only. Boat routes from the launch aren't verified; ask locally before running unfamiliar canals.</div></div>`;
+}
 
 // Rain radar is also a switch in the map's Layers list.
 (function(){

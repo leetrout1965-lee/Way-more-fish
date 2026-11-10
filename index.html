@@ -1316,7 +1316,7 @@ const boatLaunches={
  "burns-point":{name:"Burns Point Launch & Campground",lat:29.57500,lon:-91.53742,address:"End of LA-317, Centerville, LA 70522",phone:"(337) 836-9784",
   accessType:"Public parish park ramp and campground (St. Mary Parish)",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Listed on St. Mary Parish's 2023 launch guide (launches into East Cote Blanche Bay). Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
-  sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Cote Blanche / Nickel Reef","Tiger Shoal East"]},
+  sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Cote Blanche / Nickel Reef","Tiger Shoal East","Vermilion Bay"]},
  "jugs-landing":{name:"Jug's Landing",lat:29.33651,lon:-90.84164,address:"3258 Bayou Dularge Rd, Theriot, LA 70397",phone:"",
   accessType:"Privately run landing on Bayou Dularge; call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
@@ -4947,6 +4947,8 @@ document.getElementById("wmfWeatherSheet")?.addEventListener("click",e=>{if(e.ta
  .wmf-card-launch .row{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
  .wmf-card-launch .row button{min-height:44px;padding:4px;border-radius:10px;border:1px solid #38566d;background:#0f1f2d;color:#eef6fb;font-weight:800;font-size:13px}
  .wmf-card-launch .alt{margin-top:8px;padding-top:8px;border-top:1px solid #24394a}
+ .wmf-card-launch details.alt{background:none;border-radius:0;padding:8px 0 0}
+ .wmf-card-launch details.alt summary{min-height:40px;display:flex;align-items:center;color:#9fd3ee}
  .wmf-card-launch .src{font-size:11px;color:#9fb0bf;margin-top:6px;line-height:1.35}
  .wmf-card-launch .src a{color:#9fd3ee}
  .wmf-launch-pin{width:26px;height:26px;border-radius:7px;background:#fff;border:2px solid #0b668d;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 4px #0007}
@@ -5267,33 +5269,37 @@ function wmfShowLaunch(id){
  map.setView([l.lat,l.lon],14);
  wmfLaunchMarkers[id].openPopup();
 }
+function wmfMilesText(a,b){const mi=wmfMiles(a,b);return `${mi<10?mi.toFixed(1):Math.round(mi)} mi`;}
 // Miles between two points, straight line (not a driving or boating distance).
 function wmfMiles(a,b){
  const r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLon=(b.lon-a.lon)*r;
  const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
  return 3958.8*2*Math.asin(Math.sqrt(h));
 }
-// A spot's own `launches` list wins (hand-picked); otherwise the 2 closest launches that serve its area.
+// A spot's own `launches` list wins (hand-picked); otherwise every launch that serves its area, closest first.
+// The card shows the first 2 in full and the rest under "More launches", since the best ramp depends on wind and where you're headed.
 function wmfLaunchIdsFor(s){
  if(!s)return [];
  if(s.launches)return s.launches.filter(id=>boatLaunches[id]);
  return Object.keys(boatLaunches).filter(id=>(boatLaunches[id].areas||[]).includes(s.area))
-  .sort((a,b)=>wmfMiles(s,boatLaunches[a])-wmfMiles(s,boatLaunches[b])).slice(0,2);
+  .sort((a,b)=>wmfMiles(s,boatLaunches[a])-wmfMiles(s,boatLaunches[b]));
 }
+let wmfLaunchMoreOpen=false;
 function wmfLaunchHtml(s){
  const ids=wmfLaunchIdsFor(s);
  if(!ids.length)return "";
  const one=(id,label)=>{
   const l=boatLaunches[id],known=v=>v&&v!=="unknown";
   const facts=[l.accessType,known(l.launchFee)?`Fee: ${l.launchFee}`:"Fee: unknown",known(l.hours)?l.hours:"",l.phone].filter(Boolean);
-  const mi=wmfMiles(s,l);
-  return `<small>${label} · about ${mi<10?mi.toFixed(1):Math.round(mi)} mi away (straight line)</small><b>🚤 ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
+  return `<small>${label} · about ${wmfMilesText(s,l)} away (straight line)</small><b>🚤 ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
    <div class="row"><button type="button" onclick="wmfLaunchDirections('${id}','apple')">Apple Maps</button>
    <button type="button" onclick="wmfLaunchDirections('${id}','google')">Google Maps</button>
    <button type="button" onclick="wmfShowLaunch('${id}')">On map</button></div>
    <div class="src">${wmfEsc(l.verificationStatus)} (${wmfEsc(l.verifiedDate)}). <a href="${wmfEsc(l.sourceURL)}" target="_blank" rel="noopener">Source</a></div>`;
  };
- return `<div class="wmf-card-launch">${one(ids[0],"Nearest boat launch")}${ids.slice(1).map(id=>`<div class="alt">${one(id,"Other launch")}</div>`).join("")}
+ const more=ids.slice(2);
+ return `<div class="wmf-card-launch">${one(ids[0],"Nearest boat launch")}${ids[1]?`<div class="alt">${one(ids[1],"Other launch")}</div>`:""}
+  ${more.length?`<details class="alt" ${wmfLaunchMoreOpen?"open":""} ontoggle="wmfLaunchMoreOpen=this.open"><summary>More launches (${more.length}) ▾</summary>${more.map(id=>`<div class="alt">${one(id,"Launch")}</div>`).join("")}</details>`:""}
   <div class="src">Driving directions only. Boat routes from the launch aren't verified; ask locally before running unfamiliar canals.</div></div>`;
 }
 

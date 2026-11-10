@@ -1307,7 +1307,7 @@ const boatLaunches={
   sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Vermilion Bay","Cote Blanche / Nickel Reef","Tiger Shoal West","Tiger Shoal East"]},
  "icy-boat-launch":{name:"ICY Boat Launch (Intracoastal City)",lat:29.78517,lon:-92.15362,address:"Pintail Ave, Intracoastal City, LA 70510",phone:"(337) 893-9465",
   accessType:"Public 2-lane ramp (Abbeville Harbor & Terminal District)",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
-  verificationStatus:"Ramp location matches state data, OpenStreetMap and satellite imagery. It was closed for dredging and has since reopened; check current status",verifiedDate:"2026-11-10",
+  verificationStatus:"Ramp location matches state data, OpenStreetMap and satellite imagery. It was closed for dredging and has since reopened",verifiedDate:"2026-11-10",
   sourceURL:"https://archive.vermiliontoday.com/node/65985",areas:["Vermilion Bay","Tiger Shoal West"]},
  "delcambre-bayou-carlin":{name:"Bayou Carlin Cove Boat Landing (Delcambre)",lat:29.94203,lon:-91.98301,address:"605 S Railroad St, Delcambre, LA 70528",phone:"(800) 884-6120",
   accessType:"Public 4-lane ramp (Port of Delcambre)",launchFee:"unknown",parking:"Large lot",hours:"unknown",restrictions:"unknown",
@@ -1316,11 +1316,11 @@ const boatLaunches={
  "burns-point":{name:"Burns Point Launch & Campground",lat:29.57500,lon:-91.53742,address:"End of LA-317, Centerville, LA 70522",phone:"(337) 836-9784",
   accessType:"Public parish park ramp and campground (St. Mary Parish)",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Listed on St. Mary Parish's 2023 launch guide (launches into East Cote Blanche Bay). Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
-  sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Cote Blanche / Nickel Reef","Tiger Shoal East","Vermilion Bay"]},
+  sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Cote Blanche / Nickel Reef","Tiger Shoal East","Vermilion Bay","Four League Bay / Atchafalaya"]},
  "jugs-landing":{name:"Jug's Landing",lat:29.33651,lon:-90.84164,address:"3258 Bayou Dularge Rd, Theriot, LA 70397",phone:"",
   accessType:"Privately run landing on Bayou Dularge; call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
-  sourceURL:"https://www.howsyourriver.com/access_sites/jugs-landing",areas:["Dularge"]},
+  sourceURL:"https://www.howsyourriver.com/access_sites/jugs-landing",areas:["Dularge","Four League Bay / Atchafalaya"]},
  "falgout-canal":{name:"Falgout Canal Marina",lat:29.41354,lon:-90.78371,address:"Falgout Canal Rd, Theriot, LA 70397",phone:"",
   accessType:"Listed as public by some sources and semi-private by others; call ahead",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
@@ -1443,7 +1443,40 @@ const boatLaunches={
  "hog-island-gully":{name:"Hog Island Gully Launch (Sabine NWR)",lat:29.909078,lon:-93.382586,address:"Sabine National Wildlife Refuge (Cameron Parish)",phone:"",
   accessType:"Public refuge launch onto Calcasieu Lake; refuge rules and seasonal closures apply",launchFee:"unknown",parking:"unknown",hours:"Refuge hours",restrictions:"Refuge regulations",
   verificationStatus:"On the visitor bureau's launch list; checked on satellite imagery",verifiedDate:"2026-11-10",
-  sourceURL:"https://assets.simpleviewinc.com/simpleview/image/upload/v1/clients/lakecharles/2014_Fish_Guide_updated_VLC_logo_2020_be3b858d-1776-42a9-96c3-ad054121e9d5.pdf",areas:["West Cove"]}
+  sourceURL:"https://assets.simpleviewinc.com/simpleview/image/upload/v1/clients/lakecharles/2014_Fish_Guide_updated_VLC_logo_2020_be3b858d-1776-42a9-96c3-ad054121e9d5.pdf",areas:["West Cove"]},
+ // Batch 5 (Nov 2026): Sabine, Cameron Beaches, Four League Bay / Atchafalaya, plus Laketown and Empire from Dad's list.
+ "laketown-kenner":{name:"Laketown Boat Launch (Williams Blvd, Kenner)",lat:30.04085,lon:-90.23825,address:"Williams Blvd at Lake Pontchartrain, Kenner, LA",phone:"",
+  accessType:"Public city launch, 4 ramps",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Rehabilitated by the City of Kenner. Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://howsyourriver.com/access_sites/laketown",areas:["Lake Pontchartrain"]},
+ "empire-boat-harbor":{name:"Empire Boat Harbor",lat:29.38573,lon:-89.60145,address:"317 Rosemarie Dr, Empire, LA 70050",phone:"(504) 453-7473",
+  accessType:"Parish-owned harbor (Plaquemines Parish); call to confirm public launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"Floodgates can close in storms or high water",
+  verificationStatus:"Ramp in state data and OpenStreetMap at the Empire harbor; public access not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.plaqueminesparish.gov/Directory.aspx?DID=13",areas:["Empire / Buras / Venice"]},
+ "sabine-pass-launch":{name:"Sabine Pass Boat Launch (Louisiana side)",lat:29.767894,lon:-93.892542,address:"LA-82, Cameron Parish",phone:"",
+  accessType:"Public ramp onto Sabine Lake",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"On the Lake Charles visitor bureau's launch list (GPS matches); checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://assets.simpleviewinc.com/simpleview/image/upload/v1/clients/lakecharles/2014_Fish_Guide_updated_VLC_logo_2020_be3b858d-1776-42a9-96c3-ad054121e9d5.pdf",areas:["Sabine","Cameron Beaches"]},
+ "deep-bayou-landing":{name:"Deep Bayou Landing",lat:29.79053,lon:-93.75014,address:"Johnson Bayou area, Cameron Parish",phone:"",
+  accessType:"Public landing on the Sabine River side of Sabine Lake",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"On the Lake Charles visitor bureau's launch list (GPS matches); checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://assets.simpleviewinc.com/simpleview/image/upload/v1/clients/lakecharles/2014_Fish_Guide_updated_VLC_logo_2020_be3b858d-1776-42a9-96c3-ad054121e9d5.pdf",areas:["Sabine","Cameron Beaches"]},
+ "west-ferry-landing":{name:"West Ferry Landing (Cameron)",lat:29.80461,lon:-93.34913,address:"200 Gulf Beach Hwy, Cameron, LA 70631",phone:"",
+  accessType:"Listed as a public landing on the Calcasieu Ship Channel; check current status",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"On the visitor bureau's launch list; checked on satellite imagery. Many Cameron launches closed after the LNG plant went in, so status not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://assets.simpleviewinc.com/simpleview/image/upload/v1/clients/lakecharles/2014_Fish_Guide_updated_VLC_logo_2020_be3b858d-1776-42a9-96c3-ad054121e9d5.pdf",areas:["Cameron Beaches"]},
+ "grand-chenier-park":{name:"Grand Chenier Park",lat:29.769171,lon:-92.975478,address:"Grand Chenier, LA 70643",phone:"",
+  accessType:"Public parish park ramp on the Mermentau River",launchFee:"unknown",parking:"unknown",hours:"Park hours apply",restrictions:"unknown",
+  verificationStatus:"On the visitor bureau's launch list (GPS matches OpenStreetMap); checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://assets.simpleviewinc.com/simpleview/image/upload/v1/clients/lakecharles/2014_Fish_Guide_updated_VLC_logo_2020_be3b858d-1776-42a9-96c3-ad054121e9d5.pdf",areas:["Cameron Beaches"]},
+ "calumet-landing":{name:"Calumet Landing (Wax Lake)",lat:29.70052,lon:-91.37108,address:"5590 US-90, Patterson, LA 70392",phone:"",
+  accessType:"Public LDWF landing on the Wax Lake Outlet",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from LDWF data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/calumet-landing",areas:["Four League Bay / Atchafalaya"]},
+ "lj-michel-landing":{name:"Lawrence J. Michel Jr. Memorial Landing (Morgan City)",lat:29.68366,lon:-91.18168,address:"3301 Youngs Rd, Morgan City, LA 70380",phone:"",
+  accessType:"Public parish landing onto the Intracoastal Waterway",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Listed on St. Mary Parish's 2023 launch guide; location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Four League Bay / Atchafalaya"]}
 };
 // Live salinity sources. Each spot uses the nearest practical monitoring station, not an exact on-spot reading.
 const salinitySources={
@@ -5036,6 +5069,7 @@ document.getElementById("wmfWeatherSheet")?.addEventListener("click",e=>{if(e.ta
  .wmf-card-launch details.alt{background:none;border-radius:0;padding:8px 0 0}
  .wmf-card-launch details.alt summary{min-height:40px;display:flex;align-items:center;color:#9fd3ee}
  .wmf-card-launch .src{font-size:11px;color:#9fb0bf;margin-top:6px;line-height:1.35}
+ .wmf-check-tag{display:inline-block;vertical-align:2px;margin-left:4px;padding:2px 7px;border-radius:999px;background:#5d4311;color:#ffe08a;font-size:11px;font-weight:800;white-space:nowrap}
  .wmf-card-launch .src a{color:#9fd3ee}
  .wmf-launch-pin{width:26px;height:26px;border-radius:7px;background:#fff;border:2px solid #0b668d;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 1px 4px #0007}
 
@@ -5374,6 +5408,9 @@ function wmfLaunchIdsFor(s){
   // Drop far-off launches: keep anything within 25 mi, or within 10 mi of the closest (offshore spots).
   .filter((x,i,arr)=>i===0||x[1]<=Math.max(25,arr[0][1]+10)).map(x=>x[0]);
 }
+// Launches whose access or status isn't confirmed get a visible "Check before launch" tag.
+// (About access or status only; an unconfirmed fee doesn't count.)
+function wmfLaunchCheckFirst(l){return /not confirmed|call ahead|call to confirm|check access|check current status|check before/i.test(`${l.accessType} ${l.verificationStatus}`.replace(/fee not confirmed/ig,""));}
 function wmfLaunchFav(id,s){return (boatLaunches[id].favoriteAreas||[]).includes(s.area)?1:0;}
 let wmfLaunchMoreOpen=false;
 function wmfLaunchHtml(s){
@@ -5384,7 +5421,7 @@ function wmfLaunchHtml(s){
   const facts=[l.accessType,known(l.launchFee)?(l.launchFee==="Free"?"Free":`Fee: ${l.launchFee}`):"Fee likely, call ahead",known(l.hours)?l.hours:"",l.phone].filter(Boolean);
   if(l.kayak)label=label.replace(/boat launch|launch/i,"kayak launch");
   if(!s.launches&&wmfLaunchFav(id,s)&&id===ids[0])label="Local favorite";
-  return `<small>${label} · about ${wmfMilesText(s,l)} away (straight line)</small><b>${l.kayak?"🛶":"🚤"} ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
+  return `<small>${label} · about ${wmfMilesText(s,l)} away (straight line)</small><b>${l.kayak?"🛶":"🚤"} ${wmfEsc(l.name)}</b>${wmfLaunchCheckFirst(l)?' <span class="wmf-check-tag">Check before launch</span>':""}<div class="small muted">${wmfEsc(facts.join(" · "))}</div>
    <div class="row"><button type="button" onclick="wmfLaunchDirections('${id}','apple')">Apple Maps</button>
    <button type="button" onclick="wmfLaunchDirections('${id}','google')">Google Maps</button>
    <button type="button" onclick="wmfShowLaunch('${id}')">On map</button></div>

@@ -1298,7 +1298,33 @@ const boatLaunches={
  "campos-marina":{name:"Campo's Marina",lat:29.85393,lon:-89.67916,address:"1300 Yscloskey Hwy, Shell Beach, LA 70085",phone:"(504) 239-6377",
   accessType:"Privately run marina (listed as semi-private); call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-09",
-  sourceURL:"https://www.howsyourriver.com/access_sites/campos-marina"}
+  sourceURL:"https://www.howsyourriver.com/access_sites/campos-marina"},
+ // Batch 1 (Nov 2026): Vermilion Bay, Cote Blanche / Nickel Reef, Tiger Shoal West + East, Dularge.
+ // `areas` = fishing areas whose spots list this launch automatically (closest first).
+ "cypremort-point-sp":{name:"Cypremort Point State Park (Quintana Boat Launch)",lat:29.73153,lon:-91.84042,address:"306 Beach Ln, Cypremort Point, LA 70538",phone:"",
+  accessType:"State park ramp, open to the public",launchFee:"unknown",parking:"unknown",hours:"Park hours apply",restrictions:"unknown",
+  verificationStatus:"Ramp location matches state data, OpenStreetMap and satellite imagery; listed on St. Mary Parish's 2023 launch guide. Fee not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Vermilion Bay","Cote Blanche / Nickel Reef","Tiger Shoal West","Tiger Shoal East"]},
+ "icy-boat-launch":{name:"ICY Boat Launch (Intracoastal City)",lat:29.78517,lon:-92.15362,address:"Pintail Ave, Intracoastal City, LA 70510",phone:"(337) 893-9465",
+  accessType:"Public 2-lane ramp (Abbeville Harbor & Terminal District)",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Ramp location matches state data, OpenStreetMap and satellite imagery. It was closed for dredging and has since reopened; check current status",verifiedDate:"2026-11-10",
+  sourceURL:"https://archive.vermiliontoday.com/node/65985",areas:["Vermilion Bay","Tiger Shoal West"]},
+ "delcambre-bayou-carlin":{name:"Bayou Carlin Cove Boat Landing (Delcambre)",lat:29.94203,lon:-91.98301,address:"605 S Railroad St, Delcambre, LA 70528",phone:"(800) 884-6120",
+  accessType:"Public 4-lane ramp (Port of Delcambre)",launchFee:"unknown",parking:"Large lot",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Ramp location matches state data, OpenStreetMap and satellite imagery. Opened 2014",verifiedDate:"2026-11-10",
+  sourceURL:"https://apps.lsuagcenter.com/news_archive/2014/September/headline_news/4-million-fishing-boating-facility-opens-in-Delcambre.htm",areas:["Vermilion Bay"]},
+ "burns-point":{name:"Burns Point Launch & Campground",lat:29.57500,lon:-91.53742,address:"End of LA-317, Centerville, LA 70522",phone:"(337) 836-9784",
+  accessType:"Public parish park ramp and campground (St. Mary Parish)",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Listed on St. Mary Parish's 2023 launch guide (launches into East Cote Blanche Bay). Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://cajuncoast.com/wp-content/uploads/2023/10/2023-Boat-Launches-Info.pdf",areas:["Cote Blanche / Nickel Reef","Tiger Shoal East"]},
+ "jugs-landing":{name:"Jug's Landing",lat:29.33651,lon:-90.84164,address:"3258 Bayou Dularge Rd, Theriot, LA 70397",phone:"",
+  accessType:"Privately run landing on Bayou Dularge; call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/jugs-landing",areas:["Dularge"]},
+ "falgout-canal":{name:"Falgout Canal Marina",lat:29.41354,lon:-90.78371,address:"Falgout Canal Rd, Theriot, LA 70397",phone:"",
+  accessType:"Listed as public by some sources and semi-private by others; call ahead",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/falgout-canal-marina",areas:["Dularge"]}
 };
 // Live salinity sources. Each spot uses the nearest practical monitoring station, not an exact on-spot reading.
 const salinitySources={
@@ -5208,13 +5234,27 @@ function wmfShowLaunch(id){
  map.setView([l.lat,l.lon],14);
  wmfLaunchMarkers[id].openPopup();
 }
+// Miles between two points, straight line (not a driving or boating distance).
+function wmfMiles(a,b){
+ const r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLon=(b.lon-a.lon)*r;
+ const h=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLon/2)**2;
+ return 3958.8*2*Math.asin(Math.sqrt(h));
+}
+// A spot's own `launches` list wins (hand-picked); otherwise the 2 closest launches that serve its area.
+function wmfLaunchIdsFor(s){
+ if(!s)return [];
+ if(s.launches)return s.launches.filter(id=>boatLaunches[id]);
+ return Object.keys(boatLaunches).filter(id=>(boatLaunches[id].areas||[]).includes(s.area))
+  .sort((a,b)=>wmfMiles(s,boatLaunches[a])-wmfMiles(s,boatLaunches[b])).slice(0,2);
+}
 function wmfLaunchHtml(s){
- const ids=(s&&s.launches||[]).filter(id=>boatLaunches[id]);
+ const ids=wmfLaunchIdsFor(s);
  if(!ids.length)return "";
  const one=(id,label)=>{
   const l=boatLaunches[id],known=v=>v&&v!=="unknown";
   const facts=[l.accessType,known(l.launchFee)?`Fee: ${l.launchFee}`:"Fee: unknown",known(l.hours)?l.hours:"",l.phone].filter(Boolean);
-  return `<small>${label}</small><b>🚤 ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
+  const mi=wmfMiles(s,l);
+  return `<small>${label} · about ${mi<10?mi.toFixed(1):Math.round(mi)} mi away (straight line)</small><b>🚤 ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
    <div class="row"><button type="button" onclick="wmfLaunchDirections('${id}','apple')">Apple Maps</button>
    <button type="button" onclick="wmfLaunchDirections('${id}','google')">Google Maps</button>
    <button type="button" onclick="wmfShowLaunch('${id}')">On map</button></div>

@@ -1240,7 +1240,7 @@ const spots=[
 {name:"Pencil Canal / Little Lake",area:"Delacroix / Hopedale / Shell Beach",lat:29.7013367,lon:-89.7891700,tide:"8761305",tideName:"Shell Beach"},
 {name:"Lake Coquille / Bernard-Pisana Mouth",area:"Delacroix / Hopedale / Shell Beach",lat:29.7488367,lon:-89.5847833,tide:"8761305",tideName:"Shell Beach"},
 {name:"Shell Beach / Bayou Yscloskey",area:"Delacroix / Hopedale / Shell Beach",lat:29.8681,lon:-89.6732,tide:"8761305",tideName:"Shell Beach"},
-{name:"MRGO Long Rocks",area:"Delacroix / Hopedale / Shell Beach",lat:29.685900,lon:-89.399833,tide:"8761305",tideName:"Shell Beach",sourceNote:"Approximate fishing reference between the two MRGO rock jetty lines (Louisiana Fishing Blog area; checked on satellite imagery Nov 2026). Not a navigation waypoint.",launches:["hopedale-marina","campos-marina"]},
+{name:"MRGO Long Rocks",area:"Delacroix / Hopedale / Shell Beach",lat:29.685900,lon:-89.399833,tide:"8761305",tideName:"Shell Beach",sourceNote:"Approximate fishing reference between the two MRGO rock jetty lines (Louisiana Fishing Blog area; checked on satellite imagery Nov 2026). Not a navigation waypoint.",launches:["hopedale-marina","pips-launch","campos-marina"]},
 
 {name:"Lake Salvador",area:"Lafitte / Barataria",lat:29.7713889,lon:-90.1933333,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
 {name:"Bayou Perot / Point Legard",area:"Lafitte / Barataria",lat:29.5657778,lon:-90.1655556,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
@@ -1291,6 +1291,10 @@ const boatLaunches={
   accessType:"Privately run marina, open to the public",launchFee:"unknown",parking:"unknown",hours:"Open year-round; call for hours",restrictions:"unknown",
   verificationStatus:"Location checked on satellite imagery; open per May 2026 angler reports (formerly Breton Sound Marina)",verifiedDate:"2026-11-09",
   sourceURL:"https://www.explorelouisiana.com/boating/hopedale-marina"},
+ "pips-launch":{name:"Pip's Boat Launch",lat:29.81411,lon:-89.64366,address:"6405 Hopedale Hwy, St. Bernard, LA 70085",phone:"",
+  accessType:"Listed as a public boat ramp",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Listed as public (Louisiana Oil Spill Coordinator's Office data); some anglers reported it closed in May 2026, so check before going",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/pips"},
  "campos-marina":{name:"Campo's Marina",lat:29.85393,lon:-89.67916,address:"1300 Yscloskey Hwy, Shell Beach, LA 70085",phone:"(504) 239-6377",
   accessType:"Privately run marina (listed as semi-private); call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-09",
@@ -1354,7 +1358,7 @@ const structureDetails={
  "Lambert Bayou Mouth":{type:"Bayou mouth / east-bank shoreline current seam",depth:"Bayou mouth into shallow east-bank lake water",how:"Fish the mouth and adjacent east-bank shoreline when current pulls bait from the marsh. The Grand-to-Lambert shoreline is a documented redfish stretch on moving water."},
  "Lake Lery":{type:"Open lake + marsh drains",depth:"Shallow lake edges and drain mouths",how:"Fish points and drains on moving water; look for bait pushed along windward shorelines."},
  "Lake Coquille / Bernard-Pisana Mouth":{type:"Bayou mouths + broad flat",depth:"Mouth edges and adjacent flat",how:"Work current seams where the bayous empty into the lake, especially when bait is present."},
- "MRGO Long Rocks":{type:"MRGO rock jetties (the Long Rocks)",depth:"Rock-line edges and the channel between the two jetties",how:"Speckled trout are the main target. Work moving current along the rocks on the trolling motor instead of anchoring, and swim jigs back out of the rocks. Submerged rocks and snags sit off the visible line, shorelines here keep changing, and the shallow access canals (like the Spoil Canal) can strand boats; this is a fishing reference, not a navigation waypoint."},
+ "MRGO Long Rocks":{type:"MRGO rock jetties (the Long Rocks)",depth:"Rock-line edges and the channel between the two jetties",how:"The whole jetty line produces. Targets: speckled trout, redfish, black drum, sheepshead and big croakers. Work moving current along the rocks on the trolling motor instead of anchoring, and swim jigs back out of the rocks. Submerged rocks and snags sit off the visible line, shorelines here keep changing, and the shallow access canals (like the Spoil Canal) can strand boats; this is a fishing reference, not a navigation waypoint."},
  "Bayou Dosgris Deep Hole":{type:"Bayou deep hole",depth:"Approx. 10 ft hole and edges",how:"Fish the lip and bottom transition; slower presentations often work when current is weak."},
  "Port Fourchon / Belle Pass":{type:"Pass / jetties / channel edge",depth:"Deep pass edges and nearby flats",how:"Target current breaks and eddies; avoid the main navigation lane and heavy commercial traffic."},
  "Caminada Pass":{type:"Tidal pass",depth:"Channel edge and shoal transitions",how:"Fish seams and eddies where bait is swept through the pass; current can be strong."},
@@ -5213,7 +5217,7 @@ function wmfLaunchHtml(s){
    <button type="button" onclick="wmfShowLaunch('${id}')">On map</button></div>
    <div class="src">${wmfEsc(l.verificationStatus)} (${wmfEsc(l.verifiedDate)}). <a href="${wmfEsc(l.sourceURL)}" target="_blank" rel="noopener">Source</a></div>`;
  };
- return `<div class="wmf-card-launch">${one(ids[0],"Nearest boat launch")}${ids[1]?`<div class="alt">${one(ids[1],"Other launch")}</div>`:""}
+ return `<div class="wmf-card-launch">${one(ids[0],"Nearest boat launch")}${ids.slice(1).map(id=>`<div class="alt">${one(id,"Other launch")}</div>`).join("")}
   <div class="src">Driving directions only. Boat routes from the launch aren't verified; ask locally before running unfamiliar canals.</div></div>`;
 }
 

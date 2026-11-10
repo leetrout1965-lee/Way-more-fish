@@ -1262,7 +1262,7 @@ const spots=[
 
 {name:"Adams Bay",area:"Empire / Buras / Venice",lat:29.3750,lon:-89.6013889,tide:"8760721",tideName:"Pilottown"},
 {name:"Bay Pomme d'Or",area:"Empire / Buras / Venice",lat:29.35061,lon:-89.53994,tide:"8760721",tideName:"Pilottown"},
-{name:"Bay Gardene",area:"Empire / Buras / Venice",lat:29.5983,lon:-89.6183,tide:"8760721",tideName:"Pilottown"},
+{name:"Bay Gardene",area:"Empire / Buras / Venice",lat:29.5983,lon:-89.6183,tide:"8760721",tideName:"Pilottown",launches:["hopedale-marina","sweetwater-marina"]},
 {name:"Pilottown / Lower Mississippi",area:"Empire / Buras / Venice",lat:29.1800,lon:-89.2583,tide:"8760721",tideName:"Pilottown"},
 {name:"North Pass",area:"Empire / Buras / Venice",lat:29.1500,lon:-89.2000,tide:"8760412",tideName:"North Pass"},
 
@@ -1290,15 +1290,15 @@ const boatLaunches={
  "hopedale-marina":{name:"Hopedale Marina",lat:29.81886,lon:-89.61166,address:"7600 Hopedale Hwy, Hopedale, LA 70085",phone:"(504) 676-3474",
   accessType:"Privately run marina, open to the public",launchFee:"unknown",parking:"unknown",hours:"Open year-round; call for hours",restrictions:"unknown",
   verificationStatus:"Location checked on satellite imagery; open per May 2026 angler reports (formerly Breton Sound Marina)",verifiedDate:"2026-11-09",
-  sourceURL:"https://www.explorelouisiana.com/boating/hopedale-marina"},
+  sourceURL:"https://www.explorelouisiana.com/boating/hopedale-marina",areas:["Delacroix / Hopedale / Shell Beach"]},
  "pips-launch":{name:"Pip's Boat Launch",lat:29.81411,lon:-89.64366,address:"6405 Hopedale Hwy, St. Bernard, LA 70085",phone:"",
   accessType:"Listed as a public boat ramp",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Listed as public (Louisiana Oil Spill Coordinator's Office data); some anglers reported it closed in May 2026, so check before going",verifiedDate:"2026-11-10",
-  sourceURL:"https://www.howsyourriver.com/access_sites/pips"},
+  sourceURL:"https://www.howsyourriver.com/access_sites/pips",areas:["Delacroix / Hopedale / Shell Beach"]},
  "campos-marina":{name:"Campo's Marina",lat:29.85393,lon:-89.67916,address:"1300 Yscloskey Hwy, Shell Beach, LA 70085",phone:"(504) 239-6377",
   accessType:"Privately run marina (listed as semi-private); call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-09",
-  sourceURL:"https://www.howsyourriver.com/access_sites/campos-marina"},
+  sourceURL:"https://www.howsyourriver.com/access_sites/campos-marina",areas:["Delacroix / Hopedale / Shell Beach","Lake Borgne / Rigolets"]},
  // Batch 1 (Nov 2026): Vermilion Bay, Cote Blanche / Nickel Reef, Tiger Shoal West + East, Dularge.
  // `areas` = fishing areas whose spots list this launch automatically (closest first).
  "cypremort-point-sp":{name:"Cypremort Point State Park (Quintana Boat Launch)",lat:29.73153,lon:-91.84042,address:"306 Beach Ln, Cypremort Point, LA 70538",phone:"",
@@ -1353,11 +1353,56 @@ const boatLaunches={
  "bridgeside-marina":{name:"Bridgeside Marina (Grand Isle)",lat:29.2036,lon:-90.04046,address:"1618 LA-1, Grand Isle, LA 70358",phone:"(985) 787-2419",
   accessType:"Privately run marina, open to the public",launchFee:"unknown",parking:"Paid lot",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location matches state data and satellite imagery; listed by the Town of Grand Isle",verifiedDate:"2026-11-10",
-  sourceURL:"https://townofgrandisle.com/fishing/",areas:["Grand Isle","Leeville / Fourchon"]},
+  sourceURL:"https://townofgrandisle.com/fishing/",areas:["Grand Isle","Leeville / Fourchon","Lafitte / Barataria"]},
  "wakeside-marina":{name:"Wakeside Marina (Grand Isle)",lat:29.20542,lon:-90.0391,address:"1615 LA-1, Grand Isle, LA 70358",phone:"(985) 309-6030",
   accessType:"Privately run marina, open to the public",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location matches state data and satellite imagery; listed by the Town of Grand Isle",verifiedDate:"2026-11-10",
-  sourceURL:"https://townofgrandisle.com/fishing/",areas:["Grand Isle"]}
+  sourceURL:"https://townofgrandisle.com/fishing/",areas:["Grand Isle","Lafitte / Barataria"]},
+ // Batch 3 (Nov 2026): Lafitte / Barataria, Empire / Buras / Venice, Lake Borgne / Rigolets, Lake Pontchartrain, rest of Delacroix.
+ "joes-landing":{name:"Joe's Landing (Lafitte)",lat:29.68504,lon:-90.1017,address:"4811 Privateer Blvd, Barataria, LA 70036",phone:"",
+  accessType:"Privately run full-service marina with launch ramps",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Ramp location matches state data, OpenStreetMap and satellite imagery; listed by the Town of Jean Lafitte",verifiedDate:"2026-11-10",
+  sourceURL:"https://townofjeanlafitte.com/joes-landing-3/",areas:["Lafitte / Barataria"]},
+ "cochiara-marina":{name:"Cochiara Marina (Lafitte)",lat:29.69188,lon:-90.09670,address:"1141 LA-45, Lafitte, LA 70067",phone:"",
+  accessType:"Marina ramp; listed as semi-private by some sources, call ahead",launchFee:"unknown",parking:"Lot at the ramp",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/cochiara-marina",areas:["Lafitte / Barataria"]},
+ "venice-marina":{name:"Venice Marina",lat:29.24063,lon:-89.36462,address:"Sports Marina Rd, Venice, LA 70091",phone:"",
+  accessType:"Privately run marina, open to the public",launchFee:"$10 (river guide, undated; confirm)",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Ramp matches OpenStreetMap (Venice Marina Boat Launch), state data and satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://rivergator.org/river-log/birdsfoot-delta/venice-to-gulf/pg/2/",areas:["Empire / Buras / Venice"]},
+ "cypress-cove":{name:"Cypress Cove Marina (Venice)",lat:29.25104,lon:-89.36176,address:"312 Cypress Point Rd, Venice, LA 70091",phone:"",
+  accessType:"Semi-private marina; call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/cypress-cove-marina",areas:["Empire / Buras / Venice"]},
+ "buras-boat-harbor":{name:"Buras Boat Harbor",lat:29.34907,lon:-89.53831,address:"309 Buras Boat Harbor Rd, Buras, LA 70041",phone:"",
+  accessType:"Parish-owned harbor (Plaquemines Parish); call to confirm ramp access",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery. Harbor reopened after dredging; ramp status not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.plaqueminesgazette.com/node/4565",areas:["Empire / Buras / Venice"]},
+ "rigolets-marina":{name:"Rigolets Marina",lat:30.17658,lon:-89.72711,address:"52250 US-90, Slidell, LA 70461",phone:"",
+  accessType:"Marina ramp, listed as open to the public",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/rigolets-marina",areas:["Lake Borgne / Rigolets","Lake Pontchartrain"]},
+ "chef-harbor-marina":{name:"Chef Harbor Marina",lat:30.07151,lon:-89.80097,address:"21135 US-90, New Orleans, LA 70129",phone:"",
+  accessType:"Privately run marina; call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/chef-harbor-marina",areas:["Lake Borgne / Rigolets"]},
+ "bonnabel-launch":{name:"Bonnabel Boat Launch (Metairie)",lat:30.02098,lon:-90.14239,address:"1599 Bonnabel Blvd, Metairie, LA 70005",phone:"",
+  accessType:"Public launch (Jefferson Parish), 4 lanes",launchFee:"unknown",parking:"Large lot",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Ramp location checked on satellite imagery; listed by Visit Jefferson Parish",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.visitjeffersonparish.com/outdoors/boating/",areas:["Lake Pontchartrain"]},
+ "mandeville-launch":{name:"Mandeville Boat Launch",lat:30.34991,lon:-90.05943,address:"100 block of Jackson Ave, Mandeville, LA 70448",phone:"",
+  accessType:"Public city launch (Mandeville)",launchFee:"Free",parking:"unknown",hours:"unknown",restrictions:"3 courtesy slips for boats under 40 ft",
+  verificationStatus:"City of Mandeville lists it as free, use at your own risk. Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.cityofmandeville.com/sites/default/files/fileattachments/public_works/page/2608/mandeville-boat-launch.pdf",areas:["Lake Pontchartrain"]},
+ "rigolets-bridge-north":{name:"Rigolets Bridge North (Slidell)",lat:30.21808,lon:-89.82362,address:"4973 Pontchartrain Dr, Slidell, LA 70458",phone:"",
+  accessType:"Listed as a public ramp",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/rigolets-bridge-north",areas:["Lake Pontchartrain","Lake Borgne / Rigolets"]},
+ "sweetwater-marina":{name:"Sweetwater Marina (Delacroix)",lat:29.76132,lon:-89.79091,address:"6205 Delacroix Hwy, St. Bernard, LA 70085",phone:"(504) 342-2368",
+  accessType:"Privately run marina, pay to launch",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
+  verificationStatus:"Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
+  sourceURL:"https://www.howsyourriver.com/access_sites/sweetwater-marina",areas:["Delacroix / Hopedale / Shell Beach"]}
 };
 // Live salinity sources. Each spot uses the nearest practical monitoring station, not an exact on-spot reading.
 const salinitySources={
@@ -5282,7 +5327,9 @@ function wmfLaunchIdsFor(s){
  if(!s)return [];
  if(s.launches)return s.launches.filter(id=>boatLaunches[id]);
  return Object.keys(boatLaunches).filter(id=>(boatLaunches[id].areas||[]).includes(s.area))
-  .sort((a,b)=>wmfMiles(s,boatLaunches[a])-wmfMiles(s,boatLaunches[b]));
+  .map(id=>[id,wmfMiles(s,boatLaunches[id])]).sort((a,b)=>a[1]-b[1])
+  // Drop far-off launches: keep anything within 25 mi, or within 10 mi of the closest (offshore spots).
+  .filter((x,i,arr)=>i===0||x[1]<=Math.max(25,arr[0][1]+10)).map(x=>x[0]);
 }
 let wmfLaunchMoreOpen=false;
 function wmfLaunchHtml(s){

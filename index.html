@@ -1329,7 +1329,7 @@ const boatLaunches={
  "coco-marina":{name:"CoCo Marina",lat:29.25074,lon:-90.66275,address:"106 Pier 56, Chauvin, LA 70344",phone:"(985) 594-7733",
   accessType:"Privately run marina, open to the public",launchFee:"$5 launch + $5 parking (marina's posted day rate; confirm)",parking:"Paid lot",hours:"Varies by season",restrictions:"unknown",
   verificationStatus:"Location matches state data and satellite imagery; fees from the marina's own site",verifiedDate:"2026-11-10",
-  sourceURL:"https://coco-marina.treepl.co/Restaurant/store-apparel",areas:["Cocodrie","Lake Pelto"]},
+  sourceURL:"https://coco-marina.treepl.co/Restaurant/store-apparel",areas:["Cocodrie","Lake Pelto"],favoriteAreas:["Cocodrie","Lake Pelto"]},
  "boudreaux-marina":{name:"Boudreaux's Marina",lat:29.24526,lon:-90.66262,address:"8250 LA-56, Chauvin, LA 70344",phone:"",
   accessType:"Privately run marina; call to confirm launching",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location from state data, checked on satellite imagery; current status not confirmed",verifiedDate:"2026-11-10",
@@ -1363,6 +1363,10 @@ const boatLaunches={
   accessType:"Privately run full-service marina with launch ramps",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Ramp location matches state data, OpenStreetMap and satellite imagery; listed by the Town of Jean Lafitte",verifiedDate:"2026-11-10",
   sourceURL:"https://townofjeanlafitte.com/joes-landing-3/",areas:["Lafitte / Barataria"]},
+ "grand-isle-kayak":{name:"Grand Isle Kayak Launch (Ludwig Lane)",kayak:true,lat:29.23842,lon:-90.00332,address:"Ludwig Ln, Grand Isle, LA 70358",phone:"",
+  accessType:"Public kayak launch next to the LDWF Marine Fisheries Lab",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"Kayaks and paddle craft",
+  verificationStatus:"Listed by the Town of Grand Isle; matches a mapped kayak access point (OpenStreetMap)",verifiedDate:"2026-11-10",
+  sourceURL:"https://townofgrandisle.com/fishing/",areas:["Grand Isle"]},
  "cochiara-marina":{name:"Cochiara Marina (Lafitte)",lat:29.69188,lon:-90.09670,address:"1141 LA-45, Lafitte, LA 70067",phone:"",
   accessType:"Marina ramp; listed as semi-private by some sources, call ahead",launchFee:"unknown",parking:"Lot at the ramp",hours:"unknown",restrictions:"unknown",
   verificationStatus:"Location from state data, checked on satellite imagery",verifiedDate:"2026-11-10",
@@ -5292,9 +5296,9 @@ function wmfForecastChangeSpot(){
 // Boat launches: card section, map layer (off until turned on) and driving directions.
 const wmfLaunchLayer=L.layerGroup(),wmfLaunchMarkers={};
 Object.entries(boatLaunches).forEach(([id,l])=>{
- const icon=L.divIcon({className:"",html:'<div class="wmf-launch-pin">🚤</div>',iconSize:[26,26],iconAnchor:[13,13]});
+ const icon=L.divIcon({className:"",html:`<div class="wmf-launch-pin">${l.kayak?"🛶":"🚤"}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
  wmfLaunchMarkers[id]=L.marker([l.lat,l.lon],{icon,title:l.name}).bindPopup(
-  `<strong>🚤 ${wmfEsc(l.name)}</strong><br>${wmfEsc(l.accessType)}<br>${wmfEsc(l.address)}<br>`+
+  `<strong>${l.kayak?"🛶":"🚤"} ${wmfEsc(l.name)}</strong><br>${wmfEsc(l.accessType)}<br>${wmfEsc(l.address)}<br>`+
   `<button onclick="wmfLaunchDirections('${id}','apple')" style="margin-top:6px">Apple Maps</button> `+
   `<button onclick="wmfLaunchDirections('${id}','google')" style="margin-top:6px">Google Maps</button>`
  ).addTo(wmfLaunchLayer);
@@ -5328,9 +5332,12 @@ function wmfLaunchIdsFor(s){
  if(s.launches)return s.launches.filter(id=>boatLaunches[id]);
  return Object.keys(boatLaunches).filter(id=>(boatLaunches[id].areas||[]).includes(s.area))
   .map(id=>[id,wmfMiles(s,boatLaunches[id])]).sort((a,b)=>a[1]-b[1])
+  // A local favorite for this area goes first when it's within 5 mi of the closest launch.
+  .sort((a,b)=>(b[1]-5<=a[1]&&wmfLaunchFav(b[0],s))-(a[1]-5<=b[1]&&wmfLaunchFav(a[0],s))||a[1]-b[1])
   // Drop far-off launches: keep anything within 25 mi, or within 10 mi of the closest (offshore spots).
   .filter((x,i,arr)=>i===0||x[1]<=Math.max(25,arr[0][1]+10)).map(x=>x[0]);
 }
+function wmfLaunchFav(id,s){return (boatLaunches[id].favoriteAreas||[]).includes(s.area)?1:0;}
 let wmfLaunchMoreOpen=false;
 function wmfLaunchHtml(s){
  const ids=wmfLaunchIdsFor(s);
@@ -5338,7 +5345,9 @@ function wmfLaunchHtml(s){
  const one=(id,label)=>{
   const l=boatLaunches[id],known=v=>v&&v!=="unknown";
   const facts=[l.accessType,known(l.launchFee)?(l.launchFee==="Free"?"Free":`Fee: ${l.launchFee}`):"Fee likely, call ahead",known(l.hours)?l.hours:"",l.phone].filter(Boolean);
-  return `<small>${label} · about ${wmfMilesText(s,l)} away (straight line)</small><b>🚤 ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
+  if(l.kayak)label=label.replace(/boat launch|launch/i,"kayak launch");
+  if(!s.launches&&wmfLaunchFav(id,s)&&id===ids[0])label="Local favorite";
+  return `<small>${label} · about ${wmfMilesText(s,l)} away (straight line)</small><b>${l.kayak?"🛶":"🚤"} ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
    <div class="row"><button type="button" onclick="wmfLaunchDirections('${id}','apple')">Apple Maps</button>
    <button type="button" onclick="wmfLaunchDirections('${id}','google')">Google Maps</button>
    <button type="button" onclick="wmfShowLaunch('${id}')">On map</button></div>
@@ -5347,7 +5356,7 @@ function wmfLaunchHtml(s){
  const more=ids.slice(2);
  return `<div class="wmf-card-launch">${one(ids[0],"Nearest boat launch")}${ids[1]?`<div class="alt">${one(ids[1],"Other launch")}</div>`:""}
   ${more.length?`<details class="alt" ${wmfLaunchMoreOpen?"open":""} ontoggle="wmfLaunchMoreOpen=this.open"><summary>More launches (${more.length}) ▾</summary>${more.map(id=>`<div class="alt">${one(id,"Launch")}</div>`).join("")}</details>`:""}
-  <div class="src">Most launches charge a fee, and amounts vary. Driving directions only. Boat routes from the launch aren't verified; ask locally before running unfamiliar canals.</div></div>`;
+  <div class="src">${ids.some(id=>boatLaunches[id].launchFee==="Free")?"Free launches aren't always kept up; check the ramp before you back down. ":""}Most launches charge a fee, and amounts vary. Driving directions only. Boat routes from the launch aren't verified; ask locally before running unfamiliar canals.</div></div>`;
 }
 
 // Rain radar is also a switch in the map's Layers list.

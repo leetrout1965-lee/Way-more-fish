@@ -2739,6 +2739,9 @@ spots.forEach((s,i)=>{
  spotMarkers.set(i,m);
 });
 map.on("zoomend",updateSpotMarkerIcons);
+// Every spot pin is on the map from the start; Layers → Fishing spots hides them.
+const allSpotsLayer=L.layerGroup([...spotMarkers.values()]).addTo(map);
+layerControl.addOverlay(allSpotsLayer,"🎣 Fishing spots");
 const areaPicker=document.getElementById("areaPicker");
 const picker=document.getElementById("locationPicker");
 const areaStatus=document.getElementById("areaStatus");
@@ -2817,8 +2820,8 @@ function showArea(area){
  picker.disabled=matches.length===0;
  populateCompareSelectors(matches);
  if(matches.length){
-  matches.forEach(x=>fg.addLayer(spotMarkers.get(x.i)));
-  map.fitBounds(fg.getBounds().pad(.15));
+  if(!map.hasLayer(allSpotsLayer))allSpotsLayer.addTo(map);
+  map.fitBounds(L.latLngBounds(matches.map(x=>[x.s.lat,x.s.lon])).pad(.15));
   areaStatus.textContent=`${matches.length} reference spot${matches.length===1?'':'s'} available in ${area}.`;
  }else{
   areaStatus.textContent=`${area} is added. Individual spots will be added after their locations and NOAA tide sources are verified.`;

@@ -5290,7 +5290,7 @@ function wmfLaunchHtml(s){
  if(!ids.length)return "";
  const one=(id,label)=>{
   const l=boatLaunches[id],known=v=>v&&v!=="unknown";
-  const facts=[l.accessType,known(l.launchFee)?`Fee: ${l.launchFee}`:"Fee: unknown",known(l.hours)?l.hours:"",l.phone].filter(Boolean);
+  const facts=[l.accessType,known(l.launchFee)?(l.launchFee==="Free"?"Free":`Fee: ${l.launchFee}`):"Fee likely, call ahead",known(l.hours)?l.hours:"",l.phone].filter(Boolean);
   return `<small>${label} · about ${wmfMilesText(s,l)} away (straight line)</small><b>🚤 ${wmfEsc(l.name)}</b><div class="small muted">${wmfEsc(facts.join(" · "))}</div>
    <div class="row"><button type="button" onclick="wmfLaunchDirections('${id}','apple')">Apple Maps</button>
    <button type="button" onclick="wmfLaunchDirections('${id}','google')">Google Maps</button>
@@ -5300,7 +5300,7 @@ function wmfLaunchHtml(s){
  const more=ids.slice(2);
  return `<div class="wmf-card-launch">${one(ids[0],"Nearest boat launch")}${ids[1]?`<div class="alt">${one(ids[1],"Other launch")}</div>`:""}
   ${more.length?`<details class="alt" ${wmfLaunchMoreOpen?"open":""} ontoggle="wmfLaunchMoreOpen=this.open"><summary>More launches (${more.length}) ▾</summary>${more.map(id=>`<div class="alt">${one(id,"Launch")}</div>`).join("")}</details>`:""}
-  <div class="src">Driving directions only. Boat routes from the launch aren't verified; ask locally before running unfamiliar canals.</div></div>`;
+  <div class="src">Most launches charge a fee, and amounts vary. Driving directions only. Boat routes from the launch aren't verified; ask locally before running unfamiliar canals.</div></div>`;
 }
 
 // Rain radar is also a switch in the map's Layers list.

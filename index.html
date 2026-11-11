@@ -609,7 +609,7 @@ Offline / weak signal — showing the most recently cached app and any previousl
   <div id="wmfRadarStatus" class="wmf-weather-note">Radar is a visual reference. Check timestamp and official warnings.</div>
   <div class="wmf-weather-note">Radar colors: blues/greens = lighter precipitation; yellows/oranges/reds = heavier precipitation. No radar echo does not mean no danger.</div>
   <div class="wmf-weather-links"><a href="https://radar.weather.gov/" target="_blank" rel="noopener">Official NWS radar ↗</a><a href="https://www.nhc.noaa.gov/" target="_blank" rel="noopener">Hurricane Center ↗</a><a href="https://www.weather.gov/marine/" target="_blank" rel="noopener">Marine warnings ↗</a></div>
-  <div class="wmf-weather-note">Forecast and radar are not a declaration that boating is safe. Active hurricane/marine warnings override fishing ratings.</div>
+  <div class="wmf-weather-note">Forecast and radar are not a declaration that boating is safe. Always check hurricane and marine warnings before going out.</div>
  </div>
 </div>
 
@@ -1018,8 +1018,14 @@ function wmfSafetyShow(status,message){
   inside.style.display=status==="idle"||(status==="unavailable"&&wmfSafetyCache.key==="gulf")?"none":"";
  }
 }
-function wmfSafetyBlockMessage(){
- return wmfSafetyCache.message||"Marine hazards have not been ruled out. Do not rely on fishing scores.";
+const WMF_MAJOR_HAZARD=/hurricane|tropical storm|storm surge|storm warning/i;
+// The fishing tools always run (Dad fishes around storms while helping with cleanup).
+// A hurricane or tropical storm makes the user tap through a warning every time;
+// other alerts keep the red banner up but don't interrupt.
+async function wmfSafetyProceed(check){
+ await check();
+ if(wmfSafetyCache.status!=="blocked"||!wmfSafetyCache.major)return true;
+ return confirm(`⚠️ ${wmfSafetyCache.message}\n\nConditions can change fast around a storm. Check the National Hurricane Center and NWS marine forecast before you go.\n\nShow fishing info anyway?`);
 }
 // A phone dropping its connection mid-request (Safari says "Load failed") gets one retry.
 async function wmfFetchJson(url,retries=1){
@@ -1059,24 +1065,24 @@ async function wmfCheckMarineSafety(spot){
     // No spot yet: only a Gulf hurricane is worth an alarm; otherwise just prompt for a spot.
     const g=await wmfFetchJson("/.netlify/functions/marine-safety?scope=gulf");
     if(!Array.isArray(g?.gulfStorms))throw Error("Safety check response could not be verified");
-    if(g.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${g.gulfStorms.slice(0,2).join(", ")}`),{hazard:true});
+    if(g.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${g.gulfStorms.slice(0,2).join(", ")}`),{hazard:true,major:true});
     result={time:Date.now(),key,status:"idle",zones:[],marine:null,message:"Pick a fishing spot first."};
    }else{
    const r=await wmfFetchJson(`/.netlify/functions/marine-safety?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`);
    if(!Array.isArray(r?.hazards)||!Array.isArray(r?.gulfStorms)||!Array.isArray(r?.zones))throw Error("Safety check response could not be verified");
    const zones=r.zones,marine=r.marineForecast||null;
    const zoneText=zones.length?` (${zones[0].name}${zones[0].distanceKm>0?", nearest marine zone":""})`:"";
-   if(r.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${r.gulfStorms.slice(0,2).join(", ")}`),{hazard:true,zones,marine});
-   if(r.hazards.length)throw Object.assign(Error(`Active marine hazard: ${r.hazards.map(x=>x.event).slice(0,2).join(", ")}${zoneText}`),{hazard:true,zones,marine});
+   if(r.gulfStorms.length)throw Object.assign(Error(`Active tropical cyclone in the Gulf: ${r.gulfStorms.slice(0,2).join(", ")}`),{hazard:true,major:true,zones,marine});
+   if(r.hazards.length)throw Object.assign(Error(`Active marine hazard: ${r.hazards.map(x=>x.event).slice(0,2).join(", ")}${zoneText}`),{hazard:true,major:r.hazards.some(x=>WMF_MAJOR_HAZARD.test(x.event||"")),zones,marine});
    result={time:Date.now(),key,status:"clear",zones,marine,message:`No matching alerts found in the checked official feeds${zoneText}. This does NOT certify safe boating conditions.`};
    }
   }catch(error){
    // Only a real storm or hazard is red. A check that couldn't reach the service stays quiet
-   // (no banner), but still doesn't count as all-clear for the fishing tools.
+   // (no banner) and the fishing tools still run.
    const msg=String(error?.message||"Safety data unavailable").replace(/\.+$/,"");
    result=error.hazard
-    ?{time:Date.now(),key,status:"blocked",failed:false,zones:error.zones||[],marine:error.marine||null,message:`MARINE HAZARD: ${msg}. Fishing recommendations withheld. Check official NHC and NWS marine alerts.`}
-    :{time:Date.now(),key,status:"unavailable",failed:true,zones:[],marine:null,message:"Storm and marine alerts couldn't be checked just now, so fishing recommendations are paused. Try again in a minute, or check NHC and NWS marine alerts."};
+    ?{time:Date.now(),key,status:"blocked",failed:false,zones:error.zones||[],marine:error.marine||null,major:!!error.major,message:`MARINE HAZARD: ${msg}. Check official NHC and NWS marine alerts before going out.`}
+    :{time:Date.now(),key,status:"unavailable",failed:true,zones:[],marine:null,message:"Storm and marine alerts couldn't be checked just now. Check NHC and NWS marine alerts before going out."};
   }
   // A slower check for a spot the user already left must not overwrite the current spot's status.
   if(wmfSafetyRequest===request){
@@ -1093,19 +1099,19 @@ function wmfRequireSafety(spot){
 }
 // Fish Now ranks spots around the map view, so it doesn't need a picked spot.
 // With no spot it may run when the Gulf-wide hurricane check comes back clean;
-// each recommended spot then gets its own alert check (wmfSpotAlertsClear).
+// each recommended spot then gets its own alert check (wmfSpotAlertStatus).
 async function wmfFishNowAllowed(){
  if(typeof selected!=="undefined"&&selected)return wmfRequireSafety(selected);
  await wmfCheckMarineSafety(null);
  return wmfSafetyCache.key==="gulf"&&wmfSafetyCache.status==="idle";
 }
-// True only when this spot's NHC + NWS alert check succeeded and found nothing.
-// A failed check counts as not clear.
-async function wmfSpotAlertsClear(spot){
+// "clear", "alert" (active NHC/NWS alert) or "unchecked" (the check failed) for one spot.
+async function wmfSpotAlertStatus(spot){
  try{
   const r=await wmfFetchJson(`/.netlify/functions/marine-safety?lat=${Number(spot.lat).toFixed(4)}&lon=${Number(spot.lon).toFixed(4)}`);
-  return Array.isArray(r?.hazards)&&Array.isArray(r?.gulfStorms)&&!r.hazards.length&&!r.gulfStorms.length;
- }catch{return false}
+  if(!Array.isArray(r?.hazards)||!Array.isArray(r?.gulfStorms))return "unchecked";
+  return r.hazards.length||r.gulfStorms.length?"alert":"clear";
+ }catch{return "unchecked"}
 }
 const spots=[
 {name:"Cypremort Point",area:"Vermilion Bay",lat:29.71336,lon:-91.88,tide:"8765251",tideName:"Cypremort Point"},
@@ -1240,7 +1246,7 @@ const spots=[
 {name:"Pencil Canal / Little Lake",area:"Delacroix / Hopedale / Shell Beach",lat:29.7013367,lon:-89.7891700,tide:"8761305",tideName:"Shell Beach"},
 {name:"Lake Coquille / Bernard-Pisana Mouth",area:"Delacroix / Hopedale / Shell Beach",lat:29.7488367,lon:-89.5847833,tide:"8761305",tideName:"Shell Beach"},
 {name:"Shell Beach / Bayou Yscloskey",area:"Delacroix / Hopedale / Shell Beach",lat:29.8681,lon:-89.6732,tide:"8761305",tideName:"Shell Beach"},
-{name:"MRGO Long Rocks",area:"Delacroix / Hopedale / Shell Beach",lat:29.685900,lon:-89.399833,tide:"8761305",tideName:"Shell Beach",sourceNote:"Approximate fishing reference between the two MRGO rock jetty lines (Louisiana Fishing Blog area; checked on satellite imagery Nov 2026). Not a navigation waypoint.",launches:["hopedale-marina","pips-launch"]},
+{name:"MRGO Long Rocks",area:"Delacroix / Hopedale / Shell Beach",lat:29.685900,lon:-89.399833,tide:"8761305",tideName:"Shell Beach",sourceNote:"Approximate fishing reference between the two MRGO rock jetty lines (Louisiana Fishing Blog area; checked on satellite imagery Nov 2026). Not a navigation waypoint.",launches:["hopedale-marina"]},
 
 {name:"Lake Salvador",area:"Lafitte / Barataria",lat:29.7713889,lon:-90.1933333,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
 {name:"Bayou Perot / Point Legard",area:"Lafitte / Barataria",lat:29.5657778,lon:-90.1655556,tide:"8761899",tideName:"Lafitte, Barataria Waterway"},
@@ -1306,10 +1312,6 @@ const boatLaunches={
   accessType:"Privately run marina, open to the public",launchFee:"unknown",parking:"unknown",hours:"Open year-round; call for hours",restrictions:"unknown",
   verificationStatus:"Location checked on satellite imagery; open per May 2026 angler reports (formerly Breton Sound Marina)",verifiedDate:"2026-11-09",
   sourceURL:"https://www.explorelouisiana.com/boating/hopedale-marina",areas:["Delacroix / Hopedale / Shell Beach"]},
- "pips-launch":{name:"Pip's Boat Launch",lat:29.81411,lon:-89.64366,address:"6405 Hopedale Hwy, St. Bernard, LA 70085",phone:"",
-  accessType:"Listed as a public boat ramp",launchFee:"unknown",parking:"unknown",hours:"unknown",restrictions:"unknown",
-  verificationStatus:"Listed as public (Louisiana Oil Spill Coordinator's Office data); some anglers reported it closed in May 2026, so check before going",verifiedDate:"2026-11-10",
-  sourceURL:"https://www.howsyourriver.com/access_sites/pips",areas:["Delacroix / Hopedale / Shell Beach"]},
  // Batch 1 (Nov 2026): Vermilion Bay, Cote Blanche / Nickel Reef, Tiger Shoal West + East, Dularge.
  // `areas` = fishing areas whose spots list this launch automatically (closest first).
  "cypremort-point-sp":{name:"Cypremort Point State Park (Quintana Boat Launch)",lat:29.73153,lon:-91.84042,address:"306 Beach Ln, Cypremort Point, LA 70538",phone:"",
@@ -2242,7 +2244,7 @@ function gamePlanForRankedSpot(r,rank){
  </div>`;
 }
 async function runFishNowMap(){
- if(!(await wmfFishNowAllowed())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfSafetyProceed(wmfFishNowAllowed)))return;
  if(typeof closeFishingToolsMenu==="function")closeFishingToolsMenu();
  if(typeof closeFishingTool==="function")closeFishingTool();
  const b=document.getElementById("wmfFishNowBtn");
@@ -2438,7 +2440,7 @@ function renderForecastPins(top,target){
  if(bounds.length)map.fitBounds(bounds,{padding:[55,55],maxZoom:10});
 }
 async function runForecastForSelectedSpot(){
- if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfSafetyProceed(wmfRequireSafety)))return;
  const target=selectedForecastTarget();
  const status=document.getElementById("wmfForecastStatus");
  const btn=document.getElementById("wmfForecastRunBtn");
@@ -3964,7 +3966,7 @@ function renderWhereNowPins(top){
  if(bounds.length)map.fitBounds(bounds,{padding:[55,55],maxZoom:10});
 }
 async function findWhereNow(){
- if(!(await wmfFishNowAllowed())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfSafetyProceed(wmfFishNowAllowed)))return;
  const btn=document.getElementById("whereNowBtn"),status=document.getElementById("whereNowStatus"),box=document.getElementById("whereNowResults");
  btn.disabled=true;box.innerHTML="";whereNowLayer.clearLayers();latestFishNowTop=[];
 
@@ -4036,20 +4038,15 @@ async function findWhereNow(){
 
  finalists.sort((a,b)=>b.now.score-a.now.score||b.now.cleanScore-a.now.cleanScore||distance(a.spot)-distance(b.spot));
 
- // Never pin a spot with an active marine alert, or one whose alerts couldn't be checked.
+ // Spots with an active marine alert, or whose alerts couldn't be checked, still show but are tagged.
  status.textContent="Checking marine alerts for the best spots…";
- const alertsClear=await Promise.all(finalists.map(r=>wmfSpotAlertsClear(r.spot)));
- const safeFinalists=finalists.filter((r,i)=>alertsClear[i]);
- const skipped=finalists.length-safeFinalists.length;
- if(!safeFinalists.length){
-  status.textContent="Fish Now found no spots to recommend: the best nearby spots have active marine alerts, or their alerts couldn't be checked. Check NWS marine warnings before going out.";
-  btn.disabled=false;return;
- }
+ const alertStatus=await Promise.all(finalists.map(r=>wmfSpotAlertStatus(r.spot)));
+ finalists.forEach((r,i)=>r.alerts=alertStatus[i]);
 
  // Keep some geographic variety without forcing one-per-area statewide.
  const top=[];
  const usedNames=new Set();
- for(const r of safeFinalists){
+ for(const r of finalists){
   if(usedNames.has(r.spot.name))continue;
   top.push(r);usedNames.add(r.spot.name);
   if(top.length===3)break;
@@ -4057,17 +4054,17 @@ async function findWhereNow(){
 
  renderWhereNowPins(top);
 
- status.textContent=`Fish Now checked ${ranked.length} nearby spots. Top ${top.length} ${top.length===1?"is":"are"} pinned — tap a number for the Game Plan.${skipped?` Skipped ${skipped} with an active marine alert or no alert check.`:""}`;
+ status.textContent=`Fish Now checked ${ranked.length} nearby spots. Top ${top.length} ${top.length===1?"is":"are"} pinned — tap a number for the Game Plan.${top.some(r=>r.alerts==="alert")?" ⚠️ Some have an active marine alert. Check NWS marine warnings before going out.":""}`;
 
  box.innerHTML='<table><thead><tr><td><strong>Rank</strong></td><td><strong>Spot / area</strong></td><td><strong>Now</strong></td><td><strong>Water</strong></td><td><strong>Why</strong></td></tr></thead><tbody>'+
- top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div><button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,4).join(" • ")||"current conditions fit"}</td></tr>`).join("")+
+ top.map((r,i)=>`<tr><td><strong>#${i+1}</strong></td><td><strong>${r.spot.name}</strong><div class="small muted">${r.spot.area}</div>${r.alerts==="alert"?'<div class="small" style="color:#ff8a80;font-weight:800">⚠️ Active marine alert</div>':r.alerts==="unchecked"?'<div class="small muted">Alerts not checked</div>':""}<button class="spot-map-link" onclick="viewSpotOnMap(${spots.indexOf(r.spot)})">View on map</button></td><td><strong>${r.now.score}/100</strong><div class="small muted">Confidence: ${r.confidence}</div></td><td>${r.clarity&&Number.isFinite(r.clarity.score)?`${r.clarity.label} • ${Math.round(r.clarity.score)}/100`:`Water ${r.now.cleanScore}/100`}</td><td>${r.now.reasons.slice(0,4).join(" • ")||"current conditions fit"}</td></tr>`).join("")+
  '</tbody></table><div class="small muted" style="margin-top:8px">Fish Now ranks the current map area first, then nearby spots if needed. It performs the expensive water-clarity check only on finalists.</div>';
 
  btn.disabled=false;
 }
 
 async function findTop3Tomorrow(){
- if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfSafetyProceed(wmfRequireSafety)))return;
  const btn=document.getElementById("top3TomorrowBtn"),status=document.getElementById("top3TomorrowStatus"),box=document.getElementById("top3TomorrowResults"),target=targetTomorrowMorning();
  btn.disabled=true;box.innerHTML="";
  const areas=[...new Set(spots.map(s=>s.area))],stage1=[];let failed=0;const failures=[];
@@ -4426,7 +4423,7 @@ function nearMeCompositeScore(fishingScore,distance){
  return Math.round(Math.max(0,Math.min(100,fishingScore-penalty)));
 }
 async function findBestNearMe(){
- if(!(await wmfRequireSafety())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfSafetyProceed(wmfRequireSafety)))return;
  const btn=document.getElementById("nearMeBtn"),status=document.getElementById("nearMeStatus"),results=document.getElementById("nearMeResults");
  btn.disabled=true;results.innerHTML="";status.textContent="Getting your location…";
  try{
@@ -4733,7 +4730,7 @@ function markComparisonDay(offset){
  if(offset!=null)document.querySelectorAll(`.wmf-cmp [data-offset="${offset}"]`).forEach(el=>el.classList.add("sel"));
 }
 async function buildOpportunityCalendar(){
- if(!(await wmfFishNowAllowed())){alert(wmfSafetyBlockMessage());return;}
+ if(!(await wmfSafetyProceed(wmfFishNowAllowed)))return;
  const area=(calendarArea&&calendarArea.value)||areaPicker.value;
  const target=(calendarTarget&&calendarTarget.value)||"Any";
  if(!area){document.getElementById("calendarStatus").textContent="Choose an area first.";return;}

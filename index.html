@@ -928,15 +928,16 @@ If this file is opened in iPad Quick Look, live JavaScript may not run. Open the
 <div class="small muted" style="margin-top:7px">Reference fishing structure only. Depths are approximate fishing zones, not safe-navigation data. Map pins are water-reference points checked against monitoring/topographic sources where available; they are not navigation waypoints.</div></section>
 
 
-<section class="card"><h3>What to throw now</h3>
+<section class="card"><h3>Bait &amp; lure options</h3>
 <div class="row"><span>Target</span><strong id="throwTarget">—</strong></div>
-<div class="row"><span>Lure / bait</span><strong id="throwLure">—</strong></div>
+<div id="throwOptions" style="margin:6px 0">—</div>
+<div id="throwOther" class="small muted" style="margin-bottom:6px"></div>
 <div class="row"><span>Color</span><strong id="throwColor">—</strong></div>
 <div class="row"><span>Weight</span><strong id="throwWeight">—</strong></div>
 <div class="row"><span>Retrieve</span><strong id="throwRetrieve">—</strong></div>
 <div id="throwPresentation" style="margin-top:8px;font-weight:700">Presentation: —</div>
 <div id="throwWhy" class="small muted" style="margin-top:5px">Choose a spot and load conditions for a recommendation.</div>
-<div class="small muted" style="margin-top:7px">Starting-point fishing guidance only. Adjust lure weight and presentation for actual current, depth, water clarity and fish response.</div></section>
+<div class="small muted" style="margin-top:7px">Starting points, not rules, and no lure is guaranteed. Adjust for actual current, depth, water clarity and what the fish tell you.</div></section>
 
 <section class="card full"><h3>Compare spots</h3>
 <div class="small muted" style="margin-bottom:8px">Compare up to 4 spots in the selected area. This comparison uses loaded conditions only and does not include your manual clarity or bait observations.</div>
@@ -1662,9 +1663,95 @@ function resetStructure(){
  document.getElementById("structureHow").textContent="How to fish it: —";
  document.getElementById("structureNote").textContent="Choose a spot to see the most useful structure cue.";
 }
+// Bait & Lure Options (Dad, Nov 2026): a few varied lure types and natural baits instead of one
+// default paddletail. Scores follow his species + conditions table; unknown conditions add nothing.
+const WMF_BAITS={
+ cork:{name:"Popping cork + shrimp imitation",fam:"cork",tip:"Pop it, then pause 5–10 seconds. Set the leader so the bait rides just above the shell or grass."},
+ twitch:{name:"Suspending twitchbait (MirrOdine-style)",fam:"hard",tip:"Twitch-twitch-pause; most bites come on the pause. Good for shallow reef edges and bait schools."},
+ swimbait:{name:"Hard swimbait or swimming plug",fam:"hard",tip:"Steady retrieve just over the structure to cover water and find the fish."},
+ paddle:{name:"Paddletail on a jighead",fam:"soft",tip:"Hop it along the bottom and across the depth change."},
+ topwater:{name:"Topwater plug",fam:"top",tip:"Walk-the-dog over shallow shell or grass. Best in low light and calm water."},
+ spoon:{name:"Spoon or weedless lure",fam:"spoon",tip:"Slow-roll it over grass and shallow flats; it won't hang up."},
+ shrimpPlastic:{name:"Soft plastic shrimp or jerk shad",fam:"soft",tip:"Let it fall slowly near cover, twitch, and let it sink again."},
+ liveShrimp:{name:"Live shrimp (if available)",fam:"natural",tip:"Under a cork over shell, or on a light jighead or Carolina rig near bottom."},
+ cocahoe:{name:"Live cocahoes or local baitfish (if available)",fam:"natural",tip:"Carolina rig or jighead dragged slowly along edges and drop-offs."},
+ mullet:{name:"Live or cut mullet (if available)",fam:"natural",tip:"On the bottom near drains, points and passes."},
+ cutBait:{name:"Cut bait (if available)",fam:"natural",tip:"Fish it on the bottom; scent helps redfish find it in dirty water."},
+ crab:{name:"Crab or fresh shrimp on the bottom (if available)",fam:"natural",tip:"Small hook, fished tight to pilings, rocks or shell."}
+};
+const WMF_BAIT_SPECIES={
+ "speckled trout":{cork:4,twitch:4,paddle:4,topwater:3,swimbait:3,shrimpPlastic:3,liveShrimp:3,cocahoe:2,spoon:1,mullet:-2,cutBait:-6,crab:-6},
+ "redfish":{spoon:4,cork:4,paddle:4,shrimpPlastic:3,liveShrimp:3,cocahoe:3,cutBait:3,mullet:3,topwater:2,swimbait:2,twitch:1,crab:1},
+ "flounder":{cocahoe:5,paddle:4,shrimpPlastic:4,liveShrimp:3,swimbait:1,mullet:1,cork:-1,twitch:-1,spoon:-1,cutBait:-2,topwater:-6,crab:-6},
+ "black drum":{liveShrimp:5,crab:5,cutBait:3,cork:2,shrimpPlastic:2,paddle:0,cocahoe:-2,mullet:-2,spoon:-4,swimbait:-6,twitch:-6,topwater:-6},
+ "sheepshead":{crab:6,liveShrimp:5,shrimpPlastic:0,cutBait:-3,cork:-3,paddle:-3,cocahoe:-4,mullet:-6,spoon:-6,swimbait:-6,twitch:-6,topwater:-6}
+};
+// c: {species:[names, most likely first], structure, depth, clarity (10 clean, 5 stained, -10 muddy, null unknown),
+//     bait (manual bait level or null), wind (mph or null), tempF (or null), hour (or null)}
+function wmfBaitOptions(c){
+ const sp=(c.species||[]).map(x=>String(x).toLowerCase()).filter(x=>WMF_BAIT_SPECIES[x]);
+ if(!sp.length)sp.push("speckled trout","redfish");
+ const st=`${c.structure||""} ${c.depth||""}`.toLowerCase();
+ const score={},why={};
+ for(const k in WMF_BAITS){score[k]=0;why[k]=[];}
+ sp.slice(0,2).forEach((s,i)=>{const w=i?0.6:1;for(const k in WMF_BAITS)score[k]+=w*(WMF_BAIT_SPECIES[s][k]||0);});
+ const add=(label,map)=>{for(const k in map){score[k]+=map[k];if(map[k]>0)why[k].push(label);}};
+ const shell=/reef|oyster|shell|hard bottom|hard-bottom/.test(st);
+ const deep=/deep|ledge|channel|hole|drop|slope|artificial reef/.test(st);
+ if(c.clarity!=null&&c.clarity>=10)add("clear water",{swimbait:3,twitch:3,topwater:2});
+ else if(c.clarity!=null&&c.clarity<=-10)add("muddy water",{cork:3,paddle:2,liveShrimp:2,cutBait:3,twitch:-2,topwater:-2});
+ else if(c.clarity!=null&&c.clarity>0)add("stained water",{cork:3,paddle:2,shrimpPlastic:1});
+ if(shell&&!deep)add("shallow shell",{twitch:3,topwater:2,cork:3});
+ if(shell&&deep)add("deeper reef edges",{paddle:3,swimbait:1,shrimpPlastic:2});
+ else if(deep)add("deeper edges",{paddle:3,shrimpPlastic:1});
+ if(/grass/.test(st))add("grass",{spoon:3,topwater:2,shrimpPlastic:1});
+ if(/drain|marsh|bayou mouth|weir|canal|cut/.test(st))add("marsh drains",{cork:3,swimbait:2,paddle:2});
+ if(/surf|beach|gut/.test(st))add("surf",{spoon:2,paddle:1,liveShrimp:1});
+ if(/piling|bridge|jett|rock|riprap|rubble/.test(st))add("hard structure",{crab:2,liveShrimp:1,paddle:1});
+ if(/pass|current|jett|bridge|weir/.test(st)||(c.wind!=null&&c.wind>=16))add("strong current or wind",{paddle:2,cork:2,liveShrimp:2,cocahoe:1});
+ const lowLight=c.hour!=null&&((c.hour>=5&&c.hour<9)||(c.hour>=17&&c.hour<20));
+ if(lowLight&&c.wind!=null&&c.wind<10)add("calm low light",{topwater:3,twitch:2,swimbait:1});
+ if(c.bait!=null&&c.bait>=10)add("active bait",{swimbait:2,twitch:1,topwater:1});
+ if(c.tempF!=null&&c.tempF<60)add("cold water",{twitch:2,paddle:1,liveShrimp:1,topwater:-3});
+ const ranked=Object.keys(WMF_BAITS).sort((a,b)=>score[b]-score[a]);
+ // Three picks from different families (no three soft plastics); bottom-fish species may take two natural baits.
+ const natCap=/black drum|sheepshead/.test(sp[0])?2:1,picks=[],fams={};
+ for(const k of ranked){
+  if(picks.length===3||score[k]<=0)break;
+  const f=WMF_BAITS[k].fam;
+  if((fams[f]||0)>=(f==="natural"?natCap:1))continue;
+  picks.push(k);fams[f]=(fams[f]||0)+1;
+ }
+ // Reds, drum, sheepshead, flounder and dirty water get a natural bait in the top three;
+ // otherwise the best natural bait is offered under "Other options".
+ const needNatural=sp[0]!=="speckled trout"||(c.clarity!=null&&c.clarity<=-10);
+ if(needNatural&&!picks.some(k=>WMF_BAITS[k].fam==="natural")){
+  const nat=ranked.find(k=>WMF_BAITS[k].fam==="natural"&&score[k]>0);
+  if(nat)picks.splice(Math.min(picks.length,2),1,nat);
+ }
+ const other=ranked.filter(k=>!picks.includes(k)&&score[k]>0).slice(0,3);
+ const bestNat=ranked.find(k=>WMF_BAITS[k].fam==="natural"&&score[k]>0);
+ if(bestNat&&![...picks,...other].some(k=>WMF_BAITS[k].fam==="natural"))other[Math.min(other.length,2)]=bestNat;
+ return {picks:picks.map(k=>({key:k,...WMF_BAITS[k],why:why[k]})),other:other.map(k=>WMF_BAITS[k].name)};
+}
+let wmfBaitPicks=[];
+// Manual clarity report wins; otherwise a usable measured/satellite reading. null = unknown, never assumed.
+function wmfClarityLevel(){
+ const manual=Number(document.getElementById("clarity").value);
+ if(manual)return manual;
+ if(typeof usableClaritySignal==="function"&&usableClaritySignal(clarityState)){
+  const sc=clarityState.score;return sc>=60?10:sc>=25?5:-10;
+ }
+ return null;
+}
+function wmfBaitOptionHtml(o){
+ return `<div style="margin:6px 0"><strong>${wmfEsc(o.name)}</strong><div class="small">${wmfEsc(o.tip)}</div>${o.why.length?`<div class="small muted">Fits: ${wmfEsc(o.why.join(", "))}</div>`:""}</div>`;
+}
 function resetThrowNow(){
  document.getElementById("throwTarget").textContent="—";
- document.getElementById("throwLure").textContent="—";
+ document.getElementById("throwOptions").textContent="—";
+ document.getElementById("throwOther").textContent="";
+ wmfBaitPicks=[];
  document.getElementById("throwColor").textContent="—";
  document.getElementById("throwWeight").textContent="—";
  document.getElementById("throwRetrieve").textContent="—";
@@ -1676,13 +1763,11 @@ function whatToThrowNow(){
  const fit=waterState.fit;
  const target=fit&&fit.best&&fit.best.length?fit.best[0]:"Speckled trout / redfish";
  const tl=target.toLowerCase();
- let lure="3–4 in paddle tail on jighead";
- if(tl.includes("redfish"))lure="3–4 in paddle tail or weedless spoon";
- else if(tl.includes("flounder"))lure="3–4 in soft plastic worked near bottom";
- else if(tl.includes("black drum"))lure="Fresh shrimp or small crab near structure";
- else if(tl.includes("sheepshead"))lure="Shrimp, fiddler crab or small crustacean bait";
-
- const clarity=Number(document.getElementById("clarity").value);
+ const cl=wmfClarityLevel(),clarity=cl||0;
+ const baitLevel=Number(document.getElementById("bait").value)||null;
+ const opts=wmfBaitOptions({species:fit&&fit.best&&fit.best.length?fit.best:[],structure:document.getElementById("structureType").textContent,
+  depth:document.getElementById("structureDepth").textContent,clarity:cl,bait:baitLevel,wind:windAvg(),tempF:waterState.tempF,hour:new Date().getHours()});
+ wmfBaitPicks=opts.picks;
  let color="Pearl / natural baitfish";
  if(clarity>=10)color="Natural / translucent baitfish";
  else if(clarity<=-10)color="High-contrast dark or chartreuse-accented";
@@ -1715,10 +1800,12 @@ function whatToThrowNow(){
  else if(tm.startsWith("Falling"))reasons.push("falling tide concentrates flow on drains and outer edges");
  if(clarity>=10)reasons.push("clean water favors natural colors");
  else if(clarity<=-10)reasons.push("muddy water calls for more contrast");
+ if(cl==null)reasons.push("water clarity unknown, so picks use species and structure only");
  if(w!==null&&w>=16)reasons.push("wind calls for a little more jig weight");
 
  document.getElementById("throwTarget").textContent=target;
- document.getElementById("throwLure").textContent=lure;
+ document.getElementById("throwOptions").innerHTML=opts.picks.map(wmfBaitOptionHtml).join("");
+ document.getElementById("throwOther").textContent=opts.other.length?`Other options: ${opts.other.join(" · ")}`:"";
  document.getElementById("throwColor").textContent=color;
  document.getElementById("throwWeight").textContent=weight;
  document.getElementById("throwRetrieve").textContent=retrieve;
@@ -2216,12 +2303,10 @@ function fishNowWindow(r){
  try{return `${fmtHour(w.start)}–${fmtHour(w.end)} • ${w.score}/100`;}catch(e){return `${w.score||"—"}/100 window`;}
 }
 function fishNowStartLure(r){
- const ctx=structureDetails[r.spot.name]||{};
- const st=String(ctx.type||"").toLowerCase();
- if(/weir|marsh|drain|shoreline/.test(st))return "3–4 in paddle tail or weedless spoon";
- if(/deep|ledge|channel|pass/.test(st))return "3–4 in paddle tail on 3/8 oz jig; adjust for current";
- if(/reef|shell|oyster|hard bottom/.test(st))return "3–4 in paddle tail on 1/4 oz jig; work the edge";
- return "3–4 in paddle tail on 1/4 oz jig";
+ const ctx=structureContext(r.spot);
+ const sc=usableClaritySignal(r.clarity)?r.clarity.score:null;
+ const o=wmfBaitOptions({structure:ctx.type,depth:ctx.depth,clarity:sc==null?null:sc>=60?10:sc>=25?5:-10,hour:new Date().getHours()});
+ return wmfEsc(o.picks.map(p=>p.name).join(" · "));
 }
 function gamePlanForRankedSpot(r,rank){
  const ctx=structureDetails[r.spot.name]||{},reasons=(r.now&&r.now.reasons||[]).slice(0,3);
@@ -5236,7 +5321,7 @@ function wmfRenderCard(loading){
  const best=wmfTxt("bestWindow"),bestScore=wmfTxt("bestWindowScore");
  const wind=wmfTxt("wind"),tide=wmfTxt("tideMove"),next=wmfTxt("nextTide"),water=wmfTxt("autoClarityStatus");
  const press=wmfTxt("pressure"),trend=wmfTxt("pressureTrend");
- const lure=wmfTxt("throwLure"),color=wmfTxt("throwColor"),weight=wmfTxt("throwWeight");
+ const color=wmfTxt("throwColor"),weight=wmfTxt("throwWeight");
  const how=(wmfTxt("structureHow")||"").replace(/^How to fish it:\s*/,""),why=wmfTxt("why"),conf=wmfTxt("confidence");
  const alertTxt=wmfSafetyLine(),sol=wmfSolunarLine(s);
  const L_=v=>loading?'<span class="loading">Loading…</span>':wmfEsc(v||"Unavailable");
@@ -5255,7 +5340,7 @@ function wmfRenderCard(loading){
    <div><small>Water</small><b>${L_(water)}</b></div>
    <div><small>Pressure</small><b>${L_(press?`${press}${trend?`, ${trend}`:""}`:"")}</b></div>
   </div>
-  ${!loading&&lure?`<div class="wmf-card-throw"><small>What to throw</small><b>${wmfEsc(lure)}</b>${color||weight?`<div class="small muted">${wmfEsc([color,weight].filter(Boolean).join(" · "))}</div>`:""}</div>`:""}
+  ${!loading&&wmfBaitPicks.length?`<div class="wmf-card-throw"><small>Bait &amp; lure options</small><b>${wmfEsc(wmfBaitPicks.map(p=>p.name).join(" · "))}</b>${color||weight?`<div class="small muted">${wmfEsc([color,weight].filter(Boolean).join(" · "))}</div>`:""}</div>`:""}
   ${wmfLaunchHtml(s)}
   ${!loading?`<button type="button" class="wmf-card-toggle" onclick="wmfToggleDetails()">${wmfCardExpanded?"▴ Hide details":"📊 All details ▾"}</button>`:""}`;
 }
